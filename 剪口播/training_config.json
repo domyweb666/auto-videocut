@@ -1,0 +1,50 @@
+{
+  "_version": 1,
+  "_updated": "2026-04-15T02:30:39.264Z",
+  "_source": "auto_optimize",
+  "silence": {
+    "threshold": 0.9,
+    "sentence_gap": 0.5
+  },
+  "repeat": {
+    "prefix_len": 5
+  },
+  "filler_words": [
+    "嗯",
+    "啊",
+    "哎",
+    "诶",
+    "呃",
+    "額",
+    "唉",
+    "哦",
+    "噢",
+    "呀",
+    "欸"
+  ],
+  "filler_exceptions": [],
+  "stutter_patterns": [
+    "那個那個",
+    "就是就是",
+    "然後然後",
+    "這個這個",
+    "所以所以",
+    "那个那个",
+    "就是就是",
+    "然后然后",
+    "这个这个",
+    "所以所以"
+  ],
+  "incomplete_sentence": {
+    "max_chars": 10,
+    "min_overlap": 2
+  },
+  "intra_repeat": {
+    "min_len": 2,
+    "max_len": 3,
+    "max_gap": 3
+  },
+  "_baseline_f1": 0.576923076923077,
+  "_best_f1": 0.6274509803921569,
+  "_experiments": 88
+}

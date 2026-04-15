@@ -13,7 +13,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 
 const PORT = process.argv[2] || 8899;
 let VIDEO_FILE = process.argv[3] || findVideoFile();
@@ -44,6 +44,28 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // API: 保存學習報告（AI vs 使用者差異）
+  if (req.method === 'POST' && req.url === '/api/diff-report') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const report = JSON.parse(body);
+        const reportPath = path.resolve('..', '2_分析', 'diff_report.json');
+        fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
+        console.log(`📊 學習報告: AI標${report.aiCount}個, 使用者最終${report.userCount}個, 誤標${report.falsePositives.length}個, 漏標${report.falseNegatives.length}個`);
+        console.log(`💡 訪問 http://localhost:${PORT}/learning 審核並選擇是否更新規則`);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, learningUrl: `/learning` }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
   // API: 执行剪辑
   if (req.method === 'POST' && req.url === '/api/cut') {
     let body = '';
@@ -56,12 +78,13 @@ const server = http.createServer((req, res) => {
         fs.writeFileSync('delete_segments.json', JSON.stringify(deleteList, null, 2));
         console.log(`📝 保存 ${deleteList.length} 个删除片段`);
 
-        // 生成输出文件名
-        const baseName = path.basename(VIDEO_FILE, '.mp4');
-        const outputFile = `${baseName}_cut.mp4`;
+        // 生成输出文件名（支援 .mkv/.mp4 等格式）
+        const baseName = path.basename(VIDEO_FILE).replace(/\.[^/.]+$/, '');
+        const outputFile = path.resolve(`${baseName}_cut.mp4`);
 
         // 执行剪辑
         const scriptPath = path.join(__dirname, 'cut_video.sh');
+        const deleteSegmentsPath = path.resolve('delete_segments.json');
 
         if (!fs.existsSync(scriptPath)) {
           // 如果没有 cut_video.sh，用内置的 ffmpeg 命令
@@ -69,9 +92,29 @@ const server = http.createServer((req, res) => {
           executeFFmpegCut(VIDEO_FILE, deleteList, outputFile);
         } else {
           console.log('🎬 调用 cut_video.sh...');
-          execSync(`bash "${scriptPath}" "${VIDEO_FILE}" delete_segments.json "${outputFile}"`, {
-            stdio: 'inherit'
+          // 將 Windows 反斜線轉為正斜線，避免 bash 解析失敗
+          const scriptPathPosix = scriptPath.replace(/\\/g, '/');
+          const deletePathPosix = deleteSegmentsPath.replace(/\\/g, '/');
+          const outputFilePosix = outputFile.replace(/\\/g, '/');
+          execSync(`bash "${scriptPathPosix}" "${VIDEO_FILE}" "${deletePathPosix}" "${outputFilePosix}"`, {
+            stdio: 'inherit',
+            cwd: path.dirname(deleteSegmentsPath)
           });
+        }
+
+        // 自動產出 SRT 字幕
+        let srtFile = null;
+        try {
+          const srtScript = path.join(__dirname, 'generate_cut_srt.js');
+          const subtitlesPath = path.resolve('..', '1_轉錄', 'subtitles_words.json');
+          srtFile = outputFile.replace(/\.mp4$/, '.srt');
+          if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath)) {
+            execSync(`node "${srtScript}" "${subtitlesPath}" "${deleteSegmentsPath}" "${srtFile}"`, { stdio: 'inherit' });
+            console.log(`📝 已產出 SRT: ${srtFile}`);
+          }
+        } catch (srtErr) {
+          console.error('⚠️ SRT 生成失敗:', srtErr.message);
+          srtFile = null;
         }
 
         // 获取剪辑前后的时长信息
@@ -84,6 +127,7 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({
           success: true,
           output: outputFile,
+          srt: srtFile,
           originalDuration: originalDuration.toFixed(2),
           newDuration: newDuration.toFixed(2),
           deletedDuration: deletedDuration.toFixed(2),
@@ -95,6 +139,122 @@ const server = http.createServer((req, res) => {
         console.error('❌ 剪辑失败:', err.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ── 規則學習審核頁 ──
+  if (req.method === 'GET' && req.url === '/learning') {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(LEARNING_HTML);
+    return;
+  }
+
+  // ── API: 取得學習建議 ──
+  if (req.method === 'GET' && req.url === '/api/get-suggestions') {
+    try {
+      const reportPath = path.resolve('..', '2_分析', 'diff_report.json');
+      const configPath = path.join(__dirname, '..', 'training_config.json');
+      if (!fs.existsSync(reportPath)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: '尚未產生 diff_report.json，請先完成剪輯並提交差異報告' }));
+        return;
+      }
+      const diff = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+      const config = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : {};
+      const { generateSuggestions } = require(path.join(__dirname, 'generate_suggestions.js'));
+      const suggestions = generateSuggestions(diff, config);
+      const meta = {
+        aiCount: diff.aiCount || 0,
+        userCount: diff.userCount || 0,
+        fpCount: (diff.falsePositives || []).length,
+        fnCount: (diff.falseNegatives || []).length,
+        videoFile: diff.videoFile || null
+      };
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ suggestions, meta }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // ── API: 套用選中建議 ──
+  if (req.method === 'POST' && req.url === '/api/apply-suggestions') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { suggestions } = JSON.parse(body);
+        const configPath = path.join(__dirname, '..', 'training_config.json');
+        const config = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : {};
+        const applied = [];
+        const skipped = [];
+
+        for (const s of suggestions) {
+          if (!s.checked) continue;
+          const change = s.change;
+          if (!change) { skipped.push({ id: s.id, reason: '需手動處理' }); continue; }
+
+          // 靜音閾值
+          if (change.path === 'silence.threshold') {
+            if (!config.silence) config.silence = {};
+            const old = config.silence.threshold;
+            config.silence.threshold = change.to;
+            applied.push({ id: s.id, desc: `silence.threshold: ${old} → ${change.to}` });
+
+          // 語氣詞例外（加入保留清單）
+          } else if (change.path === 'filler_exceptions' && change.action === 'add') {
+            if (!config.filler_exceptions) config.filler_exceptions = [];
+            if (!config.filler_exceptions.includes(change.value)) {
+              config.filler_exceptions.push(change.value);
+              applied.push({ id: s.id, desc: `filler_exceptions: +「${change.value}」` });
+            } else {
+              skipped.push({ id: s.id, reason: `「${change.value}」已在例外清單中` });
+            }
+
+          // 保護詞（需寫入 .md 檔）
+          } else if (change.action === 'add_to_md') {
+            const mdFile = path.join(__dirname, '..', 'rules', 'user_habits', change.file || '10-保留連接詞.md');
+            try {
+              const existing = fs.existsSync(mdFile) ? fs.readFileSync(mdFile, 'utf8') : '';
+              if (!existing.includes(change.value)) {
+                fs.appendFileSync(mdFile, `\n- ${change.value}`);
+                applied.push({ id: s.id, desc: `保護詞清單 +「${change.value}」(${change.file})` });
+              } else {
+                skipped.push({ id: s.id, reason: `「${change.value}」已在保護詞清單中` });
+              }
+            } catch (mdErr) {
+              skipped.push({ id: s.id, reason: `.md 更新失敗: ${mdErr.message}` });
+            }
+
+          } else {
+            skipped.push({ id: s.id, reason: '不支援的變更類型' });
+          }
+        }
+
+        if (applied.length > 0) {
+          config._updated = new Date().toISOString();
+          config._source = 'manual_approval';
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+          // 記錄到 feedback_history
+          const historyPath = path.join(__dirname, '..', 'feedback_history.jsonl');
+          const entry = {
+            timestamp: config._updated,
+            source: 'learning_review',
+            applied: applied.map(a => a.desc),
+            skipped: skipped.map(s => s.reason)
+          };
+          fs.appendFileSync(historyPath, JSON.stringify(entry) + '\n');
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ applied, skipped, configPath }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
       }
     });
     return;
@@ -328,15 +488,457 @@ function executeFFmpegCutFallback(input, keepSegments, output) {
   }
 }
 
+// ── 學習審核 HTML ──
+const LEARNING_HTML = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>規則審核 — 自動學習</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      background: #1a1a1a; color: #e0e0e0; min-height: 100vh;
+    }
+    .header {
+      background: #252525; padding: 14px 24px; border-bottom: 1px solid #333;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .header h1 { font-size: 17px; font-weight: 600; }
+    .header .sub { font-size: 13px; color: #888; }
+    .header a { color: #9C27B0; text-decoration: none; font-size: 13px; margin-left: auto; }
+    .header a:hover { color: #CE93D8; }
+
+    .meta-bar {
+      background: #222; padding: 10px 24px;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex; gap: 24px; font-size: 13px; color: #aaa;
+    }
+    .meta-bar span strong { color: #e0e0e0; }
+    .meta-bar .ok { color: #4caf50; }
+    .meta-bar .warn { color: #ff9800; }
+
+    .toolbar {
+      padding: 12px 24px; display: flex; gap: 10px; align-items: center;
+      border-bottom: 1px solid #2a2a2a; flex-wrap: wrap;
+    }
+    .btn {
+      padding: 7px 16px; border-radius: 6px; border: none;
+      cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s;
+    }
+    .btn-primary { background: #7B1FA2; color: #fff; }
+    .btn-primary:hover { background: #9C27B0; }
+    .btn-primary:disabled { background: #444; color: #777; cursor: default; }
+    .btn-ghost { background: #2a2a2a; color: #ccc; border: 1px solid #444; }
+    .btn-ghost:hover { background: #333; color: #fff; }
+    .filter-tabs { display: flex; gap: 6px; margin-left: auto; }
+    .filter-tab {
+      padding: 5px 12px; border-radius: 20px; font-size: 12px;
+      cursor: pointer; background: #2a2a2a; color: #888; border: 1px solid #444;
+      transition: all 0.15s;
+    }
+    .filter-tab.active { background: #4a148c; color: #CE93D8; border-color: #7B1FA2; }
+
+    .content { padding: 0 24px 40px; }
+
+    /* ── 空狀態 ── */
+    .empty-state {
+      text-align: center; padding: 80px 20px; color: #666;
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state p { font-size: 14px; line-height: 1.8; }
+
+    /* ── 載入中 ── */
+    .loading {
+      text-align: center; padding: 60px 20px; color: #666;
+    }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid #333;
+      border-top-color: #9C27B0; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 建議卡片表格 ── */
+    .suggestion-table {
+      width: 100%; border-collapse: collapse; margin-top: 16px;
+    }
+    .suggestion-table th {
+      background: #252525; padding: 10px 12px; text-align: left;
+      font-size: 12px; color: #888; font-weight: 500;
+      border-bottom: 1px solid #333; white-space: nowrap;
+    }
+    .suggestion-table th:last-child { text-align: center; width: 60px; }
+    .suggestion-table td {
+      padding: 12px; border-bottom: 1px solid #2a2a2a;
+      vertical-align: top; font-size: 13px;
+    }
+    .suggestion-table tr:hover td { background: #1e1e1e; }
+    .suggestion-table tr.severity-high td:first-child { border-left: 3px solid #f44336; }
+    .suggestion-table tr.severity-medium td:first-child { border-left: 3px solid #ff9800; }
+    .suggestion-table tr.severity-low td:first-child { border-left: 3px solid #4caf50; }
+
+    .cat-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 8px; border-radius: 4px; font-size: 12px;
+      background: #2a2a2a; color: #ccc; margin-bottom: 6px;
+    }
+    .rule-file { font-size: 11px; color: #666; margin-top: 4px; }
+
+    .diff-col { font-size: 13px; line-height: 1.7; }
+    .diff-col .label { font-size: 11px; color: #666; margin-bottom: 2px; }
+    .diff-col .current { color: #888; }
+    .diff-col .ai-action { color: #f44336; }
+    .diff-col .srt-shows { color: #4caf50; }
+
+    .suggestion-text { color: #CE93D8; font-size: 13px; font-weight: 500; }
+    .change-detail {
+      font-size: 11px; color: #777; margin-top: 4px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .examples-toggle {
+      font-size: 12px; color: #9C27B0; cursor: pointer;
+      margin-top: 6px; display: inline-block; user-select: none;
+    }
+    .examples-toggle:hover { color: #CE93D8; }
+    .examples-list {
+      display: none; margin-top: 8px; padding: 8px;
+      background: #222; border-radius: 6px; border: 1px solid #2a2a2a;
+    }
+    .examples-list.open { display: block; }
+    .example-item {
+      display: flex; gap: 8px; font-size: 12px; padding: 4px 0;
+      border-bottom: 1px solid #2a2a2a; align-items: center;
+    }
+    .example-item:last-child { border-bottom: none; }
+    .example-item .at { color: #666; min-width: 60px; }
+    .example-item .ai { color: #f44336; min-width: 70px; }
+    .example-item .srt { color: #4caf50; min-width: 80px; }
+    .example-item .vid { color: #555; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+
+    /* ── 勾選框 ── */
+    .check-cell { text-align: center; }
+    .custom-check {
+      width: 22px; height: 22px; border: 2px solid #555; border-radius: 5px;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.15s; user-select: none;
+    }
+    .custom-check.checked { background: #7B1FA2; border-color: #9C27B0; }
+    .custom-check.checked::after { content: '✓'; color: #fff; font-size: 14px; font-weight: bold; }
+    .custom-check.manual { border-color: #444; cursor: default; opacity: 0.4; }
+
+    /* ── 結果提示 ── */
+    .result-banner {
+      display: none; margin: 16px 0; padding: 14px 18px; border-radius: 8px;
+      font-size: 14px; line-height: 1.8;
+    }
+    .result-banner.success {
+      background: #1a2e1a; border: 1px solid #2e7d32; color: #a5d6a7;
+    }
+    .result-banner.error {
+      background: #2c1a1a; border: 1px solid #7d2020; color: #ef9a9a;
+    }
+    .result-banner.open { display: block; }
+    .result-banner ul { padding-left: 20px; margin-top: 6px; }
+    .result-banner li { font-size: 13px; }
+
+    .section-title {
+      font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;
+      margin: 20px 0 0; padding-bottom: 8px; border-bottom: 1px solid #2a2a2a;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span style="font-size:20px">🧠</span>
+    <h1>規則審核</h1>
+    <span class="sub">根據本次剪輯與 SRT 的差異，決定是否更新編輯準則</span>
+    <a href="/">← 返回審核頁</a>
+  </div>
+
+  <div class="meta-bar" id="metaBar" style="display:none">
+    <span>AI 標記 <strong id="metaAi">-</strong> 個</span>
+    <span>使用者最終 <strong id="metaUser">-</strong> 個</span>
+    <span class="warn">誤標（AI 多剪）<strong id="metaFp">-</strong> 個</span>
+    <span class="warn">漏標（AI 少剪）<strong id="metaFn">-</strong> 個</span>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" id="applyBtn" disabled onclick="applySelected()">
+      ✅ 套用選中建議
+    </button>
+    <button class="btn btn-ghost" onclick="selectAll(true)">全選</button>
+    <button class="btn btn-ghost" onclick="selectAll(false)">全不選</button>
+    <span id="selectedCount" style="font-size:13px; color:#888">已選 0 項</span>
+    <div class="filter-tabs">
+      <div class="filter-tab active" onclick="setFilter('all', this)">全部</div>
+      <div class="filter-tab" onclick="setFilter('high', this)">🔴 高優先</div>
+      <div class="filter-tab" onclick="setFilter('medium', this)">🟡 中優先</div>
+      <div class="filter-tab" onclick="setFilter('low', this)">🟢 低優先</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="result-banner" id="resultBanner"></div>
+    <div class="loading" id="loadingState">
+      <div class="spinner"></div>
+      <p>載入建議中...</p>
+    </div>
+    <div class="empty-state" id="emptyState" style="display:none">
+      <div class="icon">✨</div>
+      <p>目前沒有需要調整的項目<br>AI 的剪輯方式已與你的 SRT 高度吻合！</p>
+    </div>
+    <table class="suggestion-table" id="suggTable" style="display:none">
+      <thead>
+        <tr>
+          <th>規則類別</th>
+          <th>📌 目前設定</th>
+          <th>🤖 AI 做法</th>
+          <th>✂️ SRT 顯示</th>
+          <th>💡 建議修改</th>
+          <th>採用?</th>
+        </tr>
+      </thead>
+      <tbody id="suggBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    let allSuggestions = [];
+    let currentFilter = 'all';
+
+    // ── 載入建議 ──
+    async function load() {
+      try {
+        const r = await fetch('/api/get-suggestions');
+        if (!r.ok) {
+          const err = await r.json();
+          showError(err.error || '載入失敗');
+          return;
+        }
+        const data = await r.json();
+        allSuggestions = data.suggestions || [];
+
+        // 更新 meta bar
+        const meta = data.meta || {};
+        document.getElementById('metaAi').textContent = meta.aiCount || 0;
+        document.getElementById('metaUser').textContent = meta.userCount || 0;
+        document.getElementById('metaFp').textContent = meta.fpCount || 0;
+        document.getElementById('metaFn').textContent = meta.fnCount || 0;
+        document.getElementById('metaBar').style.display = 'flex';
+
+        document.getElementById('loadingState').style.display = 'none';
+        renderTable();
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    function showError(msg) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'block';
+      document.getElementById('emptyState').innerHTML =
+        '<div class="icon">⚠️</div><p>' + escHtml(msg) + '</p>';
+    }
+
+    // ── 渲染表格 ──
+    function renderTable() {
+      const filtered = currentFilter === 'all'
+        ? allSuggestions
+        : allSuggestions.filter(s => s.severity === currentFilter);
+
+      const tbody = document.getElementById('suggBody');
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        document.getElementById('suggTable').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'block';
+        return;
+      }
+
+      document.getElementById('suggTable').style.display = 'table';
+      document.getElementById('emptyState').style.display = 'none';
+
+      for (const s of filtered) {
+        const isManual = !s.change || s.requiresManual;
+        const tr = document.createElement('tr');
+        tr.className = 'severity-' + (s.severity || 'low');
+        tr.dataset.id = s.id;
+
+        // 例子列表 HTML
+        const examplesHtml = (s.examples || []).length > 0 ? \`
+          <span class="examples-toggle" onclick="toggleEx(this)">▶ 查看 \${s.examples.length} 個例子</span>
+          <div class="examples-list">
+            \${s.examples.map(e => \`
+              <div class="example-item">
+                <span class="at">\${escHtml(e.at)}</span>
+                <span class="ai">\${escHtml(e.aiAction)}</span>
+                <span class="srt">\${escHtml(e.srtAction)}</span>
+                <span style="flex:1">\${escHtml(e.label)}</span>
+                \${e.video ? '<span class="vid">' + escHtml(e.video) + '</span>' : ''}
+              </div>
+            \`).join('')}
+          </div>
+        \` : '';
+
+        // 建議修改列
+        let changeHtml = '<span class="suggestion-text">' + escHtml(s.suggestion || '') + '</span>';
+        if (s.change && s.change.path === 'silence.threshold') {
+          changeHtml += '<div class="change-detail">' + s.change.path + ': ' + s.change.from + ' → ' + s.change.to + 's</div>';
+        } else if (s.change && s.change.action === 'add') {
+          changeHtml += '<div class="change-detail">' + s.change.path + ' += 「' + escHtml(s.change.value) + '」</div>';
+        } else if (isManual) {
+          changeHtml += '<div class="change-detail" style="color:#ff9800">⚠️ 需手動處理</div>';
+        }
+
+        tr.innerHTML = \`
+          <td>
+            <div class="cat-badge">\${escHtml(s.icon || '')} \${escHtml(s.category)}</div>
+            \${s.ruleFile ? '<div class="rule-file">📄 ' + escHtml(s.ruleFile) + '</div>' : ''}
+          </td>
+          <td class="diff-col">
+            <div class="label">目前設定</div>
+            <div class="current">\${escHtml(s.current)}</div>
+          </td>
+          <td class="diff-col">
+            <div class="label">AI 做法</div>
+            <div class="ai-action">\${escHtml(s.aiAction)}</div>
+          </td>
+          <td class="diff-col">
+            <div class="label">SRT 顯示</div>
+            <div class="srt-shows">\${escHtml(s.srtShows)}</div>
+            \${examplesHtml}
+          </td>
+          <td>\${changeHtml}</td>
+          <td class="check-cell">
+            <div class="custom-check \${isManual ? 'manual' : (s.checked ? 'checked' : '')}"
+                 \${isManual ? 'title="需手動處理，無法自動套用"' : ''}
+                 \${isManual ? '' : 'data-sugg-id="' + s.id + '"'}>
+            </div>
+          </td>
+        \`;
+        tbody.appendChild(tr);
+      }
+
+      // Event delegation for checkboxes (avoids quote-escaping issues in template literal)
+      document.querySelectorAll('.custom-check[data-sugg-id]').forEach(function(el) {
+        el.addEventListener('click', function() { toggleCheck(el, el.dataset.suggId); });
+      });
+
+      updateSelectedCount();
+    }
+
+    // ── 勾選邏輯 ──
+    function toggleCheck(el, id) {
+      const s = allSuggestions.find(x => x.id === id);
+      if (!s) return;
+      s.checked = !s.checked;
+      el.classList.toggle('checked', s.checked);
+      updateSelectedCount();
+    }
+
+    function selectAll(checked) {
+      const filtered = currentFilter === 'all' ? allSuggestions : allSuggestions.filter(s => s.severity === currentFilter);
+      for (const s of filtered) {
+        if (!s.requiresManual && s.change) s.checked = checked;
+      }
+      renderTable();
+    }
+
+    function updateSelectedCount() {
+      const n = allSuggestions.filter(s => s.checked && !s.requiresManual && s.change).length;
+      document.getElementById('selectedCount').textContent = '已選 ' + n + ' 項';
+      document.getElementById('applyBtn').disabled = n === 0;
+    }
+
+    // ── 過濾 ──
+    function setFilter(f, el) {
+      currentFilter = f;
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      renderTable();
+    }
+
+    // ── 展開例子 ──
+    function toggleEx(el) {
+      const list = el.nextElementSibling;
+      list.classList.toggle('open');
+      el.textContent = list.classList.contains('open')
+        ? el.textContent.replace('▶', '▼')
+        : el.textContent.replace('▼', '▶');
+    }
+
+    // ── 套用建議 ──
+    async function applySelected() {
+      const toApply = allSuggestions.filter(s => s.checked && !s.requiresManual && s.change);
+      if (toApply.length === 0) return;
+
+      document.getElementById('applyBtn').disabled = true;
+      document.getElementById('applyBtn').textContent = '套用中...';
+
+      try {
+        const r = await fetch('/api/apply-suggestions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ suggestions: toApply })
+        });
+        const data = await r.json();
+
+        if (!r.ok) throw new Error(data.error || '套用失敗');
+
+        const banner = document.getElementById('resultBanner');
+        banner.className = 'result-banner success open';
+        let html = '<strong>✅ 已成功套用 ' + data.applied.length + ' 項建議</strong>';
+        if (data.applied.length > 0) {
+          html += '<ul>' + data.applied.map(a => '<li>' + escHtml(a.desc) + '</li>').join('') + '</ul>';
+        }
+        if (data.skipped.length > 0) {
+          html += '<div style="margin-top:8px; color:#888; font-size:12px">略過 ' + data.skipped.length + ' 項：'
+            + data.skipped.map(s => escHtml(s.reason)).join('、') + '</div>';
+        }
+        html += '<div style="margin-top:8px; font-size:12px; color:#888">設定已存入 training_config.json，下次剪輯自動生效</div>';
+        banner.innerHTML = html;
+        banner.scrollIntoView({ behavior: 'smooth' });
+
+        // 標記已採用的項目
+        for (const s of toApply) {
+          const row = document.querySelector('tr[data-id="' + s.id + '"]');
+          if (row) {
+            row.style.opacity = '0.5';
+            row.querySelector('.check-cell').innerHTML = '<span style="color:#4caf50;font-size:18px">✓</span>';
+          }
+        }
+      } catch (err) {
+        const banner = document.getElementById('resultBanner');
+        banner.className = 'result-banner error open';
+        banner.innerHTML = '<strong>❌ 套用失敗</strong><p>' + escHtml(err.message) + '</p>';
+      } finally {
+        document.getElementById('applyBtn').disabled = false;
+        document.getElementById('applyBtn').textContent = '✅ 套用選中建議';
+      }
+    }
+
+    function escHtml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    load();
+  </script>
+</body>
+</html>`;
+
 server.listen(PORT, () => {
   console.log(`
 🎬 审核服务器已启动
 📍 地址: http://localhost:${PORT}
 📹 视频: ${VIDEO_FILE}
 
-操作说明:
-1. 在网页中审核选择要删除的片段
-2. 点击「🎬 执行剪辑」按钮
-3. 等待剪辑完成
+操作說明:
+1. 在網頁中審核選擇要刪除的片段
+2. 點擊「🎬 執行剪輯」按鈕
+3. 等待剪輯完成
+4. 剪輯完成後訪問 http://localhost:${PORT}/learning 審核規則更新
   `);
 });

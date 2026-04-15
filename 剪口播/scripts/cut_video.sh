@@ -34,6 +34,15 @@ BITRATE=$(ffprobe -v error -show_entries stream=bit_rate -select_streams v:0 -of
 PROFILE=$(ffprobe -v error -show_entries stream=profile -select_streams v:0 -of csv=p=0 "file:$INPUT")
 PIX_FMT=$(ffprobe -v error -show_entries stream=pix_fmt -select_streams v:0 -of csv=p=0 "file:$INPUT")
 
+# mkv/mov 等格式 stream bitrate 可能為 N/A，改用 container bitrate
+if [ -z "$BITRATE" ] || [ "$BITRATE" = "N/A" ]; then
+  BITRATE=$(ffprobe -v error -show_entries format=bit_rate -of csv=p=0 "file:$INPUT")
+fi
+# 若仍為空，預設 5000kbps
+if [ -z "$BITRATE" ] || [ "$BITRATE" = "N/A" ]; then
+  BITRATE=5000000
+fi
+
 BITRATE_K=$((BITRATE/1000))
 MAXRATE_K=$((BITRATE_K * 13 / 10))
 BUFSIZE_K=$((BITRATE_K * 2))
@@ -42,9 +51,11 @@ echo "📹 视频时长: ${DURATION}s"
 echo "📊 原片参数: ${BITRATE_K}kbps, profile=${PROFILE}, pix_fmt=${PIX_FMT}"
 echo "⚙️ 匹配码率重编码（-ss/-to 逐段提取，无 trim filter）"
 
-# 创建临时目录
-TMP_DIR=$(mktemp -d)
-trap "rm -rf $TMP_DIR" EXIT
+# 创建临时目录（Windows 相容：放在輸出檔案同層，避免 mktemp 路徑問題）
+OUTPUT_DIR=$(dirname "$OUTPUT")
+TMP_DIR="$OUTPUT_DIR/_tmp_cut_$$"
+mkdir -p "$TMP_DIR"
+trap "rm -rf '$TMP_DIR'" EXIT
 
 # 映射 profile
 PROFILE_LC=$(echo "$PROFILE" | tr '[:upper:]' '[:lower:]')
@@ -54,6 +65,65 @@ case "$PROFILE_LC" in
   "baseline") X264_PROFILE="baseline" ;;
   *) X264_PROFILE="high" ;;
 esac
+
+# 偵測硬體編碼器（優先 NVENC > QSV > AMF > 軟編碼）
+detect_encoder() {
+  local os_type
+  os_type=$(uname -s 2>/dev/null || echo "Windows")
+
+  case "$os_type" in
+    Darwin*)
+      if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q h264_videotoolbox; then
+        ENCODER="h264_videotoolbox"
+        ENCODER_ARGS="-q:v 60"
+        ENCODER_LABEL="VideoToolbox (macOS)"
+        return
+      fi
+      ;;
+    MINGW*|MSYS*|CYGWIN*|Windows*)
+      if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q h264_nvenc; then
+        ENCODER="h264_nvenc"
+        ENCODER_ARGS="-preset p4 -cq 20 -profile:v $X264_PROFILE"
+        ENCODER_LABEL="NVENC (NVIDIA)"
+        return
+      fi
+      if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q h264_qsv; then
+        ENCODER="h264_qsv"
+        ENCODER_ARGS="-global_quality 20 -profile:v $X264_PROFILE"
+        ENCODER_LABEL="QSV (Intel)"
+        return
+      fi
+      if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q h264_amf; then
+        ENCODER="h264_amf"
+        ENCODER_ARGS="-quality balanced -profile:v $X264_PROFILE"
+        ENCODER_LABEL="AMF (AMD)"
+        return
+      fi
+      ;;
+    Linux*)
+      if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q h264_nvenc; then
+        ENCODER="h264_nvenc"
+        ENCODER_ARGS="-preset p4 -cq 20 -profile:v $X264_PROFILE"
+        ENCODER_LABEL="NVENC (NVIDIA)"
+        return
+      fi
+      if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q h264_vaapi; then
+        ENCODER="h264_vaapi"
+        ENCODER_ARGS="-qp 20"
+        ENCODER_LABEL="VAAPI (Linux)"
+        return
+      fi
+      ;;
+  esac
+
+  # 軟編碼兜底
+  ENCODER="libx264"
+  ENCODER_ARGS="-profile:v $X264_PROFILE"
+  ENCODER_LABEL="x264 (軟編碼)"
+}
+
+detect_encoder
+echo "🎯 編碼器: $ENCODER_LABEL"
 
 # 用 node 计算保留片段，生成提取脚本和 concat 列表
 TOTAL_SEGS=$(node -e "
@@ -110,7 +180,7 @@ if [ -z "$TOTAL_SEGS" ] || [ "$TOTAL_SEGS" -eq 0 ]; then
 fi
 
 echo "✂️ 提取 $TOTAL_SEGS 个片段（并行度 $PARALLEL）..."
-echo "   编码: libx264 -profile:v $X264_PROFILE -b:v ${BITRATE_K}k -pix_fmt $PIX_FMT"
+echo "   编码: $ENCODER $ENCODER_ARGS -b:v ${BITRATE_K}k -pix_fmt $PIX_FMT"
 
 # node 生成每段独立的 shell 脚本
 node -e "
@@ -120,7 +190,7 @@ segs.forEach((s, i) => {
   const script = '#!/bin/bash\nffmpeg -y -v error' +
     ' -ss ' + s.start.toFixed(3) + ' -to ' + s.end.toFixed(3) +
     ' -accurate_seek -i \"file:' + process.argv[1] + '\"' +
-    ' -c:v libx264 -profile:v ' + process.argv[2] +
+    ' -c:v ' + process.argv[2] + ' ' + process.argv[7] +
     ' -b:v ' + process.argv[3] + 'k -maxrate ' + process.argv[4] + 'k -bufsize ' + process.argv[5] + 'k' +
     ' -pix_fmt ' + process.argv[6] +
     ' -c:a aac -b:a 128k' +
@@ -129,7 +199,7 @@ segs.forEach((s, i) => {
   const padded = String(i).padStart(5, '0');
   fs.writeFileSync('$TMP_DIR/cmd_' + padded + '.sh', script);
 });
-" "$INPUT" "$X264_PROFILE" "$BITRATE_K" "$MAXRATE_K" "$BUFSIZE_K" "$PIX_FMT"
+" "$INPUT" "$ENCODER" "$BITRATE_K" "$MAXRATE_K" "$BUFSIZE_K" "$PIX_FMT" "$ENCODER_ARGS"
 
 # 逐段提取（控制并行度）
 RUNNING=0

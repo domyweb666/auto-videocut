@@ -1,14 +1,34 @@
 #!/usr/bin/env node
 /**
- * 从火山引擎结果生成字级别字幕
+ * 從轉錄結果生成字級別字幕
+ * 支援格式：Whisper (whisper_result.json) / 火山引擎 (volcengine_result.json)
  *
- * 用法: node generate_subtitles.js <volcengine_result.json> [delete_segments.json]
+ * 用法: node generate_subtitles.js <result.json> [delete_segments.json]
  * 输出: subtitles_words.json
  */
 
 const fs = require('fs');
+const path = require('path');
 
-const resultFile = process.argv[2] || 'volcengine_result.json';
+// OpenCC 簡繁轉換（cn → tw）
+let toTrad;
+try {
+  const opencc = require(path.join(__dirname, 'node_modules/opencc-js'));
+  const converter = opencc.Converter({ from: 'cn', to: 'tw' });
+  toTrad = converter;
+  console.log('✅ OpenCC 已啟用（簡體→繁體）');
+} catch (e) {
+  toTrad = s => s; // fallback: no conversion
+  console.warn('⚠️ OpenCC 未安裝，跳過繁體轉換');
+}
+
+const resultFile = process.argv[2] || (() => {
+  // 自動偵測：優先用 Google STT，其次 Whisper
+  if (fs.existsSync('google_result.json')) return 'google_result.json';
+  if (fs.existsSync('whisper_result.json')) return 'whisper_result.json';
+  if (fs.existsSync('volcengine_result.json')) return 'volcengine_result.json';
+  return 'google_result.json';
+})();
 const deleteFile = process.argv[3];
 
 if (!fs.existsSync(resultFile)) {
@@ -18,18 +38,56 @@ if (!fs.existsSync(resultFile)) {
 
 const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
 
+// 自動偵測格式
+const isGoogleSTT = result.source === 'google_stt';
+const isWhisper = !isGoogleSTT && Array.isArray(result.segments);
+const isVolcengine = !isGoogleSTT && Array.isArray(result.utterances);
+console.log('轉錄格式:', isGoogleSTT ? 'Google STT (zh-TW)' : isWhisper ? 'Whisper' : isVolcengine ? '火山引擎' : '未知');
+
 // 提取所有字
 const allWords = [];
-for (const utterance of result.utterances) {
-  if (utterance.words) {
-    for (const word of utterance.words) {
-      allWords.push({
-        text: word.text,
-        start: word.start_time / 1000,
-        end: word.end_time / 1000
-      });
+
+if (isGoogleSTT) {
+  // Google STT 格式：words[].word / start / end（秒，已在 python 腳本轉好）
+  // OpenAI Whisper 也用此格式（_actual_source = 'openai_whisper'），需要 OpenCC
+  const needConvert = result._actual_source === 'openai_whisper';
+  if (needConvert) console.log('🔄 OpenAI Whisper 輸出，啟用簡繁轉換');
+  for (const w of (result.words || [])) {
+    const text = needConvert ? toTrad((w.word || '').trim()) : (w.word || '').trim();
+    if (!text) continue;
+    allWords.push({ text, start: w.start, end: w.end });
+  }
+} else if (isWhisper) {
+  // Whisper 格式：segments[].words[].word / start / end（秒）
+  for (const segment of result.segments) {
+    if (segment.words) {
+      for (const word of segment.words) {
+        const text = toTrad((word.word || '').trim());
+        if (!text) continue;
+        allWords.push({
+          text,
+          start: word.start,
+          end: word.end
+        });
+      }
     }
   }
+} else if (isVolcengine) {
+  // 火山引擎格式：utterances[].words[].text / start_time / end_time（毫秒）
+  for (const utterance of result.utterances) {
+    if (utterance.words) {
+      for (const word of utterance.words) {
+        allWords.push({
+          text: word.text,
+          start: word.start_time / 1000,
+          end: word.end_time / 1000
+        });
+      }
+    }
+  }
+} else {
+  console.error('❌ 無法識別的 JSON 格式（需要 segments 或 utterances 欄位）');
+  process.exit(1);
 }
 
 console.log('原始字数:', allWords.length);

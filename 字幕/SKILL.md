@@ -62,6 +62,49 @@ fi
 
 ## Step 1: 提取音频并上传
 
+### 1.1 檢查是否可複用剪口播轉錄
+
+如果視頻來自剪口播的 `_cut.mp4`，可直接複用轉錄結果，**跳過 Step 1-2**：
+
+```bash
+TRANSCRIBE_DIR="$OUTPUT_DIR/剪口播/1_轉錄"
+ANALYSIS_DIR="$OUTPUT_DIR/剪口播/2_分析"
+SKILL_DIR="$HOME/.claude/skills/videocut-skills/剪口播"
+
+if [ -f "$TRANSCRIBE_DIR/subtitles_words.json" ] && [ -f "$ANALYSIS_DIR/auto_selected.json" ]; then
+  echo "✅ 複用剪口播轉錄結果（跳過重新轉錄）"
+
+  # 用 generate_subtitles.js 的時間映射，產出剪輯後的字幕
+  cd "$OUTPUT_DIR/字幕/1_转录"
+  # 將 delete_segments.json 從 auto_selected 轉換（idx → 時間範圍）
+  node -e "
+  const words = require('$TRANSCRIBE_DIR/subtitles_words.json');
+  const selected = new Set(require('$ANALYSIS_DIR/auto_selected.json'));
+  const segments = [];
+  let seg = null;
+  words.forEach((w, i) => {
+    if (selected.has(i)) {
+      if (!seg) seg = { start: w.start, end: w.end };
+      else seg.end = w.end;
+    } else if (seg) {
+      segments.push(seg);
+      seg = null;
+    }
+  });
+  if (seg) segments.push(seg);
+  require('fs').writeFileSync('delete_segments.json', JSON.stringify(segments, null, 2));
+  "
+
+  # 用原始轉錄 + 刪除片段 → 映射後的 subtitles_words.json
+  node "$SKILL_DIR/scripts/generate_subtitles.js" "$TRANSCRIBE_DIR/google_result.json" delete_segments.json
+  # → 輸出 subtitles_words.json（時間已對齊 _cut.mp4）
+
+  # 跳到 Step 3
+fi
+```
+
+### 1.2 正常提取（無法複用時）
+
 ```bash
 # 提取音频（使用 Step 0 确定的 VIDEO_PATH）
 ffmpeg -i "$VIDEO_PATH" -vn -acodec libmp3lame -y audio.mp3
@@ -78,7 +121,7 @@ curl -s -F "files[]=@audio.mp3" https://uguu.se/upload
 转录脚本会**自动读取词典**作为热词，提高识别准确率：
 
 ```bash
-# 词典位置: /Users/chengfeng/Desktop/AIos/剪辑Agent/.claude/skills/字幕/词典.txt
+# 词典位置: ~/.claude/skills/videocut-skills/字幕/词典.txt
 # 脚本会自动加载
 
 bash ../剪口播/scripts/volcengine_transcribe.sh "https://o.uguu.se/xxxxx.mp3"

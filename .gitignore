@@ -2,3 +2,8 @@
 提交/
 **/log/
 **/memory/
+**/node_modules/
+**/package-lock.json
+**/training_manifest.json
+**/training_output/
+**/feedback_history.jsonl
