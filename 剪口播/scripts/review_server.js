@@ -15,6 +15,20 @@ const fs = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
 const { getAvailableEncoders } = require('./encoder_utils');
+const { parseAutoSelected } = require('./generate_review');
+
+// auto_selected 三模式 → 檔名（位於 ../2_分析/）
+const AUTO_MODES = {
+  rules:   'auto_selected.json',
+  layered: 'auto_selected_layered.json',
+  full:    'auto_selected_full.json'
+};
+
+function autoModePath(mode) {
+  const fname = AUTO_MODES[mode];
+  if (!fname) return null;
+  return path.resolve('..', '2_分析', fname);
+}
 
 const PORT = process.argv[2] || 8899;
 let VIDEO_FILE = process.argv[3] || findVideoFile();
@@ -304,6 +318,55 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ error: err.message }));
       }
     });
+    return;
+  }
+
+  // ── API: 列出哪些 auto_selected 模式可用 ──
+  if (req.method === 'GET' && req.url === '/api/auto-modes') {
+    try {
+      const available = {};
+      for (const [mode, fname] of Object.entries(AUTO_MODES)) {
+        const p = autoModePath(mode);
+        available[mode] = fs.existsSync(p);
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(available));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // ── API: 取得指定模式的刪除清單 ──
+  // GET /api/auto-selected?mode=rules|layered|full
+  if (req.method === 'GET' && req.url.startsWith('/api/auto-selected')) {
+    try {
+      const url = new URL(req.url, `http://localhost:${PORT}`);
+      const mode = url.searchParams.get('mode') || 'rules';
+      const p = autoModePath(mode);
+      if (!p || !fs.existsSync(p)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: `mode "${mode}" 對應檔案不存在` }));
+        return;
+      }
+      const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+      const parsed = parseAutoSelected(raw);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        mode,
+        indices: parsed.autoSelected,
+        reasons: parsed.autoReasons,
+        meta: {
+          mode_marker:        raw.mode || null,           // layered / full_edit
+          stats:              raw.stats || null,
+          alignment_warnings: raw.alignment_warnings || []
+        }
+      }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
     return;
   }
 

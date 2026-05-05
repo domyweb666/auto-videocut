@@ -451,6 +451,13 @@ return `<!DOCTYPE html>
   <button onclick="exportMarkdown()">📝 匯出 MD</button>
   <button class="danger" onclick="clearAll()">清空選擇</button>
   <button onclick="copyDeleteList()">📋 複製刪除清單</button>
+  <span style="margin-left:12px; padding-left:12px; border-left:1px solid #444; font-size:13px; color:#aaa;">
+    剪輯模式
+  </span>
+  <select id="modeSwitch" onchange="switchMode(this.value)" style="background:#222;color:#fff;border:1px solid #444;padding:4px 8px;border-radius:4px;">
+    <option value="rules">rules（規則層）</option>
+  </select>
+  <span id="modeInfo" style="font-size:12px;color:#888"></span>
   <span id="time">00:00 / 00:00</span>
 </div>
 
@@ -793,6 +800,96 @@ return `<!DOCTYPE html>
     rebuildSkipIntervals();
     updateStats();
   }
+
+  // ── 剪輯模式切換 ──
+  let currentMode = 'rules';
+  const MODE_LABELS = {
+    rules:   'rules（規則層）',
+    layered: 'layered（規則 + AI 敘事）',
+    full:    'full_edit（純 AI 整段）'
+  };
+
+  function countManualEdits() {
+    // 對稱差: 使用者改了多少個 idx 跟 AI 預選不一樣
+    let diff = 0;
+    selected.forEach(i => { if (!autoSelected.has(i)) diff++; });
+    autoSelected.forEach(i => { if (!selected.has(i)) diff++; });
+    return diff;
+  }
+
+  async function initModeSwitch() {
+    try {
+      const r = await fetch('/api/auto-modes');
+      const modes = await r.json();
+      const sel = document.getElementById('modeSwitch');
+      sel.innerHTML = '';
+      let firstAvailable = null;
+      for (const m of ['rules', 'layered', 'full']) {
+        if (!modes[m]) continue;
+        if (!firstAvailable) firstAvailable = m;
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = MODE_LABELS[m];
+        if (m === currentMode) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      if (!modes[currentMode] && firstAvailable) {
+        currentMode = firstAvailable;
+        sel.value = firstAvailable;
+      }
+    } catch (e) {
+      console.warn('無法載入模式列表:', e);
+    }
+  }
+
+  async function switchMode(mode) {
+    if (mode === currentMode) return;
+    const manualEdits = countManualEdits();
+    if (manualEdits > 0) {
+      const ok = confirm('你有 ' + manualEdits + ' 處手動編輯，切換到「' + (MODE_LABELS[mode] || mode) + '」會覆蓋掉這些變更。繼續？');
+      if (!ok) {
+        document.getElementById('modeSwitch').value = currentMode;
+        return;
+      }
+    }
+    try {
+      const r = await fetch('/api/auto-selected?mode=' + encodeURIComponent(mode));
+      const data = await r.json();
+      if (data.error) { alert('切換失敗: ' + data.error); document.getElementById('modeSwitch').value = currentMode; return; }
+      autoSelected.clear();
+      data.indices.forEach(i => autoSelected.add(i));
+      Object.keys(autoReasons).forEach(k => delete autoReasons[k]);
+      Object.assign(autoReasons, data.reasons || {});
+      selected.clear();
+      autoSelected.forEach(i => selected.add(i));
+      currentMode = mode;
+      updateModeInfo(data);
+      render();
+      rebuildSkipIntervals();
+      updateStats();
+    } catch (e) {
+      alert('切換失敗: ' + e.message);
+      document.getElementById('modeSwitch').value = currentMode;
+    }
+  }
+
+  function updateModeInfo(data) {
+    const info = document.getElementById('modeInfo');
+    if (!info) return;
+    const meta = (data && data.meta) || {};
+    const stats = meta.stats || {};
+    const warn = (meta.alignment_warnings || []).length;
+    let parts = [];
+    parts.push('共 ' + (data.indices ? data.indices.length : autoSelected.size) + ' 個 idx');
+    if (stats.rules_deleted !== undefined && stats.narrative_deleted !== undefined) {
+      parts.push('規則 ' + stats.rules_deleted + ' + AI ' + stats.narrative_deleted);
+    }
+    if (warn > 0) parts.push('⚠️ ' + warn + ' 對齊警告');
+    info.textContent = parts.join(' · ');
+    info.style.color = warn > 0 ? '#ff9800' : '#888';
+  }
+
+  initModeSwitch();
 
   function copyDeleteList() {
     const segments = buildDeleteSegments();
