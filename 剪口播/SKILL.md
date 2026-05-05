@@ -61,8 +61,10 @@ output/
 3. 生成字級字幕 (subtitles_words.json)
    ↓
 4. AI 分析（靜音標記 + 口誤偵測 + 語意重複偵測）← 讀取 training_config.json
-   ↓
-5. 驗證 auto_selected.json
+   ↓ 產出 auto_selected.json（規則層）
+4.5 [可選] AI 第二遍敘事級剪輯（layered 模式）
+   ↓ 產出 auto_selected_layered.json（規則 + AI 敘事級重複）
+5. 驗證 auto_selected*.json
    ↓
 6. 生成審核網頁 + 啟動服務器
    ↓
@@ -74,6 +76,17 @@ output/
    ↓
 下一支影片自動使用更新後的規則
 ```
+
+### 三種剪輯模式（如何選）
+
+| 模式 | 來源檔 | 適用 | F1 (3 支樣本) |
+|------|--------|------|---------------|
+| **rules**（預設） | `auto_selected.json` | 一般 fine-cut，cosmetic 級清理 | 96.93% |
+| **layered**（推薦遇到敘事級重複） | `auto_selected_layered.json` | rules + AI 第二遍敘事級重複偵測 | **97.35%**（+0.42 點） |
+| **full_edit**（壓縮版） | `auto_selected_full.json` | 製作精華版/短片，激進刪減 | 4.86%（不對齊使用者剪輯哲學） |
+
+> 預設用 rules。若特定影片發現「同觀點講兩遍」「同例子舉兩遍」rules 抓不到，切到 layered。
+> full_edit 不適合替代日常剪輯，當壓縮工具用即可。
 
 ### 自動學習迴路
 
@@ -275,6 +288,39 @@ PYTHONIOENCODING=utf-8 python "$SKILL_DIR/scripts/detect_redundancy.py" sentence
 > 若 `sentence-transformers` 未安裝，腳本自動 fallback 為字元 3-gram 重疊率（閾值 0.6）。
 > 安裝：`pip install sentence-transformers`
 
+### 步驟 4.7: [可選] AI 第二遍敘事級剪輯（layered 模式）
+
+**何時用**：當 rules 跑完後，發現使用者常需要手動補刪「同觀點講兩遍」「同例子舉兩遍」這類**跨段落重複觀點**時，啟用此步驟。
+
+```bash
+# 前置：先跑過步驟 4（產出 auto_selected.json）+ ai_polish 產出 polished.json
+node "$SKILL_DIR/scripts/ai_polish.js" \
+  ../1_轉錄/subtitles_words.json polished.json
+
+# 跑 layered（rules → 過濾殘餘 → Claude 敘事級剪輯 → 合併）
+node "$SKILL_DIR/scripts/ai_narrative_pass.js" \
+  polished.json ../1_轉錄/subtitles_words.json auto_selected.json
+# 輸出: auto_selected_layered.json
+```
+
+**內部流程**：
+1. 讀 `auto_selected.json`（規則層刪除清單）
+2. 過濾掉 `polished.json` 中已被規則層刪掉的 word，得到「殘餘文稿」
+3. Claude 對殘餘文稿做敘事級剪輯（鐵律：只刪不寫；目標保留率 ≥85%）
+4. 對齊 Claude 輸出回原始 word index
+5. 合併：最終刪除 = 規則層 ∪ AI 敘事層
+6. 輸出 `auto_selected_layered.json`（含 `mode: "layered"` 與分層統計）
+
+**驗證**：
+- AI 第二遍刪除率 > 20% 會警告（可能過度介入）
+- 對齊警告 > 0 表示 Claude 違反「只刪不寫」，輸出不可用
+
+**測量品質**：
+```bash
+node "$SKILL_DIR/scripts/compare_layered_f1.js" <影片名>
+# 輸出三方 F1 對比：rules / full_edit / layered
+```
+
 ### 步驟 5: 驗證
 
 ```bash
@@ -367,6 +413,32 @@ AI 讀取 `kept_text.txt`，產出兩個版本：
 `reasons` 的 key 可以是單一 idx 或 `startIdx-endIdx` 範圍。review.html 會在 hover 時顯示理由。
 
 > 讀取時自動偵測：如果是陣列就是簡單格式，如果是物件就讀 `indices` 和 `reasons`。
+
+### auto_selected_layered.json（layered 模式輸出）
+
+```json
+{
+  "indices": [...],
+  "reasons": { "12": "[規則] 重複句", "188": "[AI 敘事] 跨段落重複觀點" },
+  "mode": "layered",
+  "layers": {
+    "rules":     { "count": 154 },
+    "narrative": { "count": 56, "deletion_runs": [...] }
+  },
+  "stats": {
+    "original_words": 700, "after_rules_words": 546, "after_ai_words": 490,
+    "rules_deleted": 154, "narrative_deleted": 56, "total_deleted": 210,
+    "ai_cut_rate": 0.1026
+  },
+  "alignment_warnings": []
+}
+```
+
+`reasons` 的 prefix 標明來源（`[規則]` / `[AI 敘事]`），方便審核時追蹤。
+
+### auto_selected_full.json（full_edit 模式輸出，激進壓縮用）
+
+格式與上類似但 `mode: "full_edit"`，AI 直接看整篇文稿做敘事級裁剪，不接 rules 層。日常剪輯**不建議用**，留給壓縮版需求。
 
 ---
 
