@@ -23,7 +23,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 
 const manifestFile = process.argv[2];
 if (!manifestFile || !fs.existsSync(manifestFile)) {
@@ -115,7 +115,7 @@ for (let vi = 0; vi < videos.length; vi++) {
       const audioOrigName = isAudioMode ? 'audio_original.mp3' : 'audio.mp3';
       const audioPath = path.join(transcribeDir, audioOrigName);
       console.log('🎵 提取原始音頻...');
-      execSync(`ffmpeg -y -i "${originalPath.replace(/\\/g, '/')}" -vn -acodec libmp3lame "${audioPath.replace(/\\/g, '/')}"`, {
+      execFileSync('ffmpeg', ['-y', '-i', originalPath, '-vn', '-acodec', 'libmp3lame', audioPath], {
         stdio: 'pipe',
         cwd: transcribeDir
       });
@@ -123,21 +123,21 @@ for (let vi = 0; vi < videos.length; vi++) {
       // 轉錄原始
       if (transcriber === 'openai') {
         console.log('🎙️ OpenAI Whisper API 轉錄原始...');
-        execSync(`python "${path.join(SCRIPT_DIR, 'openai_transcribe.py')}" "${audioOrigName}" google_result.json`, {
+        execFileSync('python', [path.join(SCRIPT_DIR, 'openai_transcribe.py'), audioOrigName, 'google_result.json'], {
           stdio: 'inherit',
           cwd: transcribeDir,
           env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
         });
       } else if (transcriber === 'google') {
         console.log('🎙️ Google STT 轉錄...');
-        execSync(`python "${path.join(SCRIPT_DIR, 'google_transcribe.py')}" "${audioOrigName}" google_result.json`, {
+        execFileSync('python', [path.join(SCRIPT_DIR, 'google_transcribe.py'), audioOrigName, 'google_result.json'], {
           stdio: 'inherit',
           cwd: transcribeDir,
           env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
         });
       } else {
         console.log('🎙️ Whisper (本機) 轉錄...');
-        execSync(`bash "${path.join(SCRIPT_DIR, 'whisper_transcribe.sh')}" "${audioOrigName}"`, {
+        execFileSync('bash', [path.join(SCRIPT_DIR, 'whisper_transcribe.sh'), audioOrigName], {
           stdio: 'inherit',
           cwd: transcribeDir
         });
@@ -145,7 +145,7 @@ for (let vi = 0; vi < videos.length; vi++) {
 
       // 生成原始字幕
       console.log('📝 生成原始字幕...');
-      execSync(`node "${path.join(SCRIPT_DIR, 'generate_subtitles.js')}"`, {
+      execFileSync('node', [path.join(SCRIPT_DIR, 'generate_subtitles.js')], {
         stdio: 'inherit',
         cwd: transcribeDir
       });
@@ -175,7 +175,7 @@ for (let vi = 0; vi < videos.length; vi++) {
         // 提取剪後音頻
         const audioEditedPath = path.join(transcribeDir, 'audio_edited.mp3');
         console.log('🎵 提取剪後音頻...');
-        execSync(`ffmpeg -y -i "${editedPath.replace(/\\/g, '/')}" -vn -acodec libmp3lame "${audioEditedPath.replace(/\\/g, '/')}"`, {
+        execFileSync('ffmpeg', ['-y', '-i', editedPath, '-vn', '-acodec', 'libmp3lame', audioEditedPath], {
           stdio: 'pipe',
           cwd: transcribeDir
         });
@@ -184,20 +184,20 @@ for (let vi = 0; vi < videos.length; vi++) {
         const editedResultPath = path.join(transcribeDir, 'edited_result.json');
         if (transcriber === 'openai') {
           console.log('🎙️ OpenAI Whisper API 轉錄剪後...');
-          execSync(`python "${path.join(SCRIPT_DIR, 'openai_transcribe.py')}" audio_edited.mp3 edited_result.json`, {
+          execFileSync('python', [path.join(SCRIPT_DIR, 'openai_transcribe.py'), 'audio_edited.mp3', 'edited_result.json'], {
             stdio: 'inherit',
             cwd: transcribeDir,
             env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
           });
         } else if (transcriber === 'google') {
-          execSync(`python "${path.join(SCRIPT_DIR, 'google_transcribe.py')}" audio_edited.mp3 edited_result.json`, {
+          execFileSync('python', [path.join(SCRIPT_DIR, 'google_transcribe.py'), 'audio_edited.mp3', 'edited_result.json'], {
             stdio: 'inherit',
             cwd: transcribeDir,
             env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
           });
         } else {
           // 本機 Whisper 需要特殊處理輸出檔名
-          execSync(`bash "${path.join(SCRIPT_DIR, 'whisper_transcribe.sh')}" audio_edited.mp3`, {
+          execFileSync('bash', [path.join(SCRIPT_DIR, 'whisper_transcribe.sh'), 'audio_edited.mp3'], {
             stdio: 'inherit',
             cwd: transcribeDir
           });
@@ -215,7 +215,7 @@ for (let vi = 0; vi < videos.length; vi++) {
         // 複製轉錄結果到暫存目錄
         const editedSrc = fs.existsSync(editedResultPath) ? editedResultPath : path.join(transcribeDir, 'edited_result.json');
         fs.copyFileSync(editedSrc, path.join(tmpDir, 'google_result.json'));
-        execSync(`node "${path.join(SCRIPT_DIR, 'generate_subtitles.js')}"`, {
+        execFileSync('node', [path.join(SCRIPT_DIR, 'generate_subtitles.js')], {
           stdio: 'inherit',
           cwd: tmpDir
         });
@@ -224,8 +224,15 @@ for (let vi = 0; vi < videos.length; vi++) {
         if (fs.existsSync(tmpSubtitles)) {
           fs.copyFileSync(tmpSubtitles, editedWordsPath);
         }
-        // 清理暫存
-        fs.rmSync(tmpDir, { recursive: true, force: true });
+        // 清理暫存（避免 fs.rmSync recursive 在 Windows 上 crash）
+        try {
+          for (const f of fs.readdirSync(tmpDir)) {
+            fs.unlinkSync(path.join(tmpDir, f));
+          }
+          fs.rmdirSync(tmpDir);
+        } catch (e) {
+          // 清理失敗不影響流程
+        }
       }
 
       if (!fs.existsSync(editedWordsPath)) {
@@ -258,7 +265,7 @@ for (let vi = 0; vi < videos.length; vi++) {
     // ── Step 3: 規則自動標記 ──
     console.log('🤖 規則自動標記...');
     const autoSelectedPath = path.join(analysisDir, 'auto_selected.json');
-    execSync(`node "${path.join(SCRIPT_DIR, 'auto_select_rules.js')}" "${subtitlesPath}" "${autoSelectedPath}"`, {
+    execFileSync('node', [path.join(SCRIPT_DIR, 'auto_select_rules.js'), subtitlesPath, autoSelectedPath], {
       stdio: 'inherit'
     });
 
@@ -268,16 +275,14 @@ for (let vi = 0; vi < videos.length; vi++) {
 
     if (isAudioMode) {
       console.log('📊 音檔比對（原始 vs 剪後轉錄）...');
-      diffOutput = execSync(
-        `node "${path.join(SCRIPT_DIR, 'compare_transcriptions.js')}" "${subtitlesPath}" "${editedWordsPath}" "${autoSelectedPath}"`,
-        { encoding: 'utf8' }
-      );
+      diffOutput = execFileSync('node', [
+        path.join(SCRIPT_DIR, 'compare_transcriptions.js'), subtitlesPath, editedWordsPath, autoSelectedPath
+      ], { encoding: 'utf8' });
     } else {
       console.log('📊 對照 SRT...');
-      diffOutput = execSync(
-        `node "${path.join(SCRIPT_DIR, 'compare_with_srt.js')}" "${subtitlesPath}" "${autoSelectedPath}" "${srtPath}"`,
-        { encoding: 'utf8' }
-      );
+      diffOutput = execFileSync('node', [
+        path.join(SCRIPT_DIR, 'compare_with_srt.js'), subtitlesPath, autoSelectedPath, srtPath
+      ], { encoding: 'utf8' });
     }
     fs.writeFileSync(diffReportPath, diffOutput);
     reportFiles.push(diffReportPath);
@@ -287,6 +292,7 @@ for (let vi = 0; vi < videos.length; vi++) {
 
   } catch (err) {
     console.error(`❌ ${videoName} 失敗: ${err.message}`);
+    if (err.stderr) console.error(`   stderr: ${err.stderr.toString().slice(0, 500)}`);
     failCount++;
   }
 }
@@ -300,8 +306,7 @@ if (reportFiles.length === 0) {
 }
 
 try {
-  const args = reportFiles.map(f => `"${f}"`).join(' ');
-  execSync(`node "${path.join(SCRIPT_DIR, 'aggregate_training.js')}" ${args}`, {
+  execFileSync('node', [path.join(SCRIPT_DIR, 'aggregate_training.js'), ...reportFiles], {
     stdio: 'inherit',
     cwd: OUTPUT_DIR
   });

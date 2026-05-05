@@ -14,6 +14,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
+const { getAvailableEncoders } = require('./encoder_utils');
 
 const PORT = process.argv[2] || 8899;
 let VIDEO_FILE = process.argv[3] || findVideoFile();
@@ -72,49 +73,93 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const deleteList = JSON.parse(body);
+        // 相容新舊 payload：
+        //   新：{ deleteList: [...], exportOptions: { codec, resolution, bitrate, fps, container, audioOnly, gif } }
+        //   舊：[...] 或 { deleteList: [...] }（無 exportOptions）
+        const parsed = JSON.parse(body);
+        let deleteList, exportOptions;
+        if (Array.isArray(parsed)) {
+          deleteList = parsed;
+          exportOptions = {};
+        } else {
+          deleteList = parsed.deleteList || parsed.segments || [];
+          exportOptions = parsed.exportOptions || {};
+        }
 
         // 保存删除列表到当前目录
         fs.writeFileSync('delete_segments.json', JSON.stringify(deleteList, null, 2));
         console.log(`📝 保存 ${deleteList.length} 个删除片段`);
 
-        // 生成输出文件名（支援 .mkv/.mp4 等格式）
-        const baseName = path.basename(VIDEO_FILE).replace(/\.[^/.]+$/, '');
-        const outputFile = path.resolve(`${baseName}_cut.mp4`);
+        // 決定副檔名：audioOnly 強制 .mp3、gif 僅附加不影響主檔、否則依 container
+        const container = (exportOptions.container || 'mp4').toLowerCase();
+        const mainExt = exportOptions.audioOnly ? 'mp3' : container;
 
-        // 执行剪辑
+        // 生成输出文件名
+        const baseName = path.basename(VIDEO_FILE).replace(/\.[^/.]+$/, '');
+        // cut_video.sh 若 audioOnly，會先輸出視訊中繼再轉 mp3，此處先用 container
+        const shellOutputFile = path.resolve(`${baseName}_cut.${container}`);
+        const finalOutputFile = path.resolve(`${baseName}_cut.${mainExt}`);
+
+        // 執行剪輯
         const scriptPath = path.join(__dirname, 'cut_video.sh');
         const deleteSegmentsPath = path.resolve('delete_segments.json');
 
+        // 組環境變數給 cut_video.sh
+        const env = {
+          ...process.env,
+          CUT_CODEC: exportOptions.codec || '',
+          CUT_RESOLUTION: exportOptions.resolution || '',
+          CUT_BITRATE_MODE: exportOptions.bitrate || 'recommended',
+          CUT_FPS: exportOptions.fps || '',
+          CUT_CONTAINER: container,
+          CUT_AUDIO_ONLY: exportOptions.audioOnly ? '1' : '0',
+          CUT_EXPORT_GIF: exportOptions.gif ? '1' : '0',
+        };
+
+        console.log(`⚙️ 匯出選項:`, {
+          codec: env.CUT_CODEC || 'h264(default)',
+          resolution: env.CUT_RESOLUTION || 'original',
+          bitrate: env.CUT_BITRATE_MODE,
+          fps: env.CUT_FPS || 'original',
+          container,
+          audioOnly: env.CUT_AUDIO_ONLY === '1',
+          gif: env.CUT_EXPORT_GIF === '1',
+        });
+
         if (!fs.existsSync(scriptPath)) {
-          // 如果没有 cut_video.sh，用内置的 ffmpeg 命令
-          console.log('🎬 执行剪辑...');
-          executeFFmpegCut(VIDEO_FILE, deleteList, outputFile);
+          // 如果没有 cut_video.sh，用内置的 ffmpeg 命令（不支援 exportOptions）
+          console.log('🎬 执行剪辑（內建 fallback，忽略匯出選項）...');
+          executeFFmpegCut(VIDEO_FILE, deleteList, shellOutputFile);
         } else {
           console.log('🎬 调用 cut_video.sh...');
-          // 將 Windows 反斜線轉為正斜線，避免 bash 解析失敗
           const scriptPathPosix = scriptPath.replace(/\\/g, '/');
           const deletePathPosix = deleteSegmentsPath.replace(/\\/g, '/');
-          const outputFilePosix = outputFile.replace(/\\/g, '/');
+          const outputFilePosix = shellOutputFile.replace(/\\/g, '/');
           execSync(`bash "${scriptPathPosix}" "${VIDEO_FILE}" "${deletePathPosix}" "${outputFilePosix}"`, {
             stdio: 'inherit',
-            cwd: path.dirname(deleteSegmentsPath)
+            cwd: path.dirname(deleteSegmentsPath),
+            env,
           });
         }
 
-        // 自動產出 SRT 字幕
+        // 收斂 outputFile 到實際產出的檔案（audioOnly 模式 shell 端會刪 shellOutputFile）
+        const outputFile = fs.existsSync(finalOutputFile) ? finalOutputFile : shellOutputFile;
+
+        // 自動產出 SRT 字幕（音訊匯出模式不產 SRT）
         let srtFile = null;
-        try {
-          const srtScript = path.join(__dirname, 'generate_cut_srt.js');
-          const subtitlesPath = path.resolve('..', '1_轉錄', 'subtitles_words.json');
-          srtFile = outputFile.replace(/\.mp4$/, '.srt');
-          if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath)) {
-            execSync(`node "${srtScript}" "${subtitlesPath}" "${deleteSegmentsPath}" "${srtFile}"`, { stdio: 'inherit' });
-            console.log(`📝 已產出 SRT: ${srtFile}`);
+        if (!exportOptions.audioOnly) {
+          try {
+            const srtScript = path.join(__dirname, 'generate_cut_srt.js');
+            const subtitlesPath = path.resolve('..', '1_轉錄', 'subtitles_words.json');
+            srtFile = outputFile.replace(/\.[^/.]+$/, '.srt');
+            if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath)) {
+              execSync(`node "${srtScript}" "${subtitlesPath}" "${deleteSegmentsPath}" "${srtFile}"`, { stdio: 'inherit' });
+              console.log(`📝 已產出 SRT: ${srtFile}`);
+            }
+          } catch (srtErr) {
+            console.error('⚠️ SRT 生成失敗:', srtErr.message);
+            srtFile = null;
           }
-        } catch (srtErr) {
-          console.error('⚠️ SRT 生成失敗:', srtErr.message);
-          srtFile = null;
         }
 
         // 获取剪辑前后的时长信息
@@ -163,6 +208,8 @@ const server = http.createServer((req, res) => {
       }
       const diff = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
       const config = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : {};
+      // 清除 require cache 以載入最新版
+      delete require.cache[require.resolve(path.join(__dirname, 'generate_suggestions.js'))];
       const { generateSuggestions } = require(path.join(__dirname, 'generate_suggestions.js'));
       const suggestions = generateSuggestions(diff, config);
       const meta = {
@@ -260,6 +307,19 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── API: 偵測可用編碼器（前端用來灰掉不支援選項）──
+  if (req.method === 'GET' && req.url === '/api/encoders') {
+    try {
+      const available = getAvailableEncoders();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(available));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
   // 静态文件服务（从当前目录读取）
   let filePath = req.url === '/' ? '/review.html' : req.url;
   filePath = '.' + filePath;
@@ -346,6 +406,8 @@ function getEncoder() {
   }
   return cachedEncoder;
 }
+
+// 編碼器偵測由 encoder_utils 共用模組提供（getAvailableEncoders）
 
 // 内置 FFmpeg 剪辑逻辑（filter_complex 精确剪辑 + buffer + crossfade）
 function executeFFmpegCut(input, deleteList, output) {
@@ -484,7 +546,13 @@ function executeFFmpegCutFallback(input, keepSegments, output) {
 
     console.log(`✅ 输出: ${output}`);
   } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    // 避免 fs.rmSync recursive 在 Windows 上 crash
+    try {
+      for (const f of fs.readdirSync(tmpDir)) {
+        fs.unlinkSync(path.join(tmpDir, f));
+      }
+      fs.rmdirSync(tmpDir);
+    } catch (e) { /* 清理失敗不影響流程 */ }
   }
 }
 
@@ -775,7 +843,7 @@ const LEARNING_HTML = `<!DOCTYPE html>
               <div class="example-item">
                 <span class="at">\${escHtml(e.at)}</span>
                 <span class="ai">\${escHtml(e.aiAction)}</span>
-                <span class="srt">\${escHtml(e.srtAction)}</span>
+                <span class="srt">\${escHtml(e.userAction)}</span>
                 <span style="flex:1">\${escHtml(e.label)}</span>
                 \${e.video ? '<span class="vid">' + escHtml(e.video) + '</span>' : ''}
               </div>
@@ -808,7 +876,7 @@ const LEARNING_HTML = `<!DOCTYPE html>
           </td>
           <td class="diff-col">
             <div class="label">SRT 顯示</div>
-            <div class="srt-shows">\${escHtml(s.srtShows)}</div>
+            <div class="srt-shows">\${escHtml(s.userShows)}</div>
             \${examplesHtml}
           </td>
           <td>\${changeHtml}</td>

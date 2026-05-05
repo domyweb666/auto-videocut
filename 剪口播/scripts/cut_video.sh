@@ -44,6 +44,14 @@ if [ -z "$BITRATE" ] || [ "$BITRATE" = "N/A" ]; then
 fi
 
 BITRATE_K=$((BITRATE/1000))
+
+# 碼率模式（recommended=原片 / high=×1.5 / low=×0.6）
+case "${CUT_BITRATE_MODE:-recommended}" in
+  high) BITRATE_K=$((BITRATE_K * 15 / 10)); echo "📊 碼率: 更高（原片 ×1.5）";;
+  low)  BITRATE_K=$((BITRATE_K * 6 / 10));  echo "📊 碼率: 更低（原片 ×0.6，省空間）";;
+  *) ;;
+esac
+
 MAXRATE_K=$((BITRATE_K * 13 / 10))
 BUFSIZE_K=$((BITRATE_K * 2))
 
@@ -123,6 +131,78 @@ detect_encoder() {
 }
 
 detect_encoder
+
+# ── 匯出選項（環境變數）──
+# CUT_LOSSLESS: 1 (無損模式：音訊 copy、影片 libx264 CRF 17，忽略解析度/fps/codec)
+# CUT_RESOLUTION: 1080 / 720 / 480 / (空=原始)
+# CUT_CODEC: h265 / av1 / (空=h264)
+# CUT_FPS: 30 / 60 / (空=原始)
+# CUT_CONTAINER: mp4(預設) / mkv / mov（由呼叫端透過 OUTPUT 檔名決定副檔名，此變數僅參考）
+# CUT_BITRATE_MODE: recommended(預設) / high / low（於上方已處理）
+# CUT_AUDIO_ONLY: 1 = 輸出 mp3（剪輯完成後抽音訊，刪除視訊）
+# CUT_EXPORT_GIF: 1 = 在剪輯完成後額外產生 240P 15fps GIF
+
+SCALE_FILTER=""
+FPS_ARGS=""
+AUDIO_ARGS="-c:a aac -b:a 128k"
+
+if [ "$CUT_LOSSLESS" = "1" ]; then
+  echo "💎 無損模式：音訊 stream copy、影片 libx264 CRF 17（忽略解析度/fps/codec）"
+  ENCODER="libx264"
+  ENCODER_ARGS="-crf 17 -preset slow -profile:v $X264_PROFILE"
+  ENCODER_LABEL="libx264 CRF 17 (近無損)"
+  AUDIO_ARGS="-c:a copy"
+else
+  if [ "$CUT_RESOLUTION" = "1080" ]; then
+    SCALE_FILTER="-vf scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:-1:-1:color=black"
+    echo "📐 解析度: 1080P"
+  elif [ "$CUT_RESOLUTION" = "720" ]; then
+    SCALE_FILTER="-vf scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:-1:-1:color=black"
+    echo "📐 解析度: 720P"
+  elif [ "$CUT_RESOLUTION" = "480" ]; then
+    SCALE_FILTER="-vf scale=854:480:force_original_aspect_ratio=decrease,pad=854:480:-1:-1:color=black"
+    echo "📐 解析度: 480P"
+  fi
+
+  if [ "$CUT_CODEC" = "h265" ]; then
+    echo "🔄 切換到 H.265/HEVC 編碼器..."
+    if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q hevc_nvenc; then
+      ENCODER="hevc_nvenc"; ENCODER_ARGS="-preset p4 -cq 22"; ENCODER_LABEL="HEVC NVENC (GPU)"
+    elif ffmpeg -hide_banner -encoders 2>/dev/null | grep -q hevc_qsv; then
+      ENCODER="hevc_qsv"; ENCODER_ARGS="-global_quality 22"; ENCODER_LABEL="HEVC QSV (Intel)"
+    elif ffmpeg -hide_banner -encoders 2>/dev/null | grep -q hevc_amf; then
+      ENCODER="hevc_amf"; ENCODER_ARGS="-quality quality"; ENCODER_LABEL="HEVC AMF (AMD)"
+    else
+      ENCODER="libx265"; ENCODER_ARGS="-crf 22 -preset medium"; ENCODER_LABEL="libx265 (軟編碼)"
+    fi
+  elif [ "$CUT_CODEC" = "av1" ]; then
+    echo "🔄 切換到 AV1 編碼器..."
+    if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q av1_nvenc; then
+      ENCODER="av1_nvenc"; ENCODER_ARGS="-preset p4 -cq 30"; ENCODER_LABEL="AV1 NVENC (RTX 40+)"
+    elif ffmpeg -hide_banner -encoders 2>/dev/null | grep -q av1_qsv; then
+      ENCODER="av1_qsv"; ENCODER_ARGS="-global_quality 30"; ENCODER_LABEL="AV1 QSV (Intel Arc / 13th+)"
+    elif ffmpeg -hide_banner -encoders 2>/dev/null | grep -q av1_amf; then
+      ENCODER="av1_amf"; ENCODER_ARGS="-quality quality"; ENCODER_LABEL="AV1 AMF (RX 7000+)"
+    elif ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libsvtav1; then
+      ENCODER="libsvtav1"; ENCODER_ARGS="-crf 30 -preset 6"; ENCODER_LABEL="SVT-AV1 (軟編碼)"
+    elif ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libaom-av1; then
+      ENCODER="libaom-av1"; ENCODER_ARGS="-crf 30 -b:v 0 -cpu-used 4"; ENCODER_LABEL="libaom-av1 (軟編碼, 慢)"
+    else
+      echo "⚠️ 此系統無可用 AV1 編碼器，fallback 到 H.265"
+      if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q hevc_nvenc; then
+        ENCODER="hevc_nvenc"; ENCODER_ARGS="-preset p4 -cq 22"; ENCODER_LABEL="HEVC NVENC (AV1 fallback)"
+      else
+        ENCODER="libx265"; ENCODER_ARGS="-crf 22 -preset medium"; ENCODER_LABEL="libx265 (AV1 fallback)"
+      fi
+    fi
+  fi
+
+  if [ -n "$CUT_FPS" ]; then
+    FPS_ARGS="-r $CUT_FPS"
+    echo "🎬 幀率: ${CUT_FPS}fps"
+  fi
+fi
+
 echo "🎯 編碼器: $ENCODER_LABEL"
 
 # 用 node 计算保留片段，生成提取脚本和 concat 列表
@@ -180,26 +260,36 @@ if [ -z "$TOTAL_SEGS" ] || [ "$TOTAL_SEGS" -eq 0 ]; then
 fi
 
 echo "✂️ 提取 $TOTAL_SEGS 个片段（并行度 $PARALLEL）..."
-echo "   编码: $ENCODER $ENCODER_ARGS -b:v ${BITRATE_K}k -pix_fmt $PIX_FMT"
+if [ "$CUT_LOSSLESS" = "1" ]; then
+  echo "   编码: $ENCODER $ENCODER_ARGS -pix_fmt $PIX_FMT (CRF-based, audio=copy)"
+else
+  echo "   编码: $ENCODER $ENCODER_ARGS -b:v ${BITRATE_K}k -pix_fmt $PIX_FMT"
+fi
 
 # node 生成每段独立的 shell 脚本
+# argv: [input, encoder, bitrate_k, maxrate_k, bufsize_k, pix_fmt, encoder_args, scale_filter, fps_args, audio_args, lossless]
 node -e "
 const fs = require('fs');
 const segs = JSON.parse(fs.readFileSync('$TMP_DIR/segments.json', 'utf8'));
+const isLossless = process.argv[11] === '1';
 segs.forEach((s, i) => {
-  const script = '#!/bin/bash\nffmpeg -y -v error' +
+  let cmd = '#!/bin/bash\nffmpeg -y -v error' +
     ' -ss ' + s.start.toFixed(3) + ' -to ' + s.end.toFixed(3) +
     ' -accurate_seek -i \"file:' + process.argv[1] + '\"' +
-    ' -c:v ' + process.argv[2] + ' ' + process.argv[7] +
-    ' -b:v ' + process.argv[3] + 'k -maxrate ' + process.argv[4] + 'k -bufsize ' + process.argv[5] + 'k' +
-    ' -pix_fmt ' + process.argv[6] +
-    ' -c:a aac -b:a 128k' +
+    ' -c:v ' + process.argv[2] + ' ' + process.argv[7];
+  if (!isLossless) {
+    cmd += ' -b:v ' + process.argv[3] + 'k -maxrate ' + process.argv[4] + 'k -bufsize ' + process.argv[5] + 'k';
+  }
+  cmd += ' -pix_fmt ' + process.argv[6] +
+    (process.argv[8] ? ' ' + process.argv[8] : '') +
+    (process.argv[9] ? ' ' + process.argv[9] : '') +
+    ' ' + process.argv[10] +
     ' -avoid_negative_ts make_zero' +
     ' \"file:' + s.out + '\"\n';
   const padded = String(i).padStart(5, '0');
-  fs.writeFileSync('$TMP_DIR/cmd_' + padded + '.sh', script);
+  fs.writeFileSync('$TMP_DIR/cmd_' + padded + '.sh', cmd);
 });
-" "$INPUT" "$ENCODER" "$BITRATE_K" "$MAXRATE_K" "$BUFSIZE_K" "$PIX_FMT" "$ENCODER_ARGS"
+" "$INPUT" "$ENCODER" "$BITRATE_K" "$MAXRATE_K" "$BUFSIZE_K" "$PIX_FMT" "$ENCODER_ARGS" "$SCALE_FILTER" "$FPS_ARGS" "$AUDIO_ARGS" "${CUT_LOSSLESS:-0}"
 
 # 逐段提取（控制并行度）
 RUNNING=0
@@ -212,7 +302,12 @@ for CMD_FILE in "$TMP_DIR"/cmd_*.sh; do
 
   RUNNING=$((RUNNING + 1))
   if [ "$RUNNING" -ge "$PARALLEL" ]; then
-    wait -n 2>/dev/null || wait
+    # wait -n 需要 bash 4.3+，Git Bash 可能不支援，fallback 到 wait
+    if (( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3) )); then
+      wait -n 2>/dev/null || wait
+    else
+      wait
+    fi
     RUNNING=$((RUNNING - 1))
     DONE=$((DONE + 1))
     printf "\r   进度: %d/%d" "$DONE" "$TOTAL_SEGS"
@@ -232,10 +327,16 @@ echo "   ✅ 全部 $TOTAL_SEGS 个片段提取完成"
 
 # 拼接
 echo "🔗 拼接..."
+OUT_EXT_LC=$(echo "${OUTPUT##*.}" | tr '[:upper:]' '[:lower:]')
+MOVFLAGS_ARGS=""
+# faststart 僅對 mp4/mov 家族有效（放 moov atom 到檔頭，串流更快）
+if [ "$OUT_EXT_LC" = "mp4" ] || [ "$OUT_EXT_LC" = "mov" ] || [ "$OUT_EXT_LC" = "m4v" ]; then
+  MOVFLAGS_ARGS="-movflags +faststart"
+fi
 ffmpeg -y -v error -stats \
   -f concat -safe 0 -i "$TMP_DIR/concat.txt" \
   -c copy \
-  -movflags +faststart \
+  $MOVFLAGS_ARGS \
   "file:$OUTPUT"
 
 if [ $? -eq 0 ]; then
@@ -243,10 +344,49 @@ if [ $? -eq 0 ]; then
   echo "✅ 已保存: $OUTPUT"
   NEW_DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "file:$OUTPUT")
   NEW_BR=$(ffprobe -v error -show_entries stream=bit_rate -select_streams v:0 -of csv=p=0 "file:$OUTPUT")
-  NEW_BR_K=$((NEW_BR/1000))
+  if [ -z "$NEW_BR" ] || [ "$NEW_BR" = "N/A" ]; then
+    NEW_BR=$(ffprobe -v error -show_entries format=bit_rate -of csv=p=0 "file:$OUTPUT")
+  fi
+  if [ -n "$NEW_BR" ] && [ "$NEW_BR" != "N/A" ]; then
+    NEW_BR_K=$((NEW_BR/1000))
+  else
+    NEW_BR_K="?"
+  fi
   echo "📹 新时长: ${NEW_DURATION}s"
   echo "📊 原始码率: ${BITRATE_K}kbps → 输出码率: ${NEW_BR_K}kbps"
 else
   echo "❌ 拼接失败"
   exit 1
+fi
+
+# ── GIF 匯出（240P, 15fps）──
+if [ "$CUT_EXPORT_GIF" = "1" ]; then
+  GIF_OUT="${OUTPUT%.*}.gif"
+  echo "🎞️ 產生 GIF: $GIF_OUT"
+  # 兩步法：先產調色板，再依調色板產 GIF，畫質更好
+  PALETTE="$TMP_DIR/palette.png"
+  ffmpeg -y -v error -i "file:$OUTPUT" \
+    -vf "fps=15,scale=240:-1:flags=lanczos,palettegen" "$PALETTE" \
+  && ffmpeg -y -v error -i "file:$OUTPUT" -i "$PALETTE" \
+       -lavfi "fps=15,scale=240:-1:flags=lanczos [v]; [v][1:v] paletteuse" \
+       -loop 0 "file:$GIF_OUT"
+  if [ $? -eq 0 ]; then
+    echo "✅ GIF: $GIF_OUT"
+  else
+    echo "⚠️ GIF 生成失敗"
+  fi
+fi
+
+# ── 音訊匯出（MP3）──
+# 執行於最後：若勾選，從最終視訊抽取音訊，並刪除原視訊檔案
+if [ "$CUT_AUDIO_ONLY" = "1" ]; then
+  MP3_OUT="${OUTPUT%.*}.mp3"
+  echo "🎵 抽取音訊為 MP3: $MP3_OUT"
+  ffmpeg -y -v error -i "file:$OUTPUT" -vn -acodec libmp3lame -q:a 2 "file:$MP3_OUT"
+  if [ $? -eq 0 ]; then
+    rm -f "$OUTPUT"
+    echo "✅ 音訊檔: $MP3_OUT（已刪除中繼視訊）"
+  else
+    echo "⚠️ MP3 轉換失敗，保留原視訊 $OUTPUT"
+  fi
 fi

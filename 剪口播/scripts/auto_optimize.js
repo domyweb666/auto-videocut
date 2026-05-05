@@ -66,12 +66,18 @@ function evaluate(config, videos) {
       ], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
 
       const report = JSON.parse(diffOutput);
-      const fp = (report.falsePositives || []).length;
-      const fn = (report.falseNegatives || []).length;
-      const tp = report.truePositiveCount || 0;
-      totalTP += tp;
-      totalFP += fp;
-      totalFN += fn;
+      // 使用過濾版指標（忽略 1-2 字 LCS 碎片雜訊）
+      const af = report.accuracy_filtered;
+      if (af) {
+        totalTP += af.tp;
+        totalFP += af.fp;
+        totalFN += af.fn;
+      } else {
+        // 向下相容：舊版 report 沒有 accuracy_filtered
+        totalTP += report.truePositiveCount || 0;
+        totalFP += (report.falsePositives || []).length;
+        totalFN += (report.falseNegatives || []).length;
+      }
 
       // 清理暫存
       try { fs.unlinkSync(autoPath); } catch (e) {}
@@ -292,7 +298,7 @@ function main() {
   for (const filler of [...baseFillers]) {
     experimentCount++;
     const testConfig = cloneConfig(bestConfig);
-    testConfig.filler_words = testConfig.filler_words.filter(f => f !== filler);
+    testConfig.filler_words = (testConfig.filler_words || baseFillers).filter(f => f !== filler);
 
     const score = evaluate(testConfig, videos);
     const improved = score.f1 > bestScore.f1;
@@ -364,9 +370,220 @@ function main() {
   }
 
   // ════════════════════════════════════
-  // Phase 8: 第二輪精煉（用最佳參數附近微調）
+  // Phase 8: 語意重複偵測參數
   // ════════════════════════════════════
-  console.log('\n═══ Phase 8: 精煉微調 ═══');
+  console.log('\n═══ Phase 8: 語意重複偵測 ═══');
+  const semParams = [
+    { similarity: 0.30, lcs_ratio: 0.30, min_len: 4, window: 3 },
+    { similarity: 0.35, lcs_ratio: 0.35, min_len: 5, window: 4 },
+    { similarity: 0.40, lcs_ratio: 0.35, min_len: 6, window: 5 },
+    { similarity: 0.45, lcs_ratio: 0.40, min_len: 6, window: 5 },
+    { similarity: 0.50, lcs_ratio: 0.45, min_len: 6, window: 5 },
+    { similarity: 0.35, lcs_ratio: 0.30, min_len: 4, window: 8 },
+    { similarity: 0.30, lcs_ratio: 0.25, min_len: 4, window: 10 },
+    { similarity: 0.40, lcs_ratio: 0.30, min_len: 5, window: 8 },
+    { similarity: 0.35, lcs_ratio: 0.35, min_len: 5, window: 6 },
+    { similarity: 0.45, lcs_ratio: 0.40, min_len: 5, window: 4 },
+  ];
+
+  for (const sp of semParams) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.semantic_repeat = sp;
+
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} sim=${sp.similarity} lcs=${sp.lcs_ratio} min=${sp.min_len} win=${sp.window} → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: `semantic_repeat sim=${sp.similarity} lcs=${sp.lcs_ratio}`, ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 9: Gap 密度區偵測
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 9: Gap 密度區偵測 ═══');
+  const gapDensityConfigs = [
+    { enabled: true, window: 6, threshold: 0.5, min_gaps: 3 },
+    { enabled: true, window: 8, threshold: 0.5, min_gaps: 4 },
+    { enabled: true, window: 8, threshold: 0.6, min_gaps: 4 },
+    { enabled: true, window: 10, threshold: 0.5, min_gaps: 5 },
+    { enabled: true, window: 10, threshold: 0.6, min_gaps: 5 },
+    { enabled: true, window: 12, threshold: 0.5, min_gaps: 6 },
+  ];
+
+  for (const gdc of gapDensityConfigs) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.gap_density = gdc;
+
+    const label = `w=${gdc.window} t=${gdc.threshold} g=${gdc.min_gaps}`;
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} ${label} → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: `gap_density ${label}`, ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 10: 寬窗口重複偵測
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 10: 寬窗口重複偵測 ═══');
+  const wideRepeatConfigs = [
+    { enabled: true, min_len: 8, similarity: 0.4, window: 15 },
+    { enabled: true, min_len: 10, similarity: 0.45, window: 15 },
+    { enabled: true, min_len: 10, similarity: 0.5, window: 20 },
+    { enabled: true, min_len: 10, similarity: 0.5, window: 30 },
+    { enabled: true, min_len: 12, similarity: 0.55, window: 25 },
+    { enabled: true, min_len: 8, similarity: 0.35, window: 20 },
+    { enabled: true, min_len: 6, similarity: 0.5, window: 30 },
+    { enabled: true, min_len: 15, similarity: 0.5, window: 30 },
+  ];
+
+  for (const wrc of wideRepeatConfigs) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.wide_repeat = wrc;
+
+    const label = `min=${wrc.min_len} sim=${wrc.similarity} win=${wrc.window}`;
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} ${label} → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: `wide_repeat ${label}`, ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 11: 咳嗽/雜音偵測
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 11: 咳嗽/雜音偵測 ═══');
+  {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.cough_detection = { enabled: true, words: ['咳', '咳咳', '咳咳咳', '嗯哼'] };
+
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} 咳嗽偵測 → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: 'cough_detection', ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 12: 短句刪除
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 12: 短句刪除 ═══');
+  const shortSentConfigs = [
+    { enabled: true, max_len: 2, min_gap: 0.5 },
+    { enabled: true, max_len: 2, min_gap: 0.8 },
+    { enabled: true, max_len: 3, min_gap: 0.5 },
+    { enabled: true, max_len: 3, min_gap: 0.8 },
+    { enabled: true, max_len: 4, min_gap: 0.8 },
+    { enabled: true, max_len: 5, min_gap: 1.0 },
+  ];
+
+  for (const ssc of shortSentConfigs) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.short_sentence = ssc;
+
+    const label = `max=${ssc.max_len} gap=${ssc.min_gap}`;
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} ${label} → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: `short_sentence ${label}`, ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 13: 組合微調（結合最佳新規則再搜索舊參數）
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 13: 組合微調 ═══');
+  // 重新搜索靜音閾值（新規則可能改變最佳靜音設定）
+  for (const threshold of [0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5]) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.silence.threshold = threshold;
+
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} silence=${threshold}s → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: `silence.threshold=${threshold} (round2)`, ...fmtScore(score), adopted: improved });
+  }
+
+  // 重新搜索語意重複參數
+  for (const sp of [
+    { similarity: 0.40, lcs_ratio: 0.35, min_len: 5, window: 5 },
+    { similarity: 0.45, lcs_ratio: 0.40, min_len: 5, window: 6 },
+    { similarity: 0.50, lcs_ratio: 0.45, min_len: 5, window: 5 },
+    { similarity: 0.55, lcs_ratio: 0.50, min_len: 6, window: 5 },
+    { similarity: 0.50, lcs_ratio: 0.45, min_len: 8, window: 8 },
+  ]) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.semantic_repeat = sp;
+
+    const label = `sim=${sp.similarity} lcs=${sp.lcs_ratio} min=${sp.min_len}`;
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} ${label} → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: `semantic_repeat ${label} (round2)`, ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 14: 精煉微調
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 14: 精煉微調 ═══');
   const bestSilence = bestConfig.silence?.threshold ?? 1.0;
   const fineValues = [
     bestSilence - 0.15, bestSilence - 0.1, bestSilence - 0.05,
@@ -390,6 +607,164 @@ function main() {
       improvedCount++;
     }
     history.push({ experiment: experimentCount, change: `silence.threshold=${testConfig.silence.threshold} (fine)`, ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 18: 放棄句首參數
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 18: 放棄句首偵測 ═══');
+  for (const mc of [4, 6, 8, 10, 12]) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.abandoned_start = { enabled: true, max_chars: mc };
+
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} max_chars=${mc} → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: `abandoned_start.max_chars=${mc}`, ...fmtScore(score), adopted: improved });
+  }
+
+  // 測試停用放棄句首
+  {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.abandoned_start = { enabled: false };
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    console.log(`   ${improved ? '✅' : '  '} disabled → F1=${(score.f1 * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+    if (improved) { bestConfig = testConfig; bestScore = score; improvedCount++; }
+    history.push({ experiment: experimentCount, change: 'abandoned_start.disabled', ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 19: 語意重複精調（AND 邏輯後重新搜索）
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 19: 語意重複 (AND 邏輯) ═══');
+  const semConfigs2 = [
+    { similarity: 0.35, lcs_ratio: 0.35, min_len: 6, window: 5 },
+    { similarity: 0.40, lcs_ratio: 0.35, min_len: 6, window: 5 },
+    { similarity: 0.40, lcs_ratio: 0.40, min_len: 6, window: 6 },
+    { similarity: 0.45, lcs_ratio: 0.40, min_len: 6, window: 6 },
+    { similarity: 0.45, lcs_ratio: 0.35, min_len: 5, window: 8 },
+    { similarity: 0.50, lcs_ratio: 0.40, min_len: 6, window: 8 },
+    { similarity: 0.40, lcs_ratio: 0.30, min_len: 5, window: 10 },
+    { similarity: 0.35, lcs_ratio: 0.30, min_len: 5, window: 8 },
+  ];
+  for (const sc of semConfigs2) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.semantic_repeat = sc;
+    const label = `sim=${sc.similarity} lcs=${sc.lcs_ratio} min=${sc.min_len} win=${sc.window}`;
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    console.log(`   ${improved ? '✅' : '  '} ${label} → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+    if (improved) { bestConfig = testConfig; bestScore = score; improvedCount++; }
+    history.push({ experiment: experimentCount, change: `semantic_repeat_v2 ${label}`, ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 16: Take 分組參數
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 16: Take 分組參數 ═══');
+  const takeConfigs = [
+    { similarity: 0.45, window: 8, prefix_len: 4 },
+    { similarity: 0.50, window: 8, prefix_len: 5 },
+    { similarity: 0.55, window: 8, prefix_len: 5 },
+    { similarity: 0.55, window: 10, prefix_len: 5 },
+    { similarity: 0.60, window: 8, prefix_len: 5 },
+    { similarity: 0.60, window: 10, prefix_len: 5 },
+    { similarity: 0.60, window: 10, prefix_len: 6 },
+    { similarity: 0.65, window: 8, prefix_len: 6 },
+    { similarity: 0.65, window: 10, prefix_len: 6 },
+    { similarity: 0.70, window: 8, prefix_len: 6 },
+  ];
+
+  for (const tc of takeConfigs) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.take_group = { ...testConfig.take_group, similarity: tc.similarity, window: tc.window, prefix_len: tc.prefix_len };
+
+    const label = `sim=${tc.similarity} win=${tc.window} prefix=${tc.prefix_len}`;
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} ${label} → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: `take_group ${label}`, ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 17: repeat.prefix_len 搜索
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 17: 重複句前綴長度 ═══');
+  for (const pl of [3, 4, 5, 6, 7, 8]) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    testConfig.repeat = { ...testConfig.repeat, prefix_len: pl };
+
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} prefix_len=${pl} → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: `repeat.prefix_len=${pl}`, ...fmtScore(score), adopted: improved });
+  }
+
+  // ════════════════════════════════════
+  // Phase 15: 上下文靜音分級閾值
+  // ════════════════════════════════════
+  console.log('\n═══ Phase 15: 上下文靜音分級 ═══');
+  const tierConfigs = [
+    { tier_between: 0.1, tier_adjacent: 0.3 },
+    { tier_between: 0.2, tier_adjacent: 0.5 },
+    { tier_between: 0.3, tier_adjacent: 0.6 },
+    { tier_between: 0.3, tier_adjacent: 0.8 },
+    { tier_between: 0.3, tier_adjacent: 1.0 },
+    { tier_between: 0.5, tier_adjacent: 0.8 },
+    { tier_between: 0.5, tier_adjacent: 1.0 },
+    { tier_between: 0.5, tier_adjacent: 1.2 },
+  ];
+
+  for (const tc of tierConfigs) {
+    experimentCount++;
+    const testConfig = cloneConfig(bestConfig);
+    if (!testConfig.silence) testConfig.silence = {};
+    testConfig.silence.tier_between = tc.tier_between;
+    testConfig.silence.tier_adjacent = tc.tier_adjacent;
+
+    const label = `between=${tc.tier_between} adjacent=${tc.tier_adjacent}`;
+    const score = evaluate(testConfig, videos);
+    const improved = score.f1 > bestScore.f1;
+    const marker = improved ? '✅' : '  ';
+
+    console.log(`   ${marker} ${label} → F1=${(score.f1 * 100).toFixed(1)}% P=${(score.precision * 100).toFixed(1)}% R=${(score.recall * 100).toFixed(1)}% ${improved ? '(↑ 採用)' : ''}`);
+
+    if (improved) {
+      bestConfig = testConfig;
+      bestScore = score;
+      improvedCount++;
+    }
+    history.push({ experiment: experimentCount, change: `silence.tiers ${label}`, ...fmtScore(score), adopted: improved });
   }
 
   // ════════════════════════════════════

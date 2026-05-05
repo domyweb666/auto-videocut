@@ -1,0 +1,18 @@
+# 工作資料夾（大型影片/音訊/中間產物，不進 git）
+cut_work/
+scripts/cut_work/
+backups/
+training_output/
+
+# Node
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -4,7 +4,7 @@
  *
  * 輸入: diff_report.json (單支) 或多個 diff_report.json (批量)
  * 輸出: suggestions array，每項包含：
- *   - 規則類別、目前設定、AI做法、SRT顯示、建議修改、具體範例
+ *   - 規則類別、目前設定、AI做法、使用者實際做法、建議修改、具體範例
  *
  * 用法:
  *   單支: node generate_suggestions.js <diff_report.json> [training_config.json]
@@ -19,8 +19,8 @@ module.exports = { generateSuggestions, generateBatchSuggestions };
 // ── 主函數 ──
 function generateSuggestions(diffReport, config) {
   const suggestions = [];
-  const fps = diffReport.falsePositives || [];  // AI 刪了，SRT 保留
-  const fns = diffReport.falseNegatives || [];  // AI 沒刪，SRT 刪了
+  const fps = diffReport.falsePositives || [];  // AI 刪了，使用者保留
+  const fns = diffReport.falseNegatives || [];  // AI 沒刪，使用者刪了
 
   // 1. 靜音閾值分析
   const silFPs = fps.filter(e => e.isGap);
@@ -29,7 +29,7 @@ function generateSuggestions(diffReport, config) {
     suggestions.push(...analyzeSilence(silFPs, silFNs, config));
   }
 
-  // 2. 語氣詞分析（AI 刪了但 SRT 保留）
+  // 2. 語氣詞分析（AI 刪了但使用者保留）
   const fillerWords = config.filler_words || [];
   const fillerFPs = fps.filter(e => !e.isGap && fillerWords.includes(e.text));
   if (fillerFPs.length > 0) {
@@ -100,7 +100,7 @@ function analyzeSilence(silFPs, silFNs, config) {
   const currentThreshold = config.silence?.threshold ?? 1.0;
   const suggestions = [];
 
-  // FP（AI 刪了但 SRT 保留）：哪些靜音時長被誤刪？
+  // FP（AI 刪了但使用者保留）：哪些靜音時長被誤刪？
   if (silFPs.length > 0) {
     const durations = silFPs.map(e => ({
       start: e.start,
@@ -127,7 +127,7 @@ function analyzeSilence(silFPs, silFNs, config) {
 
         current: `≥${currentThreshold}s 自動刪除`,
         aiAction: `AI 刪除了 ${silFPs.length} 段靜音（≥${currentThreshold}s）`,
-        srtShows: `SRT 保留了其中 ${silFPs.length} 段（最長 ${maxFPDuration.toFixed(1)}s，平均 ${avgFPDuration.toFixed(1)}s）`,
+        userShows: `使用者保留了其中 ${silFPs.length} 段（最長 ${maxFPDuration.toFixed(1)}s，平均 ${avgFPDuration.toFixed(1)}s）`,
         suggestion: `將靜音閾值從 ${currentThreshold}s 提高到 ${suggestedThreshold}s`,
         change: { path: 'silence.threshold', from: currentThreshold, to: suggestedThreshold },
 
@@ -135,7 +135,7 @@ function analyzeSilence(silFPs, silFNs, config) {
           label: `靜音 ${d.duration.toFixed(1)}s`,
           at: `@${d.start.toFixed(1)}s`,
           aiAction: '❌ 刪除',
-          srtAction: '✅ SRT 保留',
+          userAction: '✅ 使用者保留',
           video: d._video
         })),
 
@@ -167,7 +167,7 @@ function analyzeSilence(silFPs, silFNs, config) {
 
           current: `≥${currentThreshold}s 自動刪除`,
           aiAction: `AI 保留了 ${silFNs.length} 段靜音（<${currentThreshold}s）`,
-          srtShows: `SRT 刪除了這些靜音（平均 ${avgFNDuration.toFixed(1)}s）`,
+          userShows: `使用者刪除了這些靜音（平均 ${avgFNDuration.toFixed(1)}s）`,
           suggestion: `將靜音閾值從 ${currentThreshold}s 降低到 ${suggestedThreshold}s`,
           change: { path: 'silence.threshold', from: currentThreshold, to: suggestedThreshold },
 
@@ -175,7 +175,7 @@ function analyzeSilence(silFPs, silFNs, config) {
             label: `靜音 ${d.duration.toFixed(1)}s`,
             at: `@${d.start.toFixed(1)}s`,
             aiAction: '✅ 保留',
-            srtAction: '❌ SRT 刪除',
+            userAction: '❌ 使用者刪除',
             video: d._video
           })),
           checked: false
@@ -208,7 +208,7 @@ function analyzeFillers(fillerFPs, fillerWords, config) {
 
       current: `「${word}」在語氣詞清單中，一律刪除`,
       aiAction: `AI 刪除了 ${instances.length} 個「${word}」`,
-      srtShows: `SRT 保留了所有 ${instances.length} 個「${word}」`,
+      userShows: `使用者保留了所有 ${instances.length} 個「${word}」`,
       suggestion: `將「${word}」加入語氣詞例外清單（保留）`,
       change: { path: 'filler_exceptions', action: 'add', value: word },
 
@@ -216,7 +216,7 @@ function analyzeFillers(fillerFPs, fillerWords, config) {
         label: `「${word}」`,
         at: `@${fp.start.toFixed(1)}s`,
         aiAction: '❌ 刪除',
-        srtAction: '✅ SRT 保留',
+        userAction: '✅ 使用者保留',
         video: fp._video
       })),
       checked: false
@@ -226,50 +226,14 @@ function analyzeFillers(fillerFPs, fillerWords, config) {
   return suggestions;
 }
 
-// ── 非語氣詞的 FP（AI 標了但 SRT 保留）──
+// ── 非語氣詞的 FP（AI 標了但使用者保留）──
+// 注意：不再生成單字保護詞建議。使用者刪除/保留段落是基於是否有重複句子，
+// 不是基於單字本身。單字級別的保護詞建議（如保護「一」「的」「人」）沒有意義。
 function analyzeNonGapFPs(fps, config) {
-  if (fps.length === 0) return [];
-
-  // 按詞語分組，找出高頻被誤刪的詞
-  const byText = {};
-  for (const fp of fps) {
-    if (!fp.text || fp.text.length > 5) continue;  // 忽略長文字（可能是殘句）
-    byText[fp.text] = byText[fp.text] || [];
-    byText[fp.text].push(fp);
-  }
-
-  const suggestions = [];
-  for (const [text, instances] of Object.entries(byText)) {
-    if (instances.length < 2) continue;
-    suggestions.push({
-      id: `protect-word-${text}`,
-      category: '保護詞彙',
-      ruleFile: '10-保留連接詞.md',
-      configPath: null,  // 需要手動編輯 .md 檔
-      icon: '🛡️',
-      severity: instances.length >= 3 ? 'high' : 'low',
-
-      current: `「${text}」未在保護清單中`,
-      aiAction: `AI 刪除了 ${instances.length} 個「${text}」`,
-      srtShows: `SRT 全部保留（${instances.length} 次）`,
-      suggestion: `將「${text}」加入保護詞清單（10-保留連接詞.md）`,
-      change: { path: 'protected_words', action: 'add_to_md', value: text, file: '用户习惯/10-保留連接詞.md' },
-
-      examples: instances.slice(0, 5).map(fp => ({
-        label: `「${text}」`,
-        at: `@${fp.start.toFixed(1)}s`,
-        aiAction: '❌ 刪除',
-        srtAction: '✅ SRT 保留',
-        video: fp._video
-      })),
-      checked: false
-    });
-  }
-
-  return suggestions;
+  return [];
 }
 
-// ── AI 漏刪的文字 FN（SRT 刪了但 AI 沒刪）──
+// ── AI 漏刪的文字 FN（使用者刪了但 AI 沒刪）──
 // 將連續被刪的字合併為短語，避免單字碎片（如「個」「元」）產生無意義建議
 function analyzeTextFNs(fns, config) {
   if (fns.length === 0) return [];
@@ -330,7 +294,7 @@ function analyzeTextFNs(fns, config) {
 
       current: `「${text}」未在任何刪除規則中`,
       aiAction: `AI 保留了 ${instances.length} 個「${text}」`,
-      srtShows: `SRT 刪除了所有 ${instances.length} 個`,
+      userShows: `使用者刪除了所有 ${instances.length} 個`,
       suggestion: `將「${text}」加入刪除模式清單`,
       change: { path: 'delete_patterns', action: 'add', value: text },
 
@@ -338,7 +302,7 @@ function analyzeTextFNs(fns, config) {
         label: `「${text}」`,
         at: `@${p.start.toFixed(1)}s`,
         aiAction: '✅ 保留',
-        srtAction: '❌ SRT 刪除',
+        userAction: '❌ 使用者刪除',
         video: p._video
       })),
       checked: false

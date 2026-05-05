@@ -2,44 +2,29 @@
 /**
  * 生成审核网页（视频版本）
  *
- * 用法: node generate_review.js <subtitles_words.json> [auto_selected.json] [video_file]
- * 输出: review.html, video.mp4（符号链接到当前目录）
+ * 模組用法（由 training_server 等呼叫）:
+ *   const buildReviewHtml = require('./generate_review');
+ *   const html = buildReviewHtml(words, autoSelected, autoReasons, opts);
+ *
+ * CLI 用法:
+ *   node generate_review.js <subtitles_words.json> [auto_selected.json] [video_file]
+ *   输出: review.html, video.mp4（符号链接到当前目录）
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const subtitlesFile = process.argv[2] || 'subtitles_words.json';
-const autoSelectedFile = process.argv[3] || 'auto_selected.json';
-const videoFile = process.argv[4] || 'video.mp4';
-
-// 创建视频文件的符号链接到当前目录（避免复制大文件）
-const videoBaseName = 'video.mp4';
-if (videoFile !== videoBaseName && fs.existsSync(videoFile)) {
-  const absVideoPath = path.resolve(videoFile);
-  if (fs.existsSync(videoBaseName)) fs.unlinkSync(videoBaseName);
-  fs.symlinkSync(absVideoPath, videoBaseName);
-  console.log('📁 已链接视频到当前目录:', videoBaseName, '→', absVideoPath);
-}
-
-if (!fs.existsSync(subtitlesFile)) {
-  console.error('❌ 找不到字幕文件:', subtitlesFile);
-  process.exit(1);
-}
-
-const words = JSON.parse(fs.readFileSync(subtitlesFile, 'utf8'));
-let autoSelected = [];
-let autoReasons = {}; // idx → reason string
-
-if (fs.existsSync(autoSelectedFile)) {
-  const raw = JSON.parse(fs.readFileSync(autoSelectedFile, 'utf8'));
+/**
+ * 解析 auto_selected.json 的兩種格式：純陣列 / { indices, reasons }
+ * 回傳 { autoSelected: number[], autoReasons: { [idx]: string } }
+ */
+function parseAutoSelected(raw) {
+  let autoSelected = [];
+  let autoReasons = {};
   if (Array.isArray(raw)) {
-    // 簡單格式: [72, 85, 120]
     autoSelected = raw;
-  } else if (raw.indices) {
-    // 帶理由格式: { indices: [...], reasons: { "72": "...", "200-203": "..." } }
+  } else if (raw && raw.indices) {
     autoSelected = raw.indices;
-    // 展開範圍 key 為個別 idx
     if (raw.reasons) {
       for (const [key, reason] of Object.entries(raw.reasons)) {
         if (key.includes('-')) {
@@ -51,12 +36,29 @@ if (fs.existsSync(autoSelectedFile)) {
       }
     }
   }
-  console.log('AI 预选:', autoSelected.length, '个元素');
-  const reasonCount = Object.keys(autoReasons).length;
-  if (reasonCount > 0) console.log('帶理由:', reasonCount, '個 idx');
+  return { autoSelected, autoReasons };
 }
 
-const html = `<!DOCTYPE html>
+/**
+ * 產出 review.html 字串
+ *
+ * @param {Array} words            subtitles_words.json 內容
+ * @param {number[]} autoSelected  AI 預選刪除的 word indices
+ * @param {Object} autoReasons     idx → 原因字串
+ * @param {Object} [opts]
+ * @param {string} [opts.videoSrc]         video 元素的 src（預設 'video.mp4'）
+ * @param {string} [opts.cutApiPath]       導出 API path（預設 '/api/cut'）
+ * @param {string} [opts.encodersApiPath]  編碼器偵測 API path（預設 '/api/encoders'）
+ * @param {string} [opts.diffReportApiPath] 學習報告 API path（預設 '/api/diff-report'）
+ */
+function buildReviewHtml(words, autoSelected, autoReasons, opts) {
+  opts = opts || {};
+  const videoSrc          = opts.videoSrc          || 'video.mp4';
+  const cutApiPath        = opts.cutApiPath        || '/api/cut';
+  const encodersApiPath   = opts.encodersApiPath   || '/api/encoders';
+  const diffReportApiPath = opts.diffReportApiPath || '/api/diff-report';
+
+return `<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
@@ -250,9 +252,181 @@ const html = `<!DOCTYPE html>
       width: 0%; transition: width 0.3s ease;
     }
     .loading-time { margin-top: 12px; font-size: 13px; color: #888; }
+
+    /* ── Export Panel (CapCut-style) ── */
+    .modal-backdrop {
+      display: none;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 9000;
+      justify-content: center; align-items: center;
+    }
+    .modal-backdrop.show { display: flex; }
+    .export-panel {
+      background: #232323;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      width: 440px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+      padding: 0;
+    }
+    .export-panel .ep-head {
+      padding: 16px 22px;
+      border-bottom: 1px solid #333;
+      font-size: 16px; font-weight: 600; color: #fff;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .export-panel .ep-body { padding: 12px 22px 4px; }
+    .export-panel .ep-row {
+      display: flex; align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #2b2b2b;
+      gap: 12px;
+    }
+    .export-panel .ep-row:last-child { border-bottom: none; }
+    .export-panel .ep-label {
+      flex: 0 0 88px;
+      font-size: 13px; color: #bbb;
+    }
+    .export-panel .ep-control { flex: 1; }
+    .export-panel select {
+      width: 100%;
+      padding: 7px 10px;
+      background: #2c2c2c;
+      color: #e0e0e0;
+      border: 1px solid #3c3c3c;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .export-panel select:hover { border-color: #555; }
+    .export-panel select option[disabled] { color: #666; }
+    .export-panel .ep-hint {
+      font-size: 11px; color: #777; margin-top: 4px;
+    }
+    .export-panel .ep-check {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; color: #ccc; cursor: pointer;
+      user-select: none;
+    }
+    .export-panel .ep-check input[type="checkbox"] {
+      width: 16px; height: 16px; cursor: pointer; accent-color: #9C27B0;
+    }
+    .export-panel .ep-foot {
+      display: flex; justify-content: flex-end; gap: 10px;
+      padding: 14px 22px;
+      border-top: 1px solid #333;
+      background: #1e1e1e;
+      border-radius: 0 0 10px 10px;
+    }
+    .export-panel .ep-summary {
+      font-size: 12px; color: #888; margin-right: auto;
+      align-self: center;
+    }
+    .export-panel .ep-summary b { color: #CE93D8; }
+    .export-panel button.ep-primary {
+      padding: 8px 22px; background: #9C27B0; color: #fff;
+      border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
+      font-weight: 500;
+    }
+    .export-panel button.ep-primary:hover { background: #7B1FA2; }
+    .export-panel button.ep-secondary {
+      padding: 8px 18px; background: #3a3a3a; color: #ddd;
+      border: 1px solid #4a4a4a; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    .export-panel button.ep-secondary:hover { background: #444; }
   </style>
 </head>
 <body>
+
+<!-- ── 匯出設定 Modal（剪映風格）── -->
+<div class="modal-backdrop" id="exportBackdrop">
+  <div class="export-panel" onclick="event.stopPropagation()">
+    <div class="ep-head">🎬 視頻匯出</div>
+    <div class="ep-body">
+
+      <div class="ep-row">
+        <div class="ep-label">分辨率</div>
+        <div class="ep-control">
+          <select id="epResolution">
+            <option value="">保持原始</option>
+            <option value="1080">1080P</option>
+            <option value="720">720P</option>
+            <option value="480">480P</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ep-row">
+        <div class="ep-label">碼率</div>
+        <div class="ep-control">
+          <select id="epBitrate">
+            <option value="recommended" selected>推薦（原片碼率）</option>
+            <option value="high">更高（×1.5，畫質更好）</option>
+            <option value="low">更低（×0.6，省空間）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ep-row">
+        <div class="ep-label">編碼</div>
+        <div class="ep-control">
+          <select id="epCodec">
+            <option value="">H.264（最相容）</option>
+            <option value="h265">HEVC / H.265（省 50% 空間）</option>
+            <option value="av1" id="epCodecAv1">AV1（最省空間，需新顯卡）</option>
+          </select>
+          <div class="ep-hint" id="epCodecHint"></div>
+        </div>
+      </div>
+
+      <div class="ep-row">
+        <div class="ep-label">格式</div>
+        <div class="ep-control">
+          <select id="epContainer">
+            <option value="mp4" selected>MP4（通用）</option>
+            <option value="mkv">MKV（萬能容器）</option>
+            <option value="mov">MOV（Apple）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ep-row">
+        <div class="ep-label">幀率</div>
+        <div class="ep-control">
+          <select id="epFps">
+            <option value="">保持原始</option>
+            <option value="30">30 fps</option>
+            <option value="60">60 fps</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ep-row">
+        <div class="ep-label">附加</div>
+        <div class="ep-control">
+          <label class="ep-check" style="margin-bottom:6px">
+            <input type="checkbox" id="epAudioOnly">
+            單獨匯出音訊（MP3，忽略視訊編碼設定）
+          </label>
+          <label class="ep-check">
+            <input type="checkbox" id="epGif">
+            同步匯出 GIF（240P, 15fps）
+          </label>
+        </div>
+      </div>
+
+    </div>
+    <div class="ep-foot">
+      <span class="ep-summary" id="epSummary">將刪減 <b>0</b> 個片段</span>
+      <button class="ep-secondary" onclick="closeExportPanel()">取消</button>
+      <button class="ep-primary" onclick="confirmExport()">導出</button>
+    </div>
+  </div>
+</div>
 
 <div class="loading-overlay" id="loadingOverlay">
   <div class="loading-spinner"></div>
@@ -273,7 +447,7 @@ const html = `<!DOCTYPE html>
     <option value="1.5">1.5x</option>
     <option value="2">2x</option>
   </select>
-  <button onclick="executeCut()" class="primary">🎬 執行剪輯</button>
+  <button onclick="openExportPanel()" class="primary">⚙️ 匯出設定</button>
   <button onclick="exportMarkdown()">📝 匯出 MD</button>
   <button class="danger" onclick="clearAll()">清空選擇</button>
   <button onclick="copyDeleteList()">📋 複製刪除清單</button>
@@ -290,7 +464,7 @@ const html = `<!DOCTYPE html>
 
 <div class="main">
   <div class="left-panel">
-    <video id="player" src="${videoBaseName}" preload="auto"></video>
+    <video id="player" src="${videoSrc}" preload="auto"></video>
     <div class="legend">
       <div class="legend-item"><div class="legend-dot ai"></div><span>AI預選</span></div>
       <div class="legend-item"><div class="legend-dot del"></div><span>確認刪除</span></div>
@@ -645,14 +819,76 @@ const html = `<!DOCTYPE html>
     return merged;
   }
 
-  async function executeCut() {
+  // ── 匯出面板 ──
+  let encoderCaps = null;
+  async function loadEncoderCaps() {
+    try {
+      const r = await fetch('${encodersApiPath}');
+      if (!r.ok) return;
+      encoderCaps = await r.json();
+      const av1Opt = document.getElementById('epCodecAv1');
+      const hint = document.getElementById('epCodecHint');
+      if (encoderCaps.av1 && encoderCaps.av1.supported) {
+        av1Opt.disabled = false;
+        av1Opt.textContent = 'AV1（' + (encoderCaps.av1.hardware ? '硬體加速可用' : '軟體編碼，較慢') + '）';
+      } else {
+        av1Opt.disabled = true;
+        av1Opt.textContent = 'AV1（此系統無可用編碼器）';
+      }
+      // 切換編碼時提示
+      document.getElementById('epCodec').addEventListener('change', (e) => {
+        if (e.target.value === 'av1' && encoderCaps.av1 && !encoderCaps.av1.hardware) {
+          hint.textContent = '⚠️ 未偵測到 AV1 硬體編碼，將使用 libsvtav1 軟體編碼（速度較慢）';
+        } else if (e.target.value === 'av1') {
+          hint.textContent = '✓ 將使用硬體 AV1 編碼';
+        } else {
+          hint.textContent = '';
+        }
+      });
+    } catch (_) { /* silent */ }
+  }
+  loadEncoderCaps();
+
+  function openExportPanel() {
+    const segs = buildDeleteSegments();
+    document.getElementById('epSummary').innerHTML = '將刪減 <b>' + segs.length + '</b> 個片段';
+    document.getElementById('exportBackdrop').classList.add('show');
+  }
+  function closeExportPanel() {
+    document.getElementById('exportBackdrop').classList.remove('show');
+  }
+  document.getElementById('exportBackdrop').addEventListener('click', closeExportPanel);
+
+  function collectExportOptions() {
+    return {
+      resolution: document.getElementById('epResolution').value,
+      bitrate: document.getElementById('epBitrate').value,
+      codec: document.getElementById('epCodec').value,
+      container: document.getElementById('epContainer').value,
+      fps: document.getElementById('epFps').value,
+      audioOnly: document.getElementById('epAudioOnly').checked,
+      gif: document.getElementById('epGif').checked,
+    };
+  }
+
+  function confirmExport() {
+    closeExportPanel();
+    executeCut(collectExportOptions());
+  }
+
+  async function executeCut(exportOptions) {
+    exportOptions = exportOptions || {};
     const videoDuration = player.duration;
     const estimatedTime = Math.max(5, Math.ceil(videoDuration / 4));
     const estMin = Math.floor(estimatedTime / 60);
     const estSec = estimatedTime % 60;
     const estText = estMin > 0 ? estMin + '分' + estSec + '秒' : estSec + '秒';
 
-    if (!confirm('確認執行剪輯？\\n\\n📹 視頻時長: ' + (videoDuration/60).toFixed(1) + ' 分鐘\\n⏱️ 預計耗時: ' + estText + '\\n\\n點擊確定開始')) return;
+    const fmtLabel = exportOptions.audioOnly
+      ? '音訊 MP3'
+      : ((exportOptions.codec || 'H.264') + ' / ' + (exportOptions.container || 'mp4').toUpperCase());
+
+    if (!confirm('確認導出？\\n\\n📹 視頻時長: ' + (videoDuration/60).toFixed(1) + ' 分鐘\\n🎬 格式: ' + fmtLabel + '\\n⏱️ 預計耗時: ' + estText + '\\n\\n點擊確定開始')) return;
 
     const segments = buildDeleteSegments();
 
@@ -667,7 +903,7 @@ const html = `<!DOCTYPE html>
     });
     const diffReport = { timestamp: new Date().toISOString(), aiCount: autoSelected.size, userCount: selected.size, falsePositives, falseNegatives };
     // POST diff report to server (fire-and-forget)
-    fetch('/api/diff-report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(diffReport) }).catch(() => {});
+    fetch('${diffReportApiPath}', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(diffReport) }).catch(() => {});
 
     const overlay = document.getElementById('loadingOverlay');
     const loadingTimeEl = document.getElementById('loadingTime');
@@ -682,10 +918,10 @@ const html = `<!DOCTYPE html>
     }, 500);
 
     try {
-      const res = await fetch('/api/cut', {
+      const res = await fetch('${cutApiPath}', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(segments)
+        body: JSON.stringify({ deleteList: segments, exportOptions })
       });
       const data = await res.json();
 
@@ -759,6 +995,50 @@ const html = `<!DOCTYPE html>
 </script>
 </body>
 </html>`;
+}
 
-fs.writeFileSync('review.html', html);
-console.log('✅ 已生成 review.html');
+module.exports = buildReviewHtml;
+module.exports.parseAutoSelected = parseAutoSelected;
+
+// ── CLI 入口（保留原行為：吃 argv → 寫 review.html + symlink video.mp4）──
+if (require.main === module) {
+  const subtitlesFile = process.argv[2] || 'subtitles_words.json';
+  const autoSelectedFile = process.argv[3] || 'auto_selected.json';
+  const videoFile = process.argv[4] || 'video.mp4';
+
+  // 创建视频文件的符号链接到当前目录（避免复制大文件）
+  const videoBaseName = 'video.mp4';
+  if (videoFile !== videoBaseName && fs.existsSync(videoFile)) {
+    const absVideoPath = path.resolve(videoFile);
+    if (fs.existsSync(videoBaseName)) fs.unlinkSync(videoBaseName);
+    fs.symlinkSync(absVideoPath, videoBaseName);
+    console.log('📁 已链接视频到当前目录:', videoBaseName, '→', absVideoPath);
+  }
+
+  if (!fs.existsSync(subtitlesFile)) {
+    console.error('❌ 找不到字幕文件:', subtitlesFile);
+    process.exit(1);
+  }
+
+  const words = JSON.parse(fs.readFileSync(subtitlesFile, 'utf8'));
+  let autoSelected = [];
+  let autoReasons = {};
+  if (fs.existsSync(autoSelectedFile)) {
+    const raw = JSON.parse(fs.readFileSync(autoSelectedFile, 'utf8'));
+    const parsed = parseAutoSelected(raw);
+    autoSelected = parsed.autoSelected;
+    autoReasons = parsed.autoReasons;
+    console.log('AI 预选:', autoSelected.length, '个元素');
+    const reasonCount = Object.keys(autoReasons).length;
+    if (reasonCount > 0) console.log('帶理由:', reasonCount, '個 idx');
+  }
+
+  const html = buildReviewHtml(words, autoSelected, autoReasons, {
+    videoSrc: videoBaseName,
+    cutApiPath: '/api/cut',
+    encodersApiPath: '/api/encoders',
+    diffReportApiPath: '/api/diff-report',
+  });
+  fs.writeFileSync('review.html', html);
+  console.log('✅ 已生成 review.html');
+}

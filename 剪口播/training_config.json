@@ -1,50 +1,52 @@
 {
-  "_version": 1,
-  "_updated": "2026-04-15T02:30:39.264Z",
-  "_source": "auto_optimize",
+  "_version": 3,
+  "_updated": "2026-04-16T12:24:56.265Z",
+  "_source": "autoresearch_v2",
+  "_description": "規則引擎只記錄注意事項，所有實際判斷交由 Claude AI",
+  "notes": {
+    "proper_nouns": [],
+    "guidelines": "口播影片，講者會重錄(retake)。所有刪除判斷由 AI 負責。"
+  },
   "silence": {
-    "threshold": 0.9,
-    "sentence_gap": 0.5
+    "sentence_gap": 0.7,
+    "_note": "僅用於前端 fallback 斷句，非刪除門檻。AI 自行判斷停頓是否過長。",
+    "threshold": 1.85,
+    "tier_between": 0.3,
+    "tier_adjacent": 1.85
+  },
+  "phrase_split": {
+    "gap": 0.3,
+    "_note": "語音轉錄的短語分割門檻（用於 AI 輸入分段）"
   },
   "repeat": {
-    "prefix_len": 5
+    "prefix_len": 5,
+    "min_similarity": 0.5
   },
-  "filler_words": [
-    "嗯",
-    "啊",
-    "哎",
-    "诶",
-    "呃",
-    "額",
-    "唉",
-    "哦",
-    "噢",
-    "呀",
-    "欸"
-  ],
-  "filler_exceptions": [],
-  "stutter_patterns": [
-    "那個那個",
-    "就是就是",
-    "然後然後",
-    "這個這個",
-    "所以所以",
-    "那个那个",
-    "就是就是",
-    "然后然后",
-    "这个这个",
-    "所以所以"
-  ],
-  "incomplete_sentence": {
-    "max_chars": 10,
-    "min_overlap": 2
+  "semantic_repeat": {
+    "similarity": 0.5,
+    "lcs_ratio": 0.35
   },
-  "intra_repeat": {
-    "min_len": 2,
+  "take_group": {
+    "similarity": 0.6,
+    "window": 6
+  },
+  "short_sentence": {
     "max_len": 3,
-    "max_gap": 3
+    "min_gap": 0.5
   },
-  "_baseline_f1": 0.576923076923077,
-  "_best_f1": 0.6274509803921569,
-  "_experiments": 88
+  "intra_repeat": { "min_len": 4 },
+  "wide_repeat": {},
+  "cough_detection": {},
+  "abandoned_start": {},
+  "incomplete_sentence": {},
+  "candidate_pair": {
+    "similarity": 0.30,
+    "lcs_ratio": 0.30,
+    "window": 8,
+    "max_pairs": 50,
+    "min_text_len": 4
+  },
+  "use_pair_mode": true,
+  "_baseline_f1": 0.9683,
+  "_best_f1": 0.9683
 }

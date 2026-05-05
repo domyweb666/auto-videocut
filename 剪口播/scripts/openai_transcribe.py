@@ -57,8 +57,9 @@ def split_audio(audio_path, max_size_mb=24, overlap_sec=1):
     tmpdir = tempfile.mkdtemp(prefix='whisper_chunks_')
     offset = 0
     idx = 0
+    max_chunks = int(duration / chunk_duration) + 2  # 防禦性上限
 
-    while offset < duration:
+    while offset < duration and idx < max_chunks:
         chunk_path = os.path.join(tmpdir, f'chunk_{idx:04d}.mp3')
         end = min(offset + chunk_duration, duration)
 
@@ -71,7 +72,10 @@ def split_audio(audio_path, max_size_mb=24, overlap_sec=1):
         ], capture_output=True)
 
         chunks.append((chunk_path, offset))
-        offset = end - overlap_sec  # 重疊避免切斷
+        # 最後一段不需要 overlap，直接結束
+        if end >= duration:
+            break
+        offset = end - overlap_sec
         idx += 1
 
     print(f"📦 音訊切成 {len(chunks)} 段（每段 ~{chunk_duration:.0f}s）")
@@ -136,6 +140,16 @@ def transcribe(audio_path, output_path):
     from openai import OpenAI
 
     api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        # 嘗試從同目錄的 .env 檔案讀取
+        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+        if os.path.exists(env_path):
+            with open(env_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('OPENAI_API_KEY='):
+                        api_key = line.split('=', 1)[1].strip()
+                        break
     if not api_key:
         print("❌ 未設定 OPENAI_API_KEY 環境變數")
         sys.exit(1)

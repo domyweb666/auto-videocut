@@ -1,0 +1,63 @@
+{
+  "running": false,
+  "currentIndex": -1,
+  "items": [
+    {
+      "id": "1777248331971-0",
+      "videoPath": "E:\\個人知識管理PKM\\第10章\\2026-04-27 04-02-30.mkv",
+      "status": "pending",
+      "error": null,
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "id": "1777248348956-0",
+      "videoPath": "E:\\個人知識管理PKM\\第10章\\2026-04-27 04-22-21.mkv",
+      "status": "pending",
+      "error": null,
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "id": "1777248355973-0",
+      "videoPath": "E:\\個人知識管理PKM\\第10章\\2026-04-27 04-38-36.mkv",
+      "status": "pending",
+      "error": null,
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "id": "1777248362075-0",
+      "videoPath": "E:\\個人知識管理PKM\\第10章\\2026-04-27 04-51-55.mkv",
+      "status": "pending",
+      "error": null,
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "id": "1777248369322-0",
+      "videoPath": "E:\\個人知識管理PKM\\第10章\\2026-04-27 05-03-59.mkv",
+      "status": "pending",
+      "error": null,
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "id": "1777248375400-0",
+      "videoPath": "E:\\個人知識管理PKM\\第10章\\2026-04-27 06-12-00.mkv",
+      "status": "pending",
+      "error": null,
+      "startedAt": null,
+      "completedAt": null
+    },
+    {
+      "id": "1777248381390-0",
+      "videoPath": "E:\\個人知識管理PKM\\第10章\\2026-04-27 06-26-55.mkv",
+      "status": "pending",
+      "error": null,
+      "startedAt": null,
+      "completedAt": null
+    }
+  ],
+  "log": []
+}
