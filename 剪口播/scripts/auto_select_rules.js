@@ -58,6 +58,10 @@ const INCOMPLETE_MIN_OVERLAP = config.incomplete_sentence?.min_overlap ?? 2;
 const INTRA_MIN_LEN = config.intra_repeat?.min_len ?? 2;
 const INTRA_MAX_LEN = config.intra_repeat?.max_len ?? 4;
 const INTRA_MAX_GAP = config.intra_repeat?.max_gap ?? 4;
+// 規則 6b: 長片段立即重複（5+ 字、0 間隔、多副本只留最後）
+const PHRASE_REPEAT_ENABLED = config.phrase_repeat?.enabled ?? true;
+const PHRASE_REPEAT_MIN     = config.phrase_repeat?.min_len ?? 5;
+const PHRASE_REPEAT_MAX     = config.phrase_repeat?.max_len ?? 20;
 
 console.error(`📋 Config: silence≥${SILENCE_THRESHOLD}s, prefix=${REPEAT_PREFIX_LEN}, fillers=${FILLER_WORDS.length}`);
 
@@ -277,6 +281,52 @@ for (const sent of sentences) {
           break; // 只處理第一個匹配
         }
       }
+    }
+  }
+}
+
+// ── 規則 6b: 長片段立即逐字重複（≥5 字、0 間隔、多副本只留最後）──
+// 來源：style_extraction.md 規則 1（False Start）+ 規則 2（立即逐字重複）
+// 補 Rule 6 的盲區：Rule 6 max_len=4 抓不到「那在經過粗簡階段那在經過粗簡階段」這類長片段
+// 演算法：每個位置貪婪找最長的「立即逐字重複」，計算連續副本數，刪前 (n-1) 個保留最後一個
+let phraseRepeatCount = 0;
+if (PHRASE_REPEAT_ENABLED) {
+  for (const sent of sentences) {
+    const text = sent.text;
+    let p = 0;
+    while (p < text.length) {
+      // 找從 p 開始最長的立即逐字重複片段（從 MAX 往下試取最長）
+      let bestLen = 0;
+      const maxTry = Math.min(PHRASE_REPEAT_MAX, Math.floor((text.length - p) / 2));
+      for (let len = maxTry; len >= PHRASE_REPEAT_MIN; len--) {
+        if (text.slice(p, p + len) === text.slice(p + len, p + 2 * len)) {
+          bestLen = len;
+          break;
+        }
+      }
+      if (bestLen === 0) { p++; continue; }
+
+      // 計算連續副本數
+      let copies = 2;
+      while (p + (copies + 1) * bestLen <= text.length &&
+             text.slice(p + copies * bestLen, p + (copies + 1) * bestLen) === text.slice(p, p + bestLen)) {
+        copies++;
+      }
+
+      // 標記前 (copies-1) 個副本（保留最後一個完整版）
+      const fragment = text.slice(p, p + bestLen);
+      const endMarkPos = p + (copies - 1) * bestLen;
+      let charCount = 0;
+      for (const wi of sent.wordIndices) {
+        const wordLen = words[wi].text.length;
+        if (charCount >= p && charCount < endMarkPos) {
+          markSingle(wi, `長片段重複: "${fragment}" × ${copies}`);
+        }
+        charCount += wordLen;
+        if (charCount >= endMarkPos) break;
+      }
+      phraseRepeatCount++;
+      p = p + copies * bestLen;  // 跳過所有已處理的副本
     }
   }
 }
@@ -620,6 +670,7 @@ console.error(`   卡頓詞: ${stutterCount}`);
 console.error(`   連續語氣詞: ${fillerCount}`);
 console.error(`   口語贅詞: ${verbalFillerCount}`);
 console.error(`   句內重複: ${intraRepeatCount}`);
+if (PHRASE_REPEAT_ENABLED) console.error(`   長片段重複: ${phraseRepeatCount}`);
 console.error(`   殘句: ${incompleteCount}`);
 console.error(`   語意重複: ${semanticRepeatCount}`);
 console.error(`   Take分組: ${takeGroupCount}`);

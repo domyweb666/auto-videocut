@@ -35,6 +35,12 @@
     "min_gap": 0.5
   },
   "intra_repeat": { "min_len": 4 },
+  "phrase_repeat": {
+    "enabled": true,
+    "min_len": 5,
+    "max_len": 20,
+    "_note": "規則 6b: 長片段立即逐字重複（≥5字、0間隔、多副本只留最後）。源自 style_extraction.md 規則 1+2"
+  },
   "wide_repeat": {},
   "cough_detection": {},
   "abandoned_start": {},
