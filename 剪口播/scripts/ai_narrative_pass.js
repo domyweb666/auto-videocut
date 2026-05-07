@@ -117,12 +117,29 @@ try {
   }
 } catch (e) {}
 
+// 讀敘事層專屬守則（narrative_style_guide.md，由 ai_extract_narrative_style_batch.js 產出）
+// 這份守則只包含規則層之後、人工再多刪的敘事決策模式，不與規則層重疊
+let styleGuideSection = '';
+try {
+  const narrativeGuidePath = path.join(__dirname, 'training_output', 'narrative_style_guide.md');
+  if (fs.existsSync(narrativeGuidePath)) {
+    const raw = fs.readFileSync(narrativeGuidePath, 'utf8').trim();
+    styleGuideSection = `\n## 這位編輯者的敘事剪輯習慣（從 43 支影片的 X→Y 差異學習）\n\n以下規則是規則層清理完後，人工編輯還會額外做的敘事判斷。請以此為參考，判斷哪些段落應進一步刪除。\n\n${raw}\n\n---\n\n`;
+    console.error(`🎨 已載入敘事守則（${raw.length} 字）`);
+  } else {
+    console.error(`ℹ️ 尚無敘事守則（narrative_style_guide.md），以通用 prompt 執行`);
+  }
+} catch (e) {
+  console.error(`⚠️ 敘事守則載入失敗: ${e.message}`);
+}
+
 const inputText = residualPhrases.map(p => p.displayText).join('\n');
 const charCount = inputText.length;
 console.error(`📝 殘餘文稿 ${charCount} 字（給 Claude 看的）`);
 
 const prompt = PROMPT_TEMPLATE_RAW
   .replace('{{NOTES_SECTION}}', notesSection)
+  .replace('{{STYLE_GUIDE_SECTION}}', styleGuideSection)
   .replace('{{INPUT_TEXT}}', inputText);
 
 // ── 呼叫 Claude ──

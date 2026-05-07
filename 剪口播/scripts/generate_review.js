@@ -451,6 +451,8 @@ return `<!DOCTYPE html>
   <button onclick="exportMarkdown()">📝 匯出 MD</button>
   <button class="danger" onclick="clearAll()">清空選擇</button>
   <button onclick="copyDeleteList()">📋 複製刪除清單</button>
+  <button onclick="updateNarrativeStyle()" title="建議累積 5-10 支新影片後再按，約需 10-20 分鐘" style="background:#1a3a1a;border:1px solid #2d6a2d;">🧠 更新剪輯守則</button>
+  <button id="rollbackBtn" onclick="openRollbackModal()" title="查看守則快照歷史，可一鍵回滾" style="background:#2a1a1a;border:1px solid #6a2d2d;">↶ 守則歷史</button>
   <span style="margin-left:12px; padding-left:12px; border-left:1px solid #444; font-size:13px; color:#aaa;">
     剪輯模式
   </span>
@@ -830,10 +832,18 @@ return `<!DOCTYPE html>
         const opt = document.createElement('option');
         opt.value = m;
         opt.textContent = MODE_LABELS[m];
-        if (m === currentMode) opt.selected = true;
         sel.appendChild(opt);
       }
-      if (!modes[currentMode] && firstAvailable) {
+      // 用 server 決定的 defaultMode（layered when guide+polished ready, else rules）
+      const preferredMode = modes.defaultMode || firstAvailable || 'rules';
+      if (modes[preferredMode]) {
+        currentMode = preferredMode;
+        sel.value = preferredMode;
+        // 若預設是 layered，自動載入一次
+        if (preferredMode !== 'rules') {
+          await switchMode(preferredMode);
+        }
+      } else if (!modes[currentMode] && firstAvailable) {
         currentMode = firstAvailable;
         sel.value = firstAvailable;
       }
@@ -890,6 +900,125 @@ return `<!DOCTYPE html>
   }
 
   initModeSwitch();
+
+  // 啟動時檢查 holdout F1 是否有退步，若有則警示回滾按鈕
+  (async function checkRegressionOnLoad() {
+    try {
+      const r = await fetch('/api/holdout-status');
+      const data = await r.json();
+      if (data.available && data.latest && data.latest.regression) {
+        const btn = document.getElementById('rollbackBtn');
+        if (btn) {
+          btn.style.background = '#5a1a1a';
+          btn.style.borderColor = '#c0392b';
+          btn.textContent = '⚠️ 守則退步 — 點擊回滾';
+        }
+      }
+    } catch (e) { /* holdout 尚未設定，忽略 */ }
+  })();
+
+  async function updateNarrativeStyle() {
+    const btn = document.querySelector('button[onclick="updateNarrativeStyle()"]');
+    btn.disabled = true;
+    btn.textContent = '🧠 檢查中...';
+    try {
+      const r = await fetch('/api/update-narrative-style', { method: 'POST' });
+      const data = await r.json();
+      if (data.status === 'up_to_date') {
+        alert('✅ 守則已是最新，無需更新');
+      } else if (data.status === 'started') {
+        alert('🧠 開始更新守則（' + data.newVideos + ' 支新影片）\n\n' + data.message + '\n\n視窗關閉後在背景執行，完成後自動生效。');
+      } else {
+        alert('⚠️ ' + (data.message || '未知狀態'));
+      }
+    } catch(e) {
+      showToast('❌ 更新失敗: ' + e.message);
+    }
+    setTimeout(() => { btn.disabled = false; btn.textContent = '🧠 更新剪輯守則'; }, 3000);
+  }
+
+  // ── 守則快照 / 回滾 Modal ──
+  async function openRollbackModal() {
+    let modal = document.getElementById('rollbackModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'rollbackModal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+      modal.innerHTML = '<div style="background:#1a1a1a;border:1px solid #444;border-radius:8px;padding:24px;min-width:480px;max-width:680px;max-height:80vh;overflow-y:auto">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+        '<h3 style="margin:0;color:#fff">↶ 守則快照歷史</h3>' +
+        '<button onclick="document.getElementById(\'rollbackModal\').remove()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>' +
+        '</div>' +
+        '<div id="rollbackList">載入中...</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+    } else {
+      modal.style.display = 'flex';
+    }
+    try {
+      const [snapRes, holdoutRes] = await Promise.all([
+        fetch('/api/narrative-style-snapshots'),
+        fetch('/api/holdout-status')
+      ]);
+      const { snapshots } = await snapRes.json();
+      const holdout = await holdoutRes.json();
+      const latestF1 = holdout.available ? (holdout.latest.avgF1 * 100).toFixed(2) : null;
+      const regression = holdout.available && holdout.latest.regression;
+
+      // 更新回滾按鈕顏色
+      const rollbackBtn = document.getElementById('rollbackBtn');
+      if (regression) {
+        rollbackBtn.style.background = '#5a1a1a';
+        rollbackBtn.style.borderColor = '#c0392b';
+        rollbackBtn.textContent = '⚠️ 守則退步 — 點擊回滾';
+      }
+
+      const list = document.getElementById('rollbackList');
+      if (!snapshots || snapshots.length === 0) {
+        list.innerHTML = '<p style="color:#888">目前沒有快照（增量更新後才會產生）</p>';
+        return;
+      }
+      const rows = snapshots.map(s => {
+        const date = new Date(s.timestamp).toLocaleString('zh-TW');
+        const kb   = (s.size / 1024).toFixed(1);
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #333">' +
+          '<div>' +
+          '<div style="color:#ccc;font-size:14px">' + date + '</div>' +
+          '<div style="color:#666;font-size:12px">' + s.filename + ' (' + kb + ' KB)</div>' +
+          '</div>' +
+          '<button onclick="doRollback(\'' + s.filename + '\')" style="background:#3a1a1a;border:1px solid #8b2e2e;color:#e88;padding:6px 14px;border-radius:4px;cursor:pointer">還原此版本</button>' +
+          '</div>';
+      }).join('');
+      list.innerHTML = (latestF1 ? '<div style="margin-bottom:12px;padding:8px 12px;background:#1e2a1e;border-radius:4px;color:#8c8">' +
+        '目前 Holdout F1：' + latestF1 + '%' + (regression ? ' ⚠️ 退步' : '') + '</div>' : '') + rows;
+    } catch (e) {
+      document.getElementById('rollbackList').innerHTML = '<p style="color:#e44">載入失敗: ' + e.message + '</p>';
+    }
+  }
+
+  async function doRollback(filename) {
+    if (!confirm('確定要還原到「' + filename + '」？\n\n目前守則會先備份一份，再還原。')) return;
+    try {
+      const r = await fetch('/api/narrative-style-rollback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ snapshot: filename })
+      });
+      const data = await r.json();
+      if (data.success) {
+        showToast('✅ 守則已還原（備份: ' + data.backup + '）');
+        document.getElementById('rollbackModal').remove();
+        const btn = document.getElementById('rollbackBtn');
+        btn.style.background = '#2a1a1a';
+        btn.style.borderColor = '#6a2d2d';
+        btn.textContent = '↶ 守則歷史';
+      } else {
+        alert('❌ 還原失敗: ' + (data.error || '未知錯誤'));
+      }
+    } catch (e) {
+      alert('❌ 還原失敗: ' + e.message);
+    }
+  }
 
   function copyDeleteList() {
     const segments = buildDeleteSegments();

@@ -38,6 +38,27 @@ function findVideoFile() {
   return files[0] || 'source.mp4';
 }
 
+// 啟動時自動補產 polished.json（背景，不阻塞啟動）
+let polishedSpawning = false;
+(function ensurePolished() {
+  try {
+    const polishedPath  = path.resolve('..', '2_分析', 'polished.json');
+    const subtitlesPath = path.resolve('..', '1_轉錄', 'subtitles_words.json');
+    if (!fs.existsSync(polishedPath) && fs.existsSync(subtitlesPath)) {
+      console.log('🔧 polished.json 不存在，背景產出中（layered 模式所需）...');
+      polishedSpawning = true;
+      const child = spawn(process.platform === 'win32' ? 'node.exe' : 'node',
+        [path.join(__dirname, 'ai_polish.js'), subtitlesPath, polishedPath],
+        { detached: true, stdio: 'ignore' });
+      child.unref();
+      // 標記檔案：表示正在產出中，前端可查
+      fs.writeFileSync(polishedPath + '.pending', String(Date.now()));
+    }
+  } catch (e) {
+    console.error('⚠️ polished.json 自動產出失敗:', e.message);
+  }
+})();
+
 const MIME_TYPES = {
   '.html': 'text/html',
   '.js': 'application/javascript',
@@ -182,6 +203,31 @@ const server = http.createServer((req, res) => {
         const deletedDuration = originalDuration - newDuration;
         const savedPercent = ((deletedDuration / originalDuration) * 100).toFixed(1);
 
+        // ── 自動存為訓練配對 ──
+        try {
+          const videoName = path.basename(VIDEO_FILE).replace(/\.[^/.]+$/, '');
+          const trainingBase = path.join(__dirname, 'training_output', videoName);
+          const subtitlesPath = path.resolve('..', '1_轉錄', 'subtitles_words.json');
+          if (fs.existsSync(subtitlesPath)) {
+            fs.mkdirSync(path.join(trainingBase, '1_轉錄'), { recursive: true });
+            fs.mkdirSync(path.join(trainingBase, '2_分析'), { recursive: true });
+            fs.copyFileSync(subtitlesPath, path.join(trainingBase, '1_轉錄', 'subtitles_words.json'));
+            const words = JSON.parse(fs.readFileSync(subtitlesPath, 'utf8'));
+            const keptWords = words.filter(w =>
+              !deleteList.some(seg => w.start < seg.end && w.end > seg.start)
+            );
+            fs.writeFileSync(path.join(trainingBase, '2_分析', 'edited_words.json'), JSON.stringify(keptWords, null, 2));
+            // 同步複製 diff_report.json（若存在），供 AI→user 偏差分析
+            const diffSrc = path.resolve('..', '2_分析', 'diff_report.json');
+            if (fs.existsSync(diffSrc)) {
+              fs.copyFileSync(diffSrc, path.join(trainingBase, '2_分析', 'diff_report.json'));
+            }
+            console.log(`📚 訓練配對已儲存: ${videoName}（保留 ${keptWords.filter(w=>!w.isGap).length} 字）`);
+          }
+        } catch (trainErr) {
+          console.error('⚠️ 訓練配對儲存失敗:', trainErr.message);
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: true,
@@ -200,6 +246,35 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
     });
+    return;
+  }
+
+  // ── API: 增量更新敘事風格守則 ──
+  if (req.method === 'POST' && req.url === '/api/update-narrative-style') {
+    const scriptPath = path.join(__dirname, 'ai_extract_narrative_style_batch.js');
+    const processedFile = path.join(__dirname, 'training_output', 'narrative_style_guide_processed.json');
+    let processed = [];
+    try { processed = JSON.parse(fs.readFileSync(processedFile, 'utf8')).processed || []; } catch {}
+    const trainingDir = path.join(__dirname, 'training_output');
+    const allVideos = fs.readdirSync(trainingDir).filter(d => {
+      const dir = path.join(trainingDir, d);
+      try { return fs.statSync(dir).isDirectory() &&
+        fs.existsSync(path.join(dir, '1_轉錄', 'subtitles_words.json')) &&
+        fs.existsSync(path.join(dir, '2_分析', 'edited_words.json')); } catch { return false; }
+    });
+    const newCount = allVideos.filter(v => !processed.includes(v)).length;
+    if (newCount === 0) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'up_to_date', message: '守則已是最新，無新影片需要處理' }));
+      return;
+    }
+    const { spawn } = require('child_process');
+    const child = spawn(process.platform === 'win32' ? 'node.exe' : 'node',
+      [scriptPath, '--incremental'], { detached: true, stdio: 'ignore' });
+    child.unref();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'started', newVideos: newCount,
+      message: `開始更新守則（${newCount} 支新影片），約需 ${Math.ceil(newCount / 5) * 4} 分鐘，完成後自動生效` }));
     return;
   }
 
@@ -321,6 +396,97 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── API: 列出可回滾的守則快照 ──
+  if (req.method === 'GET' && req.url === '/api/narrative-style-snapshots') {
+    try {
+      const guideDir  = path.join(__dirname, 'training_output');
+      const base      = 'narrative_style_guide';
+      const snapshots = fs.readdirSync(guideDir)
+        .filter(f => f.startsWith(base + '_snapshot_') && f.endsWith('.md'))
+        .map(f => {
+          const ts   = parseInt(f.replace(base + '_snapshot_', '').replace('.md', '')) || 0;
+          const stat = fs.statSync(path.join(guideDir, f));
+          return { filename: f, timestamp: ts, size: stat.size };
+        })
+        .sort((a, b) => b.timestamp - a.timestamp);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ snapshots }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // ── API: 回滾守則到指定快照 ──
+  if (req.method === 'POST' && req.url === '/api/narrative-style-rollback') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { snapshot } = JSON.parse(body);
+        if (!snapshot) throw new Error('缺少 snapshot 欄位');
+        const guideDir    = path.join(__dirname, 'training_output');
+        const snapshotPath = path.join(guideDir, snapshot);
+        const guidePath    = path.join(guideDir, 'narrative_style_guide.md');
+        if (!fs.existsSync(snapshotPath)) throw new Error('快照不存在: ' + snapshot);
+        // 先把現在的守則也快照一份（避免誤操作無法還原）
+        const backupPath = guidePath.replace(/\.md$/, '_snapshot_' + Date.now() + '_prerollback.md');
+        if (fs.existsSync(guidePath)) fs.copyFileSync(guidePath, backupPath);
+        fs.copyFileSync(snapshotPath, guidePath);
+        console.log('↶ 守則已回滾到: ' + snapshot);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, restoredFrom: snapshot, backup: path.basename(backupPath) }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ── API: holdout F1 狀態（最新一筆 vs 前一筆）──
+  if (req.method === 'GET' && req.url === '/api/holdout-status') {
+    try {
+      const historyFile = path.join(__dirname, 'training_output', 'holdout_f1_history.jsonl');
+      if (!fs.existsSync(historyFile)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ available: false }));
+        return;
+      }
+      const lines = fs.readFileSync(historyFile, 'utf8').trim().split('\n').filter(Boolean);
+      if (lines.length === 0) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ available: false }));
+        return;
+      }
+      const latest = JSON.parse(lines[lines.length - 1]);
+      const prev   = lines.length > 1 ? JSON.parse(lines[lines.length - 2]) : null;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ available: true, latest, prev }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // ── API: polished.json 是否就緒 ──
+  if (req.method === 'GET' && req.url === '/api/polished-status') {
+    try {
+      const polishedPath = path.resolve('..', '2_分析', 'polished.json');
+      const pendingPath  = polishedPath + '.pending';
+      const ready   = fs.existsSync(polishedPath);
+      const pending = !ready && fs.existsSync(pendingPath);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ready, pending }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
   // ── API: 列出哪些 auto_selected 模式可用 ──
   if (req.method === 'GET' && req.url === '/api/auto-modes') {
     try {
@@ -329,8 +495,15 @@ const server = http.createServer((req, res) => {
         const p = autoModePath(mode);
         available[mode] = fs.existsSync(p);
       }
+      const polishedPath    = path.resolve('..', '2_分析', 'polished.json');
+      const narrativeGuide  = path.join(__dirname, 'training_output', 'narrative_style_guide.md');
+      const layeredJsonPath = autoModePath('layered');
+      const layeredReady    = fs.existsSync(layeredJsonPath)
+        && fs.existsSync(narrativeGuide)
+        && fs.existsSync(polishedPath);
+      const defaultMode = layeredReady ? 'layered' : 'rules';
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(available));
+      res.end(JSON.stringify({ ...available, defaultMode }));
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: err.message }));
