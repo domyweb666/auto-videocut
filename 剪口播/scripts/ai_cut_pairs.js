@@ -338,5 +338,43 @@ for (const pair of candidatePairs) {
 console.log(`\n📊 AI 判決彙整：刪除 ${aiDeleteCount} 個，保留雙方 ${keepBothCount} 個，批次失敗 ${failedBatches}/${batches.length}`);
 console.log(`📊 總計刪除：規則 ${ruleDeletions.length} + AI ${aiDeleteCount} = ${ruleDeletions.length + aiDeleteCount} 個`);
 
+// 寫 log 到 2_分析/ai_cut_pairs_log.txt（落地，讓使用者能診斷第二層 AI 真的有跑）
+try {
+  let deleteEarlier = 0, deleteLater = 0, keepBoth = 0, other = 0;
+  for (const pair of candidatePairs) {
+    const v = verdicts[pair.id];
+    const verdict = ((v && v.verdict) || '').toLowerCase().trim();
+    if (verdict === 'delete_earlier') deleteEarlier++;
+    else if (verdict === 'delete_later') deleteLater++;
+    else if (verdict === 'keep_both') keepBoth++;
+    else other++;
+  }
+  const logLines = [
+    `# ai_cut_pairs 執行記錄`,
+    `時間：${new Date().toISOString()}`,
+    `模型：${MODEL || 'default'}`,
+    `輸入候選對：${candidatePairs.length}`,
+    `批次：${batches.length}（失敗 ${failedBatches}）`,
+    `快取命中：${cacheHit ? '是' : '否'}`,
+    ``,
+    `## AI 判決分布`,
+    `- delete_earlier（刪前留後）：${deleteEarlier}`,
+    `- delete_later（刪後留前）：${deleteLater}`,
+    `- keep_both（都保留）：${keepBoth}`,
+    `- 其他/缺判決：${other}`,
+    ``,
+    `## 套用結果`,
+    `- 規則刪除：${ruleDeletions.length}`,
+    `- AI 刪除：${aiDeleteCount}`,
+    `- 總刪除：${ruleDeletions.length + aiDeleteCount}`,
+    ``,
+  ].join('\n');
+  const logPath = path.join(path.dirname(outputFile), 'ai_cut_pairs_log.txt');
+  fs.writeFileSync(logPath, logLines);
+  console.log(`📝 log 已寫出: ${logPath}`);
+} catch (e) {
+  console.warn(`⚠️ log 寫出失敗: ${e.message}`);
+}
+
 fs.writeFileSync(outputFile, JSON.stringify(output, null, 2));
 console.log(`✅ 已寫出: ${outputFile}`);

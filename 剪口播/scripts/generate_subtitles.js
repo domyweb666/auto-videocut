@@ -177,5 +177,40 @@ const gaps = wordsWithGaps.filter(w => w.isGap);
 console.log('总元素数:', wordsWithGaps.length);
 console.log('空白段数:', gaps.length);
 
+// 標記 Whisper 訓練資料污染（中國頻道結尾語）
+// 對策：把字詞串成連續字串，掃 blacklist 片語匹配。匹配到的整個字串範圍內的 word 都打 _hallucination=true
+// 只標記不刪除——後續 ai_polish/ai_cut 會把它們判為 aiDelete
+const blacklistPath = path.join(__dirname, 'hallucination_blacklist.json');
+if (fs.existsSync(blacklistPath)) {
+  const { phrases = [] } = JSON.parse(fs.readFileSync(blacklistPath, 'utf8'));
+  const wordIdx = []; // 第 i 個非 gap 字在 wordsWithGaps 的索引
+  let joined = '';
+  for (let i = 0; i < wordsWithGaps.length; i++) {
+    if (wordsWithGaps[i].isGap) continue;
+    const t = wordsWithGaps[i].text;
+    for (let k = 0; k < t.length; k++) wordIdx.push(i);
+    joined += t;
+  }
+  let hallCount = 0;
+  for (const phrase of phrases) {
+    if (!phrase || phrase.length < 5) continue;
+    let from = 0;
+    while (true) {
+      const pos = joined.indexOf(phrase, from);
+      if (pos < 0) break;
+      const startIdx = wordIdx[pos];
+      const endIdx = wordIdx[Math.min(pos + phrase.length - 1, wordIdx.length - 1)];
+      for (let i = startIdx; i <= endIdx; i++) {
+        if (!wordsWithGaps[i].isGap) {
+          wordsWithGaps[i]._hallucination = true;
+          hallCount++;
+        }
+      }
+      from = pos + phrase.length;
+    }
+  }
+  if (hallCount > 0) console.log(`⚠️ 標記 Whisper 幻覺字詞 ${hallCount} 個`);
+}
+
 fs.writeFileSync('subtitles_words.json', JSON.stringify(wordsWithGaps, null, 2));
 console.log('✅ 已保存 subtitles_words.json');

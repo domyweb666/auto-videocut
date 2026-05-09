@@ -33,6 +33,15 @@ DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "file:$INP
 BITRATE=$(ffprobe -v error -show_entries stream=bit_rate -select_streams v:0 -of csv=p=0 "file:$INPUT")
 PROFILE=$(ffprobe -v error -show_entries stream=profile -select_streams v:0 -of csv=p=0 "file:$INPUT")
 PIX_FMT=$(ffprobe -v error -show_entries stream=pix_fmt -select_streams v:0 -of csv=p=0 "file:$INPUT")
+# 偵測原片 fps（解決剪接點定格：所有片段強制成同一 CFR）
+INPUT_FPS_RAW=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "file:$INPUT")
+# 把 "30000/1001" 之類分數算成小數
+INPUT_FPS=$(node -e "
+  const r='$INPUT_FPS_RAW';
+  if(!r||r==='N/A'){console.log('30');process.exit()}
+  if(r.includes('/')){const [a,b]=r.split('/').map(Number);console.log((a/b).toFixed(3))}
+  else console.log(r);
+" 2>/dev/null || echo "30")
 
 # mkv/mov 等格式 stream bitrate 可能為 N/A，改用 container bitrate
 if [ -z "$BITRATE" ] || [ "$BITRATE" = "N/A" ]; then
@@ -144,16 +153,28 @@ detect_encoder
 
 SCALE_FILTER=""
 FPS_ARGS=""
-AUDIO_ARGS="-c:a aac -b:a 128k"
+# -async 1 解決剪接點 A/V 漂移（音畫不同步累積到後段才爆）
+AUDIO_ARGS="-c:a aac -b:a 128k -async 1"
 
 if [ "$CUT_LOSSLESS" = "1" ]; then
-  echo "💎 無損模式：音訊 stream copy、影片 libx264 CRF 17（忽略解析度/fps/codec）"
+  echo "💎 無損模式：音訊 stream copy、影片 libx264 CRF 17（忽略解析度/codec）"
   ENCODER="libx264"
   ENCODER_ARGS="-crf 17 -preset slow -profile:v $X264_PROFILE"
   ENCODER_LABEL="libx264 CRF 17 (近無損)"
+  # lossless 也要 CFR，否則剪接點仍會定格
+  FPS_ARGS="-r $INPUT_FPS -fps_mode cfr"
   AUDIO_ARGS="-c:a copy"
 else
-  if [ "$CUT_RESOLUTION" = "1080" ]; then
+  if [ "$CUT_RESOLUTION" = "4320" ]; then
+    SCALE_FILTER="-vf scale=7680:4320:force_original_aspect_ratio=decrease,pad=7680:4320:-1:-1:color=black"
+    echo "📐 解析度: 8K (7680×4320)"
+  elif [ "$CUT_RESOLUTION" = "2160" ]; then
+    SCALE_FILTER="-vf scale=3840:2160:force_original_aspect_ratio=decrease,pad=3840:2160:-1:-1:color=black"
+    echo "📐 解析度: 4K (3840×2160)"
+  elif [ "$CUT_RESOLUTION" = "1440" ]; then
+    SCALE_FILTER="-vf scale=2560:1440:force_original_aspect_ratio=decrease,pad=2560:1440:-1:-1:color=black"
+    echo "📐 解析度: 2K (2560×1440)"
+  elif [ "$CUT_RESOLUTION" = "1080" ]; then
     SCALE_FILTER="-vf scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:-1:-1:color=black"
     echo "📐 解析度: 1080P"
   elif [ "$CUT_RESOLUTION" = "720" ]; then
@@ -198,8 +219,12 @@ else
   fi
 
   if [ -n "$CUT_FPS" ]; then
-    FPS_ARGS="-r $CUT_FPS"
-    echo "🎬 幀率: ${CUT_FPS}fps"
+    FPS_ARGS="-r $CUT_FPS -fps_mode cfr"
+    echo "🎬 幀率: ${CUT_FPS}fps (CFR 強制)"
+  else
+    # 沒指定 → 套原片 fps，但**強制 CFR**避免剪接點定格
+    FPS_ARGS="-r $INPUT_FPS -fps_mode cfr"
+    echo "🎬 幀率: ${INPUT_FPS}fps (跟隨原片，CFR 強制以避免剪接點定格)"
   fi
 fi
 
@@ -311,11 +336,15 @@ for CMD_FILE in "$TMP_DIR"/cmd_*.sh; do
     RUNNING=$((RUNNING - 1))
     DONE=$((DONE + 1))
     printf "\r   进度: %d/%d" "$DONE" "$TOTAL_SEGS"
+    # 機器可解析的進度行（給 training_server.js 解析用）
+    echo "PROGRESS=${DONE}/${TOTAL_SEGS}"
   fi
 done
 
 # 等待剩余任务
 wait
+# 最後一批可能有未計入的片段，補一行 100% 進度
+echo "PROGRESS=${TOTAL_SEGS}/${TOTAL_SEGS}"
 echo ""
 
 if [ -f "$TMP_DIR/failed" ]; then

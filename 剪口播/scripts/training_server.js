@@ -175,13 +175,32 @@ function startCutProcess(videoPath) {
       cutState.step = 'AI 標記';
       cutState.progress = 68;
       const polishedPath = cutState.sentencesPath.replace(/\.json$/, '.polished.json');
+
+      // 已有完整 AI 結果 → 直接跳過整段 AI 階段，**保留使用者已剪過的編輯**
+      // 判斷標準：sentences.json 存在 + 至少有一個 aiDelete=true 的句子（代表 AI 真的跑過）
+      let skipAI = false;
+      if (fs.existsSync(cutState.sentencesPath)) {
+        try {
+          const existing = JSON.parse(fs.readFileSync(cutState.sentencesPath, 'utf8'));
+          if (Array.isArray(existing) && existing.some(s => s.aiDelete === true)) {
+            skipAI = true;
+            const delCount = existing.filter(s => s.aiDelete).length;
+            cutState.log.push(`♻️ 偵測到先前 AI 分析結果（${delCount} 句已標記），跳過 AI 重跑保留編輯`);
+            cutState.log.push('  → 若想完整重跑 AI，請按介面上的「🔄 重新 AI 分析」按鈕');
+            cutState.progress = 95;
+          }
+        } catch (_) { /* 解析失敗就視為沒有，照常跑 AI */ }
+      }
+      if (skipAI) { /* 跳過整段 AI block */ } else
       try {
         // 4a: 潤飾（加標點）— 用 haiku 省 token，純機械任務不需要 sonnet
-        cutState.log.push('🖊️ [1/2] Claude AI 潤飾中（加標點符號，haiku）...');
+        cutState.step = 'AI 標點';
+        cutState.progress = 68;
+        cutState.log.push('🖊️ [1/5] Claude AI 加標點中（haiku）...');
         await runCmd('node', [path.join(SCRIPT_DIR, 'ai_polish.js'), '--model', 'haiku', cutState.subtitlesPath, polishedPath], {
           timeout: 600000
         });
-        cutState.progress = 80;
+        cutState.progress = 75;
 
         // 4b: 剪輯判斷
         const serverConfig = (() => { try { return JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, '..', 'training_config.json'), 'utf8')); } catch(_) { return {}; } })();
@@ -190,17 +209,21 @@ function startCutProcess(videoPath) {
           const cutInputPath  = polishedPath.replace(/\.json$/, '_cut_input.json');
           const outlinePath   = polishedPath.replace(/\.json$/, '_outline.json');
 
-          // 4b-0: 意圖層（實驗 A）— 整集大綱，供下游 prefilter & ai_cut_pairs 使用
-          cutState.log.push('🗺️ [2a/4] Claude AI 整集大綱分析中（意圖層）...');
+          // 4b-0: 意圖層（實驗 A）— 整集大綱
+          cutState.step = 'AI 大綱';
+          cutState.progress = 76;
+          cutState.log.push('🗺️ [2/5] Claude 整集大綱分析中（Sonnet）...');
           try {
             await runCmd('node', [path.join(SCRIPT_DIR, 'ai_outline.js'), polishedPath, outlinePath], { timeout: 180000 });
-            cutState.progress = 81;
+            cutState.progress = 80;
           } catch (outlineErr) {
             cutState.log.push('⚠️ 意圖層分析失敗（繼續執行）: ' + outlineErr.message);
           }
 
-          // 4b-1: 規則前置過濾（加 outline & words 參數）
-          cutState.log.push('🔍 [2b/4] 規則前置過濾...');
+          // 4b-1: 規則前置過濾（不算 AI step，吞在「AI 候選對」階段內顯示）
+          cutState.step = 'AI 候選對';
+          cutState.progress = 81;
+          cutState.log.push('🔍 [3/5a] 規則前置過濾（adjacent_repeat / take_group / silence / 幻覺）...');
           const prefilterArgs = [path.join(SCRIPT_DIR, 'phrase_prefilter.js'), polishedPath, cutInputPath];
           if (fs.existsSync(outlinePath))              prefilterArgs.push('--outline-file', outlinePath);
           if (cutState.subtitlesPath && fs.existsSync(cutState.subtitlesPath))
@@ -208,14 +231,58 @@ function startCutProcess(videoPath) {
           await runCmd('node', prefilterArgs, { timeout: 120000 });
           cutState.progress = 83;
 
-          // 4b-2: AI 候選對判斷（加 outline 參數）
-          cutState.log.push('✂️ [2c/4] Claude AI 候選對判斷中...');
+          // 4b-2: AI 候選對判斷
+          cutState.log.push('✂️ [3/5b] Claude 候選對 AI 判斷中（Sonnet）...');
           const pairsArgs = [path.join(SCRIPT_DIR, 'ai_cut_pairs.js'), cutInputPath, cutState.sentencesPath];
           if (fs.existsSync(outlinePath)) pairsArgs.push('--outline-file', outlinePath);
           await runCmd('node', pairsArgs, { timeout: 600000 });
+          cutState.progress = 86;
 
-          // 4b-3: 字詞手術暫停（P=11% 無提升，待改進後啟用）
-          // cutState.log.push('⏭️  [2d/4] 字詞手術已暫停');
+          // 4b-3: 整稿潤稿 reviewer（Sonnet 看完整粗剪稿）
+          cutState.step = 'AI 潤稿';
+          cutState.progress = 87;
+          cutState.log.push('🪄 [4/5] Claude reviewer 整稿潤稿中（Sonnet）...');
+          try {
+            const reviewerArgs = [
+              path.join(SCRIPT_DIR, 'ai_polish_review.js'),
+              '--pass', 'review',
+              '--model', 'sonnet',
+              cutState.sentencesPath,
+            ];
+            if (fs.existsSync(outlinePath)) reviewerArgs.push('--outline-file', outlinePath);
+            await runCmd('node', reviewerArgs, { timeout: 600000 });
+            cutState.progress = 90;
+          } catch (revErr) {
+            cutState.log.push('⚠️ reviewer 失敗（不阻塞，繼續）: ' + revErr.message);
+          }
+
+          // 4b-4: 整稿審核 audit（Sonnet 嚴格二讀）
+          cutState.step = 'AI 二讀';
+          cutState.progress = 91;
+          cutState.log.push('🔍 [5/5] Claude audit 嚴格二讀中（Sonnet）...');
+          try {
+            const auditArgs = [
+              path.join(SCRIPT_DIR, 'ai_polish_review.js'),
+              '--pass', 'audit',
+              '--model', 'sonnet',
+              cutState.sentencesPath,
+            ];
+            if (fs.existsSync(outlinePath)) auditArgs.push('--outline-file', outlinePath);
+            await runCmd('node', auditArgs, { timeout: 600000 });
+            cutState.progress = 93;
+          } catch (audErr) {
+            cutState.log.push('⚠️ audit 失敗（不阻塞，繼續）: ' + audErr.message);
+          }
+
+          // 4b-5: 句中雜音清理（嗯/呃/欸這類）— 極快、無 AI、保守
+          cutState.log.push('📐 [後處理] 句中 filler 清理...');
+          try {
+            await runCmd('node', [path.join(SCRIPT_DIR, 'inline_filler_trim.js'),
+                                  cutState.sentencesPath, cutState.subtitlesPath],
+                         { timeout: 30000 });
+          } catch (fillerErr) {
+            cutState.log.push('⚠️ inline filler 失敗（不阻塞）: ' + fillerErr.message);
+          }
         } else {
           cutState.log.push('✂️ [2/2] Claude AI 剪輯判斷中（重錄/語氣詞/停頓）...');
           await runCmd('node', [path.join(SCRIPT_DIR, 'ai_cut.js'), polishedPath, cutState.sentencesPath], { timeout: 600000 });
@@ -1353,6 +1420,26 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── API: 各層刪除分布（compare_layers）──
+  if (req.method === 'GET' && req.url === '/api/compare-layers') {
+    try {
+      if (!cutState.sentencesPath || !fs.existsSync(cutState.sentencesPath)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'sentences.json 尚未產生' }));
+        return;
+      }
+      const cl = require('./compare_layers');
+      const analysisDir = path.join(cutState.workDir, '2_分析');
+      const result = cl.analyze(cutState.sentencesPath, analysisDir);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
   // ── API: SRT 反向對齊 ──
   if (req.method === 'POST' && req.url === '/api/srt-reverse-align') {
     let body = '';
@@ -1600,15 +1687,35 @@ const server = http.createServer((req, res) => {
                                                          preArgs2.push('--words-file', cutState.subtitlesPath);
           await runAI('node', preArgs2, { timeout: 120000 });
 
-          cutState.log.push('✂️ [2c/4] 重新候選對判斷...');
+          cutState.log.push('✂️ [2c/6] 重新候選對判斷...');
           const pairsArgs2 = [path.join(SCRIPT_DIR, 'ai_cut_pairs.js'), cutInputPath2, cutState.sentencesPath];
           if (fs.existsSync(outlinePath2)) pairsArgs2.push('--outline-file', outlinePath2);
           await runAI('node', pairsArgs2, {
             timeout: 600000
           });
 
+          // 整稿潤稿 reviewer
+          cutState.log.push('🪄 [2d/6] reviewer 整稿潤稿（Sonnet）...');
+          try {
+            const revArgs2 = [path.join(SCRIPT_DIR, 'ai_polish_review.js'),
+                              '--pass', 'review', '--model', 'sonnet',
+                              cutState.sentencesPath];
+            if (fs.existsSync(outlinePath2)) revArgs2.push('--outline-file', outlinePath2);
+            await runAI('node', revArgs2, { timeout: 600000 });
+          } catch (e) { cutState.log.push('⚠️ reviewer 失敗（繼續）: ' + e.message); }
+
+          // 整稿審核 audit
+          cutState.log.push('🔍 [2e/6] audit 嚴格二讀（Sonnet）...');
+          try {
+            const audArgs2 = [path.join(SCRIPT_DIR, 'ai_polish_review.js'),
+                              '--pass', 'audit', '--model', 'sonnet',
+                              cutState.sentencesPath];
+            if (fs.existsSync(outlinePath2)) audArgs2.push('--outline-file', outlinePath2);
+            await runAI('node', audArgs2, { timeout: 600000 });
+          } catch (e) { cutState.log.push('⚠️ audit 失敗（繼續）: ' + e.message); }
+
           // 字詞手術暫停（P=11% 無提升）
-          // cutState.log.push('⏭️  [2d/4] 字詞手術已暫停');
+          // cutState.log.push('⏭️  [2f/6] 字詞手術已暫停');
         } else {
         cutState.log.push('✂️ [2/2] 重新剪輯判斷...');
         await runAI('node', [path.join(SCRIPT_DIR, 'ai_cut.js'), polishedPath, cutState.sentencesPath], {
@@ -1664,7 +1771,7 @@ const server = http.createServer((req, res) => {
     req.on('data', c => body += c);
     req.on('end', () => {
       try {
-        const { deleteIndices, resolution, codec, fps, quality, exportSrt, outputDir, outputFilename, manualFeedback, abMode, abIndices } = JSON.parse(body);
+        const { deleteIndices, resolution, codec, fps, quality, bitrate, container, exportSrt, outputDir, outputFilename, manualFeedback, abMode, abIndices } = JSON.parse(body);
 
         // 儲存手動回饋
         if (manualFeedback && cutState.autoSelectedPath) {
@@ -1737,9 +1844,10 @@ const server = http.createServer((req, res) => {
 
         const baseName = path.basename(cutState.videoPath).replace(/\\.[^/.]+$/, '');
         const outDir = (outputDir && fs.existsSync(outputDir)) ? outputDir : cutState.workDir;
+        const ext = (container && ['mp4','mkv','mov'].includes(container.toLowerCase())) ? container.toLowerCase() : 'mp4';
         const safeFilename = outputFilename
-          ? (outputFilename.endsWith('.mp4') ? outputFilename : outputFilename + '.mp4')
-          : baseName + '_cut.mp4';
+          ? (/\.(mp4|mkv|mov)$/i.test(outputFilename) ? outputFilename : outputFilename + '.' + ext)
+          : baseName + '_cut.' + ext;
         const outputFile = path.join(outDir, safeFilename);
 
         // 用 cut_video.sh 剪輯（帶匯出選項）— 非同步，不阻塞
@@ -1748,16 +1856,18 @@ const server = http.createServer((req, res) => {
         const deleteFileUnix = deleteFile.replace(/\\/g, '/');
         const outputFileUnix = outputFile.replace(/\\/g, '/');
 
-        const { execFile: ef } = require('child_process');
+        const { spawn } = require('child_process');
         const env = { ...process.env };
         if (quality === 'lossless') {
           env.CUT_LOSSLESS = '1';
           // 無損模式下，解析度/編碼器/fps 參數都強制忽略（避免 stream copy 與 scale 衝突）
         } else {
           if (resolution && resolution !== 'original') env.CUT_RESOLUTION = resolution;
-          if (codec === 'h265') env.CUT_CODEC = 'h265';
+          if (codec === 'h265' || codec === 'av1') env.CUT_CODEC = codec;
           if (fps && fps !== 'original') env.CUT_FPS = fps;
+          if (bitrate && bitrate !== 'recommended') env.CUT_BITRATE_MODE = bitrate;
         }
+        if (container && container !== 'mp4') env.CUT_CONTAINER = container;
 
         cutState.running = true;
         cutState.step = '剪輯中';
@@ -1771,15 +1881,38 @@ const server = http.createServer((req, res) => {
         const bashPath = process.platform === 'win32'
           ? 'C:\\Program Files\\Git\\bin\\bash.exe'
           : 'bash';
-        const child = ef(bashPath, [scriptPath, inputPathUnix, deleteFileUnix, outputFileUnix], {
+        const child = spawn(bashPath, [scriptPath, inputPathUnix, deleteFileUnix, outputFileUnix], {
           cwd: cutState.workDir,
           env,
-          maxBuffer: 50 * 1024 * 1024
-        }, (err, stdout, stderr) => {
-          if (err) {
-            cutState.log.push('❌ 剪輯失敗: ' + err.message);
+        });
+
+        // 串流 stdout：解析 PROGRESS=N/TOTAL 即時更新 cutState.progress（50% → 90%）
+        let cutStdout = '';
+        let cutStderr = '';
+        child.stdout.on('data', chunk => {
+          const text = chunk.toString();
+          cutStdout += text;
+          const lines = text.split(/\r?\n/);
+          for (const ln of lines) {
+            const m = ln.match(/PROGRESS=(\d+)\/(\d+)/);
+            if (m) {
+              const done = parseInt(m[1], 10);
+              const total = parseInt(m[2], 10);
+              if (total > 0) {
+                cutState.progress = Math.min(89, 50 + Math.floor((done / total) * 40));
+                cutState.step = `剪輯片段 ${done}/${total}`;
+              }
+            }
+          }
+        });
+        child.stderr.on('data', chunk => { cutStderr += chunk.toString(); });
+
+        child.on('close', code => {
+          if (code !== 0) {
+            cutState.log.push('❌ 剪輯失敗（exit=' + code + '）: ' + (cutStderr.slice(-300) || cutStdout.slice(-300)));
             cutState.step = '完成';
             cutState.running = false;
+            cutState.error = cutStderr.slice(-200) || ('exit code ' + code);
             cutState.progress = 100;
             return;
           }
@@ -1789,7 +1922,7 @@ const server = http.createServer((req, res) => {
 
           // SRT 字幕匯出
           if (exportSrt) {
-            const srtOutput = outputFile.replace(/\.mp4$/i, '.srt');
+            const srtOutput = outputFile.replace(/\.(mp4|mkv|mov)$/i, '.srt');
             try {
               const { execFileSync: efs } = require('child_process');
               efs('node', [
@@ -1836,17 +1969,32 @@ const server = http.createServer((req, res) => {
             const deleteFileB = path.join(cutState.workDir, 'delete_segments_B.json');
             fs.writeFileSync(deleteFileB, JSON.stringify(segmentsB, null, 2));
 
-            const outputFileB = outputFile.replace(/\.mp4$/i, '_B.mp4');
+            const outputFileB = outputFile.replace(/\.(mp4|mkv|mov)$/i, (m) => '_B' + m);
             const deleteFileBUnix = deleteFileB.replace(/\\/g, '/');
             const outputFileBUnix = outputFileB.replace(/\\/g, '/');
 
-            const childB = ef(bashPath, [scriptPath, inputPathUnix, deleteFileBUnix, outputFileBUnix], {
+            const childB = spawn(bashPath, [scriptPath, inputPathUnix, deleteFileBUnix, outputFileBUnix], {
               cwd: cutState.workDir,
               env,
-              maxBuffer: 50 * 1024 * 1024
-            }, (errB) => {
-              if (errB) {
-                cutState.log.push('⚠️ B 版剪輯失敗: ' + errB.message);
+            });
+            childB.stdout.on('data', chunk => {
+              const text = chunk.toString();
+              process.stdout.write(text);
+              const m = text.match(/PROGRESS=(\d+)\/(\d+)/g);
+              if (m && m.length) {
+                const last = m[m.length - 1].match(/PROGRESS=(\d+)\/(\d+)/);
+                const done = parseInt(last[1], 10);
+                const total = parseInt(last[2], 10);
+                if (total > 0) {
+                  cutState.progress = Math.min(99, 92 + Math.floor((done / total) * 7));
+                  cutState.step = `B 版剪輯片段 ${done}/${total}`;
+                }
+              }
+            });
+            childB.stderr.on('data', c => process.stderr.write(c));
+            childB.on('close', codeB => {
+              if (codeB !== 0) {
+                cutState.log.push('⚠️ B 版剪輯失敗（exit=' + codeB + '）');
               } else {
                 cutState.log.push('✅ B 版剪輯完成: ' + outputFileB);
                 cutState.outputPathB = outputFileB;
@@ -1855,16 +2003,12 @@ const server = http.createServer((req, res) => {
               cutState.progress = 100;
               cutState.running = false;
             });
-            if (childB.stdout) childB.stdout.pipe(process.stdout);
-            if (childB.stderr) childB.stderr.pipe(process.stderr);
           } else {
             cutState.step = '完成';
             cutState.progress = 100;
             cutState.running = false;
           }
         });
-        if (child.stdout) child.stdout.pipe(process.stdout);
-        if (child.stderr) child.stderr.pipe(process.stderr);
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
@@ -4303,6 +4447,23 @@ const CUT_HTML = `<!DOCTYPE html>
       background: rgba(196, 155, 48, 0.3); color: #d4b44a;
     }
     .w.deleted:hover { background: rgba(196, 155, 48, 0.45); }
+    /* reviewer (整稿潤稿) — 鮮黃 */
+    .w.deleted.cat-reviewer {
+      background: rgba(255, 235, 59, 0.32); color: #fff176;
+    }
+    .w.deleted.cat-reviewer:hover { background: rgba(255, 235, 59, 0.50); }
+    /* audit (嚴格二讀) — 橘 */
+    .w.deleted.cat-audit {
+      background: rgba(255, 152, 0, 0.32); color: #ffb74d;
+    }
+    .w.deleted.cat-audit:hover { background: rgba(255, 152, 0, 0.50); }
+    /* 目前播放字 — 綠色發光效果，跟刪除色（金/黃/橘）區分 */
+    .w.now-playing {
+      background: rgba(76, 175, 80, 0.45) !important;
+      color: #a5d6a7 !important;
+      box-shadow: 0 0 4px rgba(76, 175, 80, 0.7);
+      border-radius: 3px;
+    }
     .w.drag-sel {
       background: rgba(100, 149, 237, 0.35); color: #8bb4ff;
     }
@@ -4519,15 +4680,28 @@ const CUT_HTML = `<!DOCTYPE html>
         <label>\u89E3\u6790\u5EA6</label>
         <select id="exportResolution">
           <option value="original">\u539F\u59CB\u89E3\u6790\u5EA6</option>
-          <option value="1080" selected>1080P (1920\u00D71080)</option>
+          <option value="480">480P (854\u00D7480)</option>
           <option value="720">720P (1280\u00D7720)</option>
+          <option value="1080" selected>1080P (1920\u00D71080)</option>
+          <option value="1440">2K (2560\u00D71440)</option>
+          <option value="2160">4K (3840\u00D72160)</option>
+          <option value="4320">8K (7680\u00D74320)</option>
         </select>
       </div>
       <div class="modal-row">
         <label>\u7DE8\u78BC\u5668</label>
         <select id="exportCodec">
-          <option value="h264" selected>H.264</option>
-          <option value="h265">H.265 (HEVC)</option>
+          <option value="h264" selected>H.264 (\u6700\u76F8\u5BB9)</option>
+          <option value="h265">H.265 / HEVC (\u7BC0\u7701\u7A7A\u9593)</option>
+          <option value="av1">AV1 (\u6700\u7BC0\u7701)</option>
+        </select>
+      </div>
+      <div class="modal-row">
+        <label>\u78BC\u7387</label>
+        <select id="exportBitrate">
+          <option value="low">\u66F4\u4F4E (\u00D70.6, \u7701\u7A7A\u9593)</option>
+          <option value="recommended" selected>\u63A8\u85A6 (\u539F\u7247\u78BC\u7387)</option>
+          <option value="high">\u66F4\u9AD8 (\u00D71.5, \u756B\u8CEA\u4F73)</option>
         </select>
       </div>
       <div class="modal-row">
@@ -4539,15 +4713,20 @@ const CUT_HTML = `<!DOCTYPE html>
       </div>
       <div class="modal-row">
         <label>\u683C\u5F0F</label>
-        <select id="exportFormat" disabled>
-          <option value="mp4">MP4</option>
+        <select id="exportFormat">
+          <option value="mp4" selected>MP4</option>
+          <option value="mkv">MKV</option>
+          <option value="mov">MOV</option>
         </select>
       </div>
       <div class="modal-row">
         <label>\u5E40\u7387</label>
         <select id="exportFps">
           <option value="original">\u539F\u59CB\u5E40\u7387</option>
+          <option value="24">24 fps</option>
+          <option value="25">25 fps</option>
           <option value="30" selected>30 fps</option>
+          <option value="50">50 fps</option>
           <option value="60">60 fps</option>
         </select>
       </div>
@@ -4643,11 +4822,26 @@ const CUT_HTML = `<!DOCTYPE html>
       <label class="filter-badge" id="fbPause"><input type="checkbox" checked onchange="toggleCat('pause')"><span class="cnt" id="cntPause">0</span> \u505C\u9813</label>
       <label class="filter-badge" id="fbFiller"><input type="checkbox" checked onchange="toggleCat('filler')"><span class="cnt" id="cntFiller">0</span> \u8A9E\u6C23\u8A5E</label>
       <label class="filter-badge" id="fbRepeat"><input type="checkbox" checked onchange="toggleCat('repeat')"><span class="cnt" id="cntRepeat">0</span> \u91CD\u8907</label>
+      <label class="filter-badge" id="fbReviewer" style="background:#3a3320;border-color:#7a6a35;color:#fff176;"><input type="checkbox" checked onchange="toggleCat('reviewer')"><span class="cnt" id="cntReviewer">0</span> 潤稿</label>
+      <label class="filter-badge" id="fbAudit" style="background:#3a2a15;border-color:#7a4a25;color:#ffb74d;"><input type="checkbox" checked onchange="toggleCat('audit')"><span class="cnt" id="cntAudit">0</span> 二讀</label>
       <div class="filter-nav">
         <span id="navInfo">0/0</span>
         <button onclick="navMark(-1)">\u2227</button>
         <button onclick="navMark(1)">\u2228</button>
       </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:#aaa;">
+        <span title="\u9ede\u64ca\u55ae\u5b57\u7684\u5207\u63db\u7c92\u5ea6">\u7c92\u5ea6:</span>
+        <button id="granWord" onclick="setGranularity('word')" style="background:#5e35b1;color:#fff;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:12px;">\u5b57\u7d1a</button>
+        <button id="granSentence" onclick="setGranularity('sentence')" style="background:#333;color:#aaa;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:12px;">\u53e5\u7d1a</button>
+      </div>
+    </div>
+
+    <div id="layersPanel" style="display:none;background:#1c1c2e;border-bottom:1px solid #333;padding:10px 14px;font-size:12px;color:#e0e0e0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong style="color:#9C27B0;">📊 各層 AI 刪除分布</strong>
+        <button onclick="document.getElementById('layersPanel').style.display='none'" style="background:none;border:none;color:#888;cursor:pointer;font-size:14px;">×</button>
+      </div>
+      <div id="layersPanelBody"></div>
     </div>
 
     <div class="guide-banner" id="guideBanner">
@@ -4739,6 +4933,7 @@ const CUT_HTML = `<!DOCTYPE html>
   let silenceKeepSecs = 0.5; // 靜音保留秒數，可由 slider 調整
   let waveformData = null;   // { values: Float[], interval: 0.1 }
   let aiMarked = new Set();
+  let aiInlineFillerWords = new Set(); // 句中雜音字（嗯/呃/欸）的 word index，跟整句刪區分
   let aiReasons = {};
   let userSelected = new Set();
   let sentences = [];
@@ -4746,10 +4941,26 @@ const CUT_HTML = `<!DOCTYPE html>
   let currentVideoPath = '';
   let navIdx = -1;
   let markList = []; // 所有被標記的 phrase 索引，用於導航
-  let catFilter = { pause: true, filler: true, repeat: true };
+  let catFilter = { pause: true, filler: true, repeat: true, reviewer: true, audit: true };
+  // 點擊單字的粒度：'word' = 只刪該字（預設），'sentence' = 切換整句
+  let editGranularity = (typeof localStorage !== 'undefined' && localStorage.getItem('editGranularity')) || 'word';
+
+  function setGranularity(mode) {
+    editGranularity = mode;
+    try { localStorage.setItem('editGranularity', mode); } catch (e) {}
+    const wBtn = document.getElementById('granWord');
+    const sBtn = document.getElementById('granSentence');
+    if (wBtn && sBtn) {
+      const active = 'background:#5e35b1;color:#fff;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:12px;';
+      const inactive = 'background:#333;color:#aaa;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:12px;';
+      wBtn.style.cssText = mode === 'word' ? active : inactive;
+      sBtn.style.cssText = mode === 'sentence' ? active : inactive;
+    }
+  }
 
   // \u4FEE\u6539 2: \u66F4\u65B0\u6B65\u9A5F\u9032\u5EA6
-  const STEPS = ['\u63D0\u53D6\u97F3\u983B', '\u8A9E\u97F3\u8F49\u9304', '\u751F\u6210\u5B57\u5E55', 'AI \u6A19\u8A18', '\u5B8C\u6210'];
+  // AI 標記拆 5 個子步驟，方便看卡在哪一道
+  const STEPS = ['\u63D0\u53D6\u97F3\u983B', '\u8A9E\u97F3\u8F49\u9304', '\u751F\u6210\u5B57\u5E55', 'AI \u6A19\u9EDE', 'AI \u5927\u7DB1', 'AI \u5019\u9078\u5C0D', 'AI \u6F64\u7A3F', 'AI \u4E8C\u8B80', '\u5B8C\u6210'];
   function updateSteps(currentStep) {
     const idx = STEPS.indexOf(currentStep);
     document.querySelectorAll('.step-item').forEach((el, i) => {
@@ -4814,7 +5025,17 @@ const CUT_HTML = `<!DOCTYPE html>
         return;
       }
       const vc = document.getElementById('videoContainer');
-      vc.innerHTML = '<video id="videoPlayer" controls src="/api/video?path=' + encodeURIComponent(videoPath) + '"></video>';
+      vc.innerHTML = '<video id="videoPlayer" src="/api/video?path=' + encodeURIComponent(videoPath) + '"></video>' +
+        '<div id="cutPlayerBar" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#1a1a1a;border-top:1px solid #333;color:#e0e0e0;font-size:12px;">' +
+          '<button id="cutPlayBtn" style="background:#7c4dff;color:#fff;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:14px;flex-shrink:0;">▶</button>' +
+          '<div id="cutProgress" style="flex:1;height:6px;background:#333;border-radius:3px;cursor:pointer;position:relative;overflow:hidden;">' +
+            '<div id="cutProgressFill" style="position:absolute;left:0;top:0;height:100%;width:0;background:linear-gradient(90deg,#7c4dff,#b388ff);"></div>' +
+          '</div>' +
+          '<span id="cutTimeDisp" style="white-space:nowrap;font-variant-numeric:tabular-nums;">0:00 / 0:00</span>' +
+          '<span id="cutOrigDisp" style="white-space:nowrap;color:#666;font-size:10px;font-variant-numeric:tabular-nums;" title="原片時間軸（包含被刪段落）"></span>' +
+          '<button id="cutFsBtn" style="background:none;color:#999;border:none;cursor:pointer;font-size:14px;">⛶</button>' +
+        '</div>';
+      setupCutPlayer();
       pollTimer = setInterval(pollCutStatus, 1000);
     } catch (err) {
       alert('\u5931\u6557: ' + err.message);
@@ -4952,6 +5173,7 @@ const CUT_HTML = `<!DOCTYPE html>
       words = await subsRes.json();
       userSelected = new Set();
       aiMarked = new Set();
+      aiInlineFillerWords = new Set();
 
       // 讀取 AI 分析結果（全權 AI 判斷版）
       if (sentRes.ok) {
@@ -4969,6 +5191,14 @@ const CUT_HTML = `<!DOCTYPE html>
             const delIdx = s.gapTrimIndices || s.gapAfterIndices || (s.gapAfterIdx !== undefined ? [s.gapAfterIdx] : []);
             delIdx.forEach(gi => { userSelected.add(gi); aiMarked.add(gi); });
           }
+          // 句中雜音字（嗯/呃/欸）— 句子保留，但這幾個字標 filler 刪除
+          if (Array.isArray(s.inlineFillerWordIndices) && s.inlineFillerWordIndices.length > 0 && !s.aiDelete) {
+            s.inlineFillerWordIndices.forEach(gi => {
+              userSelected.add(gi);
+              aiMarked.add(gi);
+              aiInlineFillerWords.add(gi);
+            });
+          }
         }
       } else {
         sentences = buildSentences();
@@ -4976,6 +5206,8 @@ const CUT_HTML = `<!DOCTYPE html>
       }
       renderFlowText();
       setupDragSelect();
+      // 非同步載入「各層刪除分布」panel
+      loadLayersPanel().catch(() => {});
 
       // 非同步載入音波圖（不阻塞主流程）
       if (currentVideoPath) {
@@ -5008,6 +5240,95 @@ const CUT_HTML = `<!DOCTYPE html>
   }
 
   // \u4FEE\u6539 3: \u53E5\u5B50\u5316\u908F\u8F2F
+  // 「各層 AI 刪除分布」panel：拉 /api/compare-layers 並渲染
+  async function loadLayersPanel() {
+    const panel = document.getElementById('layersPanel');
+    const body  = document.getElementById('layersPanelBody');
+    if (!panel || !body) return;
+    try {
+      const r = await fetch('/api/compare-layers');
+      if (!r.ok) return;
+      const d = await r.json();
+      if (d.error) return;
+
+      const labels = {
+        pause: '🟢 停頓 (gap rule)',
+        filler: '🟢 語氣詞 (filler rule)',
+        repeat: '🟢 重複 (rule)',
+        ai_pair: '🟡 ai_cut_pairs (候選對)',
+        whisper_hallucination: '🟢 Whisper 幻覺 (rule)',
+        take_group: '🟢 重複 take group',
+        adjacent_repeat: '🟢 相鄰重複',
+        reviewer: '🟡 reviewer (整稿潤稿)',
+        audit: '🟠 audit (嚴格二讀)',
+        unknown: '⚪ 未分類',
+      };
+      const colors = { reviewer: '#fff176', audit: '#ffb74d', ai_pair: '#d4b44a' };
+
+      const sorted = Object.entries(d.byCategory || {}).sort((a, b) => b[1] - a[1]);
+      const total = sorted.reduce((s, [, c]) => s + c, 0) || 1;
+
+      let html = '<div style="display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:10px;">';
+      html += '<span style="color:#aaa;">總計刪 <strong style="color:#f44336;">' + d.totalDeleted + '</strong> 句';
+      html += ' / 保留 <strong style="color:#4caf50;">' + d.totalKept + '</strong> 句';
+      html += ' · ' + (d.originalDurationSec / 60).toFixed(1) + ' 分 → '
+            + (d.keptDurationSec / 60).toFixed(1) + ' 分（省 ' + d.savedPercent.toFixed(0) + '%）</span></div>';
+
+      html += '<div style="display:flex;flex-direction:column;gap:3px;">';
+      for (const [cat, count] of sorted) {
+        const label = labels[cat] || cat;
+        const pct = (count / total * 100).toFixed(1);
+        const barW = Math.max(2, Math.round(count / total * 100));
+        const color = colors[cat] || '#888';
+        html += '<div style="display:flex;align-items:center;gap:8px;font-size:11px;">';
+        html += '<span style="width:200px;color:#ccc;">' + label + '</span>';
+        html += '<span style="width:36px;color:' + color + ';font-weight:600;">' + count + '</span>';
+        html += '<span style="width:46px;color:#888;">' + pct + '%</span>';
+        html += '<span style="flex:1;background:#0e0e1a;border-radius:3px;height:10px;position:relative;overflow:hidden;">';
+        html += '<span style="position:absolute;left:0;top:0;height:100%;width:' + barW + '%;background:' + color + ';opacity:.7;"></span>';
+        html += '</span></div>';
+      }
+      html += '</div>';
+
+      for (const focus of ['reviewer', 'audit']) {
+        const items = (d.detailsByCategory || {})[focus] || [];
+        if (items.length === 0) continue;
+        const color = colors[focus];
+        html += '<details style="margin-top:10px;font-size:11px;">';
+        html += '<summary style="cursor:pointer;color:' + color + ';font-weight:600;">'
+             + labels[focus] + ' 詳細（' + items.length + ' 句）</summary>';
+        html += '<div style="margin:6px 0 0 16px;color:#bbb;max-height:240px;overflow-y:auto;">';
+        for (const it of items.slice(0, 50)) {
+          html += '<div style="margin:4px 0;padding:4px 8px;background:#252535;border-radius:4px;">';
+          html += '<div style="color:#ddd;">[' + it.id + '] ' + escapeHtmlSafe(it.text) + '</div>';
+          html += '<div style="color:#888;font-style:italic;font-size:10px;margin-top:2px;">→ ' + escapeHtmlSafe(it.reason) + '</div>';
+          html += '</div>';
+        }
+        if (items.length > 50) html += '<div style="color:#666;text-align:center;">…還有 ' + (items.length - 50) + ' 句</div>';
+        html += '</div></details>';
+      }
+
+      const logs = d.logs || [];
+      if (logs.length) {
+        html += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid #333;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:10px;color:#888;">';
+        for (const l of logs) {
+          if (!l.exists) html += '<span style="opacity:.5;">' + l.name + ': 無 log</span>';
+          else html += '<span><strong style="color:#aaa;">' + l.name + ':</strong> ' + escapeHtmlSafe(l.summary || '已跑') + '</span>';
+        }
+        html += '</div>';
+      }
+
+      body.innerHTML = html;
+      panel.style.display = 'block';
+    } catch (e) {
+      console.warn('loadLayersPanel error', e);
+    }
+  }
+
+  function escapeHtmlSafe(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   function buildSentences() {
     const GAP = 0.5;
     const LEADING_SILENCE_MIN = 2.0; // 前置靜音超過 2 秒才顯示為可刪除的停頓
@@ -5130,7 +5451,7 @@ const CUT_HTML = `<!DOCTYPE html>
 
     const PARA_GAP = 2.0;
     let html = '';
-    let counts = { pause: 0, filler: 0, repeat: 0 };
+    let counts = { pause: 0, filler: 0, repeat: 0, reviewer: 0, audit: 0 };
     markList = [];
     let wmIdx = 0; // wordMap cursor
 
@@ -5153,17 +5474,25 @@ const CUT_HTML = `<!DOCTYPE html>
       }
 
       // 逐字渲染
+      let phraseHasInlineFiller = false;
       for (let ci = 0; ci < chars.length; ci++) {
         if (wmIdx >= wordMap.length) break;
         const wm = wordMap[wmIdx];
         const gi = wm.globalIdx;
         const isDel = gi >= 0 && userSelected.has(gi);
+        // inline filler：句中雜音字，不繼承句子 category，獨立用 'filler'
+        const isInlineFiller = gi >= 0 && aiInlineFillerWords.has(gi);
+        const wordCat = isInlineFiller ? 'filler' : cat;
         if (isDel) phraseHasMark = true;
-        const cls = isDel ? 'w deleted cat-' + cat : 'w';
-        const tip = (isDel && reason) ? ' title="' + escHtml(reason) + '"' : '';
+        if (isInlineFiller && isDel) phraseHasInlineFiller = true;
+        const cls = isDel ? 'w deleted cat-' + wordCat : 'w';
+        const wordReason = isInlineFiller ? '句中雜音字（inline filler 自動清理）' : reason;
+        const tip = (isDel && wordReason) ? ' title="' + escHtml(wordReason) + '"' : '';
         html += '<span class="' + cls + '" data-wm="' + wmIdx + '" data-gi="' + gi + '" data-si="' + si + '"' + tip + '>' + escHtml(chars[ci]) + '</span>';
         wmIdx++;
       }
+      // 句中有 inline filler 時，filler 計數 +1（即使整句沒被刪也會在 navigation 中）
+      if (phraseHasInlineFiller && !s.aiDelete) counts.filler = (counts.filler || 0) + 1;
 
       // 句內 gaps 也要能選（歸入句子刪除計數）
       const gapIdxs = s.gapIndices || [];
@@ -5208,6 +5537,10 @@ const CUT_HTML = `<!DOCTYPE html>
     document.getElementById('cntPause').textContent = counts.pause || 0;
     document.getElementById('cntFiller').textContent = counts.filler || 0;
     document.getElementById('cntRepeat').textContent = counts.repeat || 0;
+    const cntRev = document.getElementById('cntReviewer'); if (cntRev) cntRev.textContent = counts.reviewer || 0;
+    const cntAud = document.getElementById('cntAudit');    if (cntAud) cntAud.textContent = counts.audit || 0;
+    // userSelected 可能在這次 render 前被異動 → 讓 video skip cache 失效，下次 timeupdate 重算
+    if (typeof invalidateDelRangesCache === 'function') invalidateDelRangesCache();
 
     // 更新導航
     const total = markList.length;
@@ -5298,19 +5631,33 @@ const CUT_HTML = `<!DOCTYPE html>
 
       if (dragSelectedGlobal.size === 0) return;
 
-      // 單字點擊（起點 == 終點）→ 直接切換
+      // 單字點擊（起點 == 終點）→ 依粒度模式切換
       if (dragStartEl === dragEndEl) {
         const gi = parseInt((el || e.target).dataset.gi || '-1');
         if (gi >= 0) {
-          // 找出該字所屬的句子，取所有 wordIndices + gapIndices
-          const si = parseInt((el || e.target).dataset.si || '0');
-          const s = sentences[si];
-          // 單字點擊 → 切換整句
-          const allIdx = [...(s.wordIndices || []), ...(s.gapIndices || [])];
-          (s.gapAfterIndices || (s.gapAfterIdx !== undefined ? [s.gapAfterIdx] : [])).forEach(gi => allIdx.push(gi));
-          const allSel = allIdx.every(i => userSelected.has(i));
-          if (allSel) allIdx.forEach(i => userSelected.delete(i));
-          else allIdx.forEach(i => userSelected.add(i));
+          if (editGranularity === 'word') {
+            // 字級：只 toggle 該字本身
+            // 為避免「字刪了但兩側 gap 沒刪」造成跳音，刪該字時連同它的前 gap 一起選
+            // （該字索引前一個若是同句的 gap，一起加入）
+            if (userSelected.has(gi)) {
+              userSelected.delete(gi);
+            } else {
+              userSelected.add(gi);
+              const prev = words[gi - 1];
+              if (prev && prev.isGap && (prev.end - prev.start) < 0.5) {
+                userSelected.add(gi - 1);
+              }
+            }
+          } else {
+            // 句級：切換整句（舊行為）
+            const si = parseInt((el || e.target).dataset.si || '0');
+            const s = sentences[si];
+            const allIdx = [...(s.wordIndices || []), ...(s.gapIndices || [])];
+            (s.gapAfterIndices || (s.gapAfterIdx !== undefined ? [s.gapAfterIdx] : [])).forEach(gi => allIdx.push(gi));
+            const allSel = allIdx.every(i => userSelected.has(i));
+            if (allSel) allIdx.forEach(i => userSelected.delete(i));
+            else allIdx.forEach(i => userSelected.add(i));
+          }
         }
         clearDragHighlight();
         renderFlowText();
@@ -5442,11 +5789,233 @@ const CUT_HTML = `<!DOCTYPE html>
       const vid = document.getElementById('videoPlayer');
       if (vid) { vid.currentTime = seekT; vid.play().catch(() => {}); }
     });
-    // 影片播放時更新播放位置線
+    // 影片播放時更新播放位置線 + 即時跳過被刪段落（剪後預覽）+ 字幕同步高亮
     document.addEventListener('timeupdate', function(e) {
-      if (e.target && e.target.id === 'videoPlayer') renderWaveform();
+      if (e.target && e.target.id === 'videoPlayer') {
+        renderWaveform();
+        skipDeletedRanges(e.target);
+        highlightCurrentWord(e.target.currentTime);
+      }
     }, true);
   })();
+
+  // 字幕同步：找到目前播放時間對應的詞，套 .now-playing class，並自動捲動進視窗
+  let _lastPlayingWmIdx = -1;
+  function highlightCurrentWord(originalT) {
+    if (!Array.isArray(words) || words.length === 0) return;
+    // 二分查找對應的詞（用原片時間 — words[i].start/end 都是原片時間）
+    let lo = 0, hi = words.length - 1, hit = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const w = words[mid];
+      if (originalT < (w.start || 0)) hi = mid - 1;
+      else if (originalT > (w.end || 0)) lo = mid + 1;
+      else { hit = mid; break; }
+    }
+    // 沒命中區間（在 gap 上）就退回最後一個 end<=t 的詞
+    if (hit < 0) hit = Math.max(0, lo - 1);
+    if (hit < 0 || hit >= words.length) return;
+
+    // wordMap 把全域 word index 映射到 DOM 上的字符（一個 word 可能對應多個 char span）
+    // 先找該詞對應的第一個 wm index
+    let targetWmIdx = -1;
+    for (let i = 0; i < wordMap.length; i++) {
+      if (wordMap[i].globalIdx === hit) { targetWmIdx = i; break; }
+    }
+    if (targetWmIdx === _lastPlayingWmIdx) return; // 沒換字就不重畫
+
+    // 清掉上次高亮
+    document.querySelectorAll('.w.now-playing').forEach(el => el.classList.remove('now-playing'));
+
+    // 套新高亮（同一個 word 的所有字 span 都標）
+    const newEls = [];
+    for (let i = 0; i < wordMap.length; i++) {
+      if (wordMap[i].globalIdx === hit) {
+        const el = document.querySelector('.w[data-wm="' + i + '"]');
+        if (el) { el.classList.add('now-playing'); newEls.push(el); }
+      }
+    }
+    _lastPlayingWmIdx = targetWmIdx;
+
+    // 自動捲動進視窗（throttle：只在元素不在可視範圍才捲）
+    if (newEls.length > 0) {
+      const el = newEls[0];
+      const rect = el.getBoundingClientRect();
+      const list = document.getElementById('sentenceList');
+      if (list) {
+        const lr = list.getBoundingClientRect();
+        if (rect.top < lr.top + 50 || rect.bottom > lr.bottom - 50) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }
+  }
+
+  // 把當前 userSelected 轉成 [{start, end}] 排序後的時間區間
+  // 用 cache 避免每次 timeupdate 都重算（O(N) 詞數）
+  let _delRangesCache = null;
+  let _delRangesCacheKey = '';
+  function getDeletionRanges() {
+    // 用 userSelected size + 一個簡易 hash 當 cache key
+    const key = userSelected.size + ':' + (words.length || 0);
+    if (key === _delRangesCacheKey && _delRangesCache) return _delRangesCache;
+
+    // 收集被刪的詞時間段
+    const segs = [];
+    for (const idx of userSelected) {
+      if (idx < 0 || idx >= words.length) continue;
+      const w = words[idx];
+      if (typeof w.start !== 'number' || typeof w.end !== 'number') continue;
+      segs.push({ s: w.start, e: w.end });
+    }
+    segs.sort((a, b) => a.s - b.s);
+
+    // 合併相鄰（< 0.4s 間隔當作連續）
+    const merged = [];
+    for (const seg of segs) {
+      if (merged.length && seg.s - merged[merged.length - 1].e < 0.4) {
+        merged[merged.length - 1].e = Math.max(merged[merged.length - 1].e, seg.e);
+      } else {
+        merged.push({ s: seg.s, e: seg.e });
+      }
+    }
+    _delRangesCache = merged;
+    _delRangesCacheKey = key;
+    return merged;
+  }
+
+  // 影片時間進入刪除區間就跳過
+  let _lastSkip = 0;
+  function skipDeletedRanges(video) {
+    if (video.paused || video.seeking) return;
+    const t = video.currentTime;
+    // 防抖：同一秒內不重複 seek
+    if (Math.abs(t - _lastSkip) < 0.05) return;
+    const ranges = getDeletionRanges();
+    if (ranges.length === 0) return;
+    // binary search 找到最接近的 range
+    let lo = 0, hi = ranges.length - 1, hit = null;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const r = ranges[mid];
+      if (t < r.s) hi = mid - 1;
+      else if (t > r.e) lo = mid + 1;
+      else { hit = r; break; }
+    }
+    if (hit) {
+      // 跳到區間結束 + 0.05s 緩衝；若後面接著另一個刪除區間，連著跳
+      let target = hit.e + 0.05;
+      let i = ranges.indexOf(hit) + 1;
+      while (i < ranges.length && ranges[i].s - target < 0.1) {
+        target = ranges[i].e + 0.05;
+        i++;
+      }
+      _lastSkip = target;
+      video.currentTime = target;
+    }
+  }
+
+  // 改 userSelected 後立刻清 cache（renderFlowText 跟所有 toggle 都會走 invalidate）
+  function invalidateDelRangesCache() {
+    _delRangesCacheKey = '';
+    _cutTotalDur = null;
+    updateCutPlayerUI();
+  }
+
+  // ────────────── CapCut 式剪後時間軸 ──────────────
+  // 觀念：原片時間 t 對應「剪後時間」= 從 0 到 t 之間「沒被刪」的累計秒數
+  let _cutTotalDur = null;
+  function getCutTotalDuration() {
+    if (_cutTotalDur != null) return _cutTotalDur;
+    const v = document.getElementById('videoPlayer');
+    if (!v || !isFinite(v.duration) || v.duration <= 0) return 0;
+    let deleted = 0;
+    for (const r of getDeletionRanges()) deleted += (r.e - r.s);
+    _cutTotalDur = Math.max(0, v.duration - deleted);
+    return _cutTotalDur;
+  }
+
+  // 原片時間 → 剪後時間
+  function originalToCut(t) {
+    const ranges = getDeletionRanges();
+    let cutT = t;
+    for (const r of ranges) {
+      if (t >= r.e) cutT -= (r.e - r.s);          // 整段都在 t 之前 → 全扣
+      else if (t > r.s) { cutT -= (t - r.s); break; } // t 落在刪除區間中 → 扣到 t
+      else break;                                   // 後面的區間還沒到 → 結束
+    }
+    return Math.max(0, cutT);
+  }
+
+  // 剪後時間 → 原片時間
+  function cutToOriginal(cutT) {
+    const ranges = getDeletionRanges();
+    let origT = cutT;
+    for (const r of ranges) {
+      const cutAtRangeStart = originalToCut(r.s);
+      if (cutT < cutAtRangeStart) break;        // 目標在這個 range 之前 → 不用累加
+      origT += (r.e - r.s);                      // 跳過整個 range
+    }
+    return origT;
+  }
+
+  function fmtTime(t) {
+    if (!isFinite(t) || t < 0) t = 0;
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function updateCutPlayerUI() {
+    const v = document.getElementById('videoPlayer');
+    if (!v) return;
+    const total = getCutTotalDuration();
+    const cutNow = originalToCut(v.currentTime);
+    const fill = document.getElementById('cutProgressFill');
+    const disp = document.getElementById('cutTimeDisp');
+    const orig = document.getElementById('cutOrigDisp');
+    if (fill) fill.style.width = total > 0 ? (cutNow / total * 100).toFixed(2) + '%' : '0%';
+    if (disp) disp.textContent = fmtTime(cutNow) + ' / ' + fmtTime(total);
+    if (orig) orig.textContent = '原: ' + fmtTime(v.currentTime) + ' / ' + fmtTime(v.duration || 0);
+  }
+
+  function setupCutPlayer() {
+    const v = document.getElementById('videoPlayer');
+    const btn = document.getElementById('cutPlayBtn');
+    const prog = document.getElementById('cutProgress');
+    const fs = document.getElementById('cutFsBtn');
+    if (!v || !btn || !prog) return;
+
+    btn.onclick = () => v.paused ? v.play() : v.pause();
+    v.addEventListener('play',  () => { btn.textContent = '⏸'; });
+    v.addEventListener('pause', () => { btn.textContent = '▶'; });
+    v.addEventListener('loadedmetadata', () => { _cutTotalDur = null; updateCutPlayerUI(); });
+    v.addEventListener('durationchange', () => { _cutTotalDur = null; updateCutPlayerUI(); });
+
+    // 點進度條 → 跳到對應的原片時間
+    prog.addEventListener('click', (e) => {
+      const rect = prog.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const total = getCutTotalDuration();
+      const targetCut = ratio * total;
+      const targetOrig = cutToOriginal(targetCut);
+      v.currentTime = targetOrig;
+    });
+
+    if (fs) fs.onclick = () => {
+      if (v.requestFullscreen) v.requestFullscreen();
+      else if (v.webkitRequestFullscreen) v.webkitRequestFullscreen();
+    };
+
+    // 鍵盤空白鍵 = 播放暫停（介面焦點在外時不擋字幕編輯）
+    // 進度條每幀更新（rAF 比 timeupdate 平滑）
+    function tick() {
+      if (!document.body.contains(v)) return;
+      updateCutPlayerUI();
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
 
   // 靜音保留 slider
   (function() {
@@ -5771,6 +6340,8 @@ const CUT_HTML = `<!DOCTYPE html>
       codec: document.getElementById('exportCodec').value,
       fps: document.getElementById('exportFps').value,
       quality: document.getElementById('exportQuality').value,
+      bitrate: (document.getElementById('exportBitrate') || { value: 'recommended' }).value,
+      container: (document.getElementById('exportFormat') || { value: 'mp4' }).value,
       exportSrt: document.getElementById('exportSrt').checked,
       abMode: document.getElementById('exportAbMode').checked,
       abIndices: document.getElementById('exportAbMode').checked ? [...aiMarked] : null,
@@ -5840,6 +6411,9 @@ const CUT_HTML = `<!DOCTYPE html>
 
   // 頁面載入時：嘗試從伺服器恢復批次佇列（斷點續傳）
   setTimeout(() => restoreBatchFromServer().catch(() => {}), 1200);
+
+  // 套用 localStorage 的粒度偏好（按鈕樣式同步）
+  setGranularity(editGranularity);
 
   // ESC \u95DC\u9589 modal
   document.addEventListener('keydown', e => {

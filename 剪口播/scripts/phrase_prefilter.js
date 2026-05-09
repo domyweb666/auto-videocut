@@ -68,8 +68,9 @@ const STUTTER_PATTERNS  = trainConfig.stutter_patterns ?? [
 ];
 
 // 候選對參數
-const PAIR_SIM_THRESHOLD = parseFloat(cliArgs['similarity'] ?? trainConfig.candidate_pair?.similarity ?? 0.30);
-const PAIR_LCS_THRESHOLD = parseFloat(cliArgs['lcs-ratio']  ?? trainConfig.candidate_pair?.lcs_ratio  ?? 0.35);
+// 2026-05-07：放鬆閾值（0.30→0.27、0.35→0.30），讓更多重複候選對進到 AI 判決
+const PAIR_SIM_THRESHOLD = parseFloat(cliArgs['similarity'] ?? trainConfig.candidate_pair?.similarity ?? 0.27);
+const PAIR_LCS_THRESHOLD = parseFloat(cliArgs['lcs-ratio']  ?? trainConfig.candidate_pair?.lcs_ratio  ?? 0.30);
 const PAIR_WINDOW        = parseInt(cliArgs['window']        ?? trainConfig.candidate_pair?.window     ?? 60, 10);
 const PAIR_MAX           = parseInt(cliArgs['max-pairs']     ?? trainConfig.candidate_pair?.max_pairs  ?? 200, 10);
 const MIN_TEXT_LEN       = parseInt(cliArgs['min-text-len']  ?? trainConfig.candidate_pair?.min_text_len ?? 4, 10);
@@ -169,7 +170,27 @@ for (let i = 0; i < phrases.length; i++) {
 }
 log(`規則 A 靜音: ${gapCount} 個 gapDeletion`);
 
-// ── 規則 B：相鄰前 N 字相同（兩個短 phrase，刪較短的）──
+// ── 規則 A2：Whisper 幻覺片語（subtitles_words.json 已標 _hallucination 的 word）──
+// 對策：phrase 內任一個非 gap 字被標記為 _hallucination，整個 phrase 列為必刪
+let hallCount = 0;
+if (wordsData) {
+  for (let i = 0; i < phrases.length; i++) {
+    if (deletedSet.has(i)) continue;
+    const p = phrases[i];
+    const wIdx = p.wordIndices || [];
+    const hit = wIdx.some(idx => wordsData[idx] && wordsData[idx]._hallucination);
+    if (hit) {
+      ruleDeletions.push({ phraseIdx: i, rule: 'whisper_hallucination', reason: 'Whisper 幻覺（中國頻道結尾語）' });
+      deletedSet.add(i);
+      hallCount++;
+    }
+  }
+}
+log(`規則 A2 Whisper 幻覺: ${hallCount} 個`);
+
+// ── 規則 B：相鄰前 N 字相同（兩個短 phrase，預設刪前面那個）──
+// 2026-05-07：講者重錄習慣是「一句話講 2-3 次，最後一次最完整」。
+// 即使後面那次比前面短，也代表是更新的版本——一律刪前面，保留後面。
 let adjRepeatCount = 0;
 for (let i = 0; i < phrases.length - 1; i++) {
   if (deletedSet.has(i)) continue;
@@ -177,8 +198,8 @@ for (let i = 0; i < phrases.length - 1; i++) {
   const b = getText(phrases[i + 1]);
   if (a.length < REPEAT_PREFIX_LEN || b.length < REPEAT_PREFIX_LEN) continue;
   if (a.slice(0, REPEAT_PREFIX_LEN) === b.slice(0, REPEAT_PREFIX_LEN)) {
-    const delIdx = a.length <= b.length ? i : i + 1;
-    const reason = `相鄰重複: 前${REPEAT_PREFIX_LEN}字「${a.slice(0, REPEAT_PREFIX_LEN)}」相同`;
+    const delIdx = i; // 留後刪前
+    const reason = `相鄰重複: 前${REPEAT_PREFIX_LEN}字「${a.slice(0, REPEAT_PREFIX_LEN)}」相同（留後刪前）`;
     ruleDeletions.push({ phraseIdx: delIdx, rule: 'adjacent_repeat', reason });
     deletedSet.add(delIdx);
     adjRepeatCount++;
@@ -291,11 +312,22 @@ let takeCount = 0;
     }
 
     if (chain.length >= 2) {
-      // 實驗 B：用品質分數選最佳 take（而非固定保留最後一個）
-      // 優先保留最長文字 + 語速合理的 take；同分時保留最後一個（維持原有直覺）
-      const scored = chain.map(ci => ({ idx: ci, score: takePhraseScore(ci) }));
-      scored.sort((a, b) => b.score !== a.score ? b.score - a.score : b.idx - a.idx);
-      const keep = scored[0].idx;
+      // 2026-05-07：使用者明確意圖「留後刪前」。
+      // 計算鏈內首尾相似度，若 ≥ 0.6 → 無條件保留最後（即使前面文字較長）；
+      // 否則退回品質分數策略（避免誤殺風格不同的相似句）。
+      const firstText = getText(phrases[chain[0]]);
+      const lastText  = getText(phrases[chain[chain.length - 1]]);
+      const headTailSim = bigramSimilarity(firstText, lastText);
+
+      let keep;
+      if (headTailSim >= 0.6) {
+        keep = chain[chain.length - 1];
+      } else {
+        const scored = chain.map(ci => ({ idx: ci, score: takePhraseScore(ci) }));
+        scored.sort((a, b) => b.score !== a.score ? b.score - a.score : b.idx - a.idx);
+        keep = scored[0].idx;
+      }
+
       const keepIsLast = keep === chain[chain.length - 1];
       for (const ci of chain) {
         if (ci === keep) continue;
