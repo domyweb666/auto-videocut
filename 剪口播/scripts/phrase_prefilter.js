@@ -30,6 +30,7 @@ const {
   loadTrainingConfig,
   loadProtectedWords,
 } = require('./rule_utils');
+const { loadAudioFeatures, phraseAcoustic, laterIsMumble } = require('./score_takes');
 
 // ── 解析 CLI 參數 ──
 const argv = process.argv.slice(2);
@@ -100,6 +101,26 @@ if (WORDS_FILE && fs.existsSync(WORDS_FILE)) {
     wordsData = null;
   }
 }
+
+// ── P1：載入聲學特徵（--audio-features audio_features.json，extract_audio_features.py 產）──
+// 用於規則 B 的 take 選擇：兩段重複時留「講得篤定」那段，而非無腦留後者。
+let audioFeats = null;
+const AUDIO_FEATURES_FILE = cliArgs['audio-features'];
+if (AUDIO_FEATURES_FILE) {
+  audioFeats = loadAudioFeatures(AUDIO_FEATURES_FILE);
+  if (audioFeats) {
+    log(`聲學特徵載入：${Object.keys(audioFeats.words).length} 字（assertiveness take 選擇啟用）`);
+  } else {
+    log(`⚠️ 聲學特徵載入失敗，take 選擇退回「留後刪前」: ${AUDIO_FEATURES_FILE}`);
+  }
+}
+// ── 規則 B「後段唸糊才翻盤」門檻 ──
+// 設計教訓：純 assertiveness 翻盤在實測上淨負——「留後」本身已是強啟發法，
+// 只有當「後段是唸糊壞 take」時推翻才有價值，而唸糊的可靠訊號是 STT confidence。
+// 缺 confidence（如舊轉錄）時三項皆不成立 → 一律退回留後，零翻盤、零傷害。
+const ASSERT_MARGIN = parseFloat(cliArgs['assert-margin'] ?? trainConfig.take_assertiveness?.margin ?? 0.05);
+const CONF_FLOOR    = parseFloat(cliArgs['conf-floor']  ?? trainConfig.take_assertiveness?.conf_floor  ?? 0.6);
+const CONF_MARGIN   = parseFloat(cliArgs['conf-margin'] ?? trainConfig.take_assertiveness?.conf_margin ?? 0.15);
 
 // 音訊特徵計算（Experiment C）
 function computeAudioFeatures(phrase, words) {
@@ -198,8 +219,20 @@ for (let i = 0; i < phrases.length - 1; i++) {
   const b = getText(phrases[i + 1]);
   if (a.length < REPEAT_PREFIX_LEN || b.length < REPEAT_PREFIX_LEN) continue;
   if (a.slice(0, REPEAT_PREFIX_LEN) === b.slice(0, REPEAT_PREFIX_LEN)) {
-    const delIdx = i; // 留後刪前
-    const reason = `相鄰重複: 前${REPEAT_PREFIX_LEN}字「${a.slice(0, REPEAT_PREFIX_LEN)}」相同（留後刪前）`;
+    // 預設：留後刪前（講者重錄習慣，最後一次最完整——這本身就是強啟發法）
+    let delIdx = i;
+    let basis = '留後刪前';
+    // P1：只有當「後段是唸糊壞 take」時才推翻留後，改成刪後留前。
+    // 唸糊判定 = 後段 STT confidence 明顯偏低（唯一可靠訊號），且整體較虛。
+    // 兩段任一缺 confidence → mumble 永遠 false → 安全退回留後。
+    const acA = phraseAcoustic(phrases[i], audioFeats);     // 前段
+    const acB = phraseAcoustic(phrases[i + 1], audioFeats); // 後段
+    if (laterIsMumble(acA, acB, { confFloor: CONF_FLOOR, confMargin: CONF_MARGIN, assertMargin: ASSERT_MARGIN })) {
+      delIdx = i + 1;
+      basis = `後段唸糊(conf ${acB.confidence.toFixed(2)}<前段${acA.confidence.toFixed(2)})→刪後留前`;
+    }
+    const pfx = getText(phrases[delIdx]).slice(0, REPEAT_PREFIX_LEN);
+    const reason = `相鄰重複: 前${REPEAT_PREFIX_LEN}字「${a.slice(0, REPEAT_PREFIX_LEN)}」相同（${basis}）`;
     ruleDeletions.push({ phraseIdx: delIdx, rule: 'adjacent_repeat', reason });
     deletedSet.add(delIdx);
     adjRepeatCount++;

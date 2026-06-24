@@ -242,6 +242,9 @@ async function processVideo(video, slot) {
         const preArgs = [path.join(SCRIPT_DIR, 'phrase_prefilter.js'), polishedAPath, cutInputPath];
         if (fs.existsSync(outlinePath)) preArgs.push('--outline-file', outlinePath);
         preArgs.push('--words-file', subsPath);
+        // P1：聲學特徵（audio_features.json 與 subtitles_words.json 同目錄），存在才帶
+        const audioFeatPath = path.join(path.dirname(subsPath), 'audio_features.json');
+        if (fs.existsSync(audioFeatPath)) preArgs.push('--audio-features', audioFeatPath);
         await runExecFile('node', preArgs, execOpts);
         log('✅ 前置過濾完成');
       } catch (err) {

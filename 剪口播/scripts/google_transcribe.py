@@ -57,6 +57,7 @@ def transcribe(audio_path, output_path='google_result.json'):
         encoding=speech.RecognitionConfig.AudioEncoding.MP3,
         language_code="zh-TW",                # 繁體中文
         enable_word_time_offsets=True,        # 字級時間戳
+        enable_word_confidence=True,          # 字級信心值（P1/P2 唸糊偵測用）
         enable_automatic_punctuation=True,    # 自動標點
         model="default",                      # V1 僅 default 支援 cmn-Hant-TW
         audio_channel_count=1,
@@ -92,11 +93,17 @@ def transcribe(audio_path, output_path='google_result.json'):
         for w in alt.words:
             start_s = w.start_time.total_seconds()
             end_s = w.end_time.total_seconds()
-            all_words.append({
+            word_obj = {
                 "word": w.word,
                 "start": round(start_s, 3),
                 "end": round(end_s, 3)
-            })
+            }
+            # 字級信心值：Google V1 default 模型不一定填，>0 才存，
+            # 否則留空讓下游視為「無此訊號」（不要把缺值當成 0=極不確定）
+            conf = getattr(w, "confidence", None)
+            if conf is not None and conf > 0:
+                word_obj["confidence"] = round(conf, 4)
+            all_words.append(word_obj)
 
     if not all_words:
         print("⚠️  未識別到任何詞，請確認音訊檔案和語言設定")
