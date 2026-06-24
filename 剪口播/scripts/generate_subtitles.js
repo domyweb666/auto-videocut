@@ -50,12 +50,13 @@ const allWords = [];
 if (isGoogleSTT) {
   // Google STT 格式：words[].word / start / end（秒，已在 python 腳本轉好）
   // OpenAI Whisper 也用此格式（_actual_source = 'openai_whisper'），需要 OpenCC
-  const needConvert = result._actual_source === 'openai_whisper';
-  if (needConvert) console.log('🔄 OpenAI Whisper 輸出，啟用簡繁轉換');
+  const needConvert = result._actual_source === 'openai_whisper' || result._actual_source === 'faster_whisper';
+  if (needConvert) console.log('🔄 Whisper 輸出，啟用簡繁轉換');
   for (const w of (result.words || [])) {
     const text = needConvert ? toTrad((w.word || '').trim()) : (w.word || '').trim();
     if (!text) continue;
-    allWords.push({ text, start: w.start, end: w.end });
+    // confidence：本機 faster-whisper 會帶每字把握度（P1/P2 唸糊用），其他來源沒有 → undefined（JSON 自動略過）
+    allWords.push({ text, start: w.start, end: w.end, confidence: w.confidence });
   }
 } else if (isWhisper) {
   // Whisper 格式：segments[].words[].word / start / end（秒）
@@ -125,7 +126,8 @@ if (deleteFile && fs.existsSync(deleteFile)) {
       outputWords.push({
         text: word.text,
         start: Math.round((word.start - deletedBefore) * 100) / 100,
-        end: Math.round((word.end - deletedBefore) * 100) / 100
+        end: Math.round((word.end - deletedBefore) * 100) / 100,
+        confidence: word.confidence
       });
     }
   }
@@ -168,7 +170,8 @@ for (const word of outputWords) {
     text: word.text,
     start: word.start,
     end: word.end,
-    isGap: false
+    isGap: false,
+    confidence: word.confidence
   });
   lastEnd = word.end;
 }
