@@ -1,0 +1,2155 @@
+{
+  "phrases": [
+    {
+      "text": "還有我多米",
+      "wordIndices": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "gapIndices": [],
+      "startTime": 3.319999933242798,
+      "endTime": 4.300000190734863,
+      "gapAfter": 0.5,
+      "gapAfterIdx": 8,
+      "displayText": "還有我多米，"
+    },
+    {
+      "text": "挑輸邏輯只看經典讀物",
+      "wordIndices": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "gapIndices": [],
+      "startTime": 4.800000190734863,
+      "endTime": 7.519999980926514,
+      "gapAfter": 1,
+      "gapAfterIdx": 19,
+      "displayText": "挑輸邏輯只看經典讀物。"
+    },
+    {
+      "text": "那挑輸的基本邏輯是只看經典讀物那其實輸的數量其實不",
+      "wordIndices": [
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50
+      ],
+      "gapIndices": [],
+      "startTime": 17.260000228881836,
+      "endTime": 23.040000915527344,
+      "gapAfter": 1,
+      "gapAfterIdx": 51,
+      "displayText": "那挑輸的基本邏輯是只看經典讀物那其實輸的數量其實不，"
+    },
+    {
+      "text": "挑輸的邏輯就是只看經典讀物",
+      "wordIndices": [
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65
+      ],
+      "gapIndices": [],
+      "startTime": 25.81999969482422,
+      "endTime": 28.360000610351562,
+      "gapAfter": 1,
+      "gapAfterIdx": 66,
+      "displayText": "挑輸的邏輯就是只看經典讀物。"
+    },
+    {
+      "text": "其實輸的數量根本不重要還有我多米挑輸邏輯只看經典讀物",
+      "wordIndices": [
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108
+      ],
+      "gapIndices": [
+        98
+      ],
+      "startTime": 47.36000061035156,
+      "endTime": 51.2599983215332,
+      "gapAfter": 0.980000000000004,
+      "gapAfterIdx": 109,
+      "displayText": "其實輸的數量根本不重要還有我多米挑輸邏輯只看經典讀物。"
+    },
+    {
+      "text": "其實輸的數量根本不重要",
+      "wordIndices": [
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118
+      ],
+      "gapIndices": [],
+      "startTime": 52.2400016784668,
+      "endTime": 54.31999969482422,
+      "gapAfter": 0.3200000000000003,
+      "gapAfterIdx": 119,
+      "displayText": "其實輸的數量根本不重要，"
+    },
+    {
+      "text": "因為你如果要搞懂一個領域的話你所需要看的經典書也不會超過50本",
+      "wordIndices": [
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143
+      ],
+      "gapIndices": [],
+      "startTime": 54.63999938964844,
+      "endTime": 60.18000030517578,
+      "gapAfter": 0.5600000000000023,
+      "gapAfterIdx": 144,
+      "displayText": "因為你如果要搞懂一個領域的話你所需要看的經典書也不會超過50本，"
+    },
+    {
+      "text": "你根本不用看到上千本之多",
+      "wordIndices": [
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        154
+      ],
+      "gapIndices": [],
+      "startTime": 60.7400016784668,
+      "endTime": 63.2599983215332,
+      "gapAfter": 0.35999999999999943,
+      "gapAfterIdx": 155,
+      "displayText": "你根本不用看到上千本之多，"
+    },
+    {
+      "text": "而看書最重要的就是挑輸",
+      "wordIndices": [
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164
+      ],
+      "gapIndices": [],
+      "startTime": 63.619998931884766,
+      "endTime": 65.5,
+      "gapAfter": 0.7199999999999989,
+      "gapAfterIdx": 165,
+      "displayText": "而看書最重要的就是挑輸，"
+    },
+    {
+      "text": "最簡單的邏輯就是選擇著名出版社出版的再版次數多的重印次數多的以及符合這類書的文末參考目錄",
+      "wordIndices": [
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        174,
+        175,
+        176,
+        177,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191,
+        192,
+        193,
+        194,
+        195,
+        196,
+        197,
+        198,
+        199,
+        200,
+        201,
+        202,
+        203,
+        204,
+        205,
+        206,
+        207
+      ],
+      "gapIndices": [],
+      "startTime": 66.22000122070312,
+      "endTime": 76.94000244140625,
+      "gapAfter": 0.7000000000000028,
+      "gapAfterIdx": 208,
+      "displayText": "最簡單的邏輯就是選擇著名出版社出版的再版次數多的重印次數多的以及符合這類書的文末參考目錄，"
+    },
+    {
+      "text": "然後順著這個目錄找出作者推薦的其他作者的書",
+      "wordIndices": [
+        209,
+        210,
+        211,
+        212,
+        213,
+        214,
+        215,
+        216,
+        217,
+        218,
+        219,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225,
+        226,
+        227
+      ],
+      "gapIndices": [],
+      "startTime": 77.63999938964844,
+      "endTime": 81.58000183105469,
+      "gapAfter": 0.519999999999996,
+      "gapAfterIdx": 228,
+      "displayText": "然後順著這個目錄找出作者推薦的其他作者的書，"
+    },
+    {
+      "text": "至於網紅書",
+      "wordIndices": [
+        229,
+        230,
+        231,
+        232,
+        233
+      ],
+      "gapIndices": [],
+      "startTime": 82.0999984741211,
+      "endTime": 83.30000305175781,
+      "gapAfter": 0.4000000000000057,
+      "gapAfterIdx": 234,
+      "displayText": "至於網紅書，"
+    },
+    {
+      "text": "它的知識含量太低",
+      "wordIndices": [
+        235,
+        236,
+        237,
+        238,
+        239,
+        240,
+        241
+      ],
+      "gapIndices": [],
+      "startTime": 83.69999694824219,
+      "endTime": 85.16000366210938,
+      "gapAfter": 0.5799999999999983,
+      "gapAfterIdx": 242,
+      "displayText": "它的知識含量太低，"
+    },
+    {
+      "text": "你時間寶貴所以可以等你經典書看完了再看那為什麼網紅書的知識含量會太低呢因為網紅書",
+      "wordIndices": [
+        243,
+        244,
+        245,
+        246,
+        248,
+        249,
+        250,
+        251,
+        252,
+        253,
+        254,
+        255,
+        256,
+        257,
+        258,
+        260,
+        261,
+        262,
+        263,
+        264,
+        265,
+        266,
+        267,
+        268,
+        269,
+        270,
+        271,
+        272,
+        273,
+        274,
+        275,
+        276,
+        277
+      ],
+      "gapIndices": [
+        247,
+        259
+      ],
+      "startTime": 85.73999786376953,
+      "endTime": 94.77999877929688,
+      "gapAfter": 0.4399999999999977,
+      "gapAfterIdx": 278,
+      "displayText": "你時間寶貴所以可以等你經典書看完了再看那為什麼網紅書的知識含量會太低呢因為網紅書，"
+    },
+    {
+      "text": "它需要有龐大的粉絲基礎",
+      "wordIndices": [
+        279,
+        280,
+        281,
+        282,
+        283,
+        284,
+        285,
+        286,
+        287
+      ],
+      "gapIndices": [],
+      "startTime": 95.22000122070312,
+      "endTime": 97.5999984741211,
+      "gapAfter": 0.9400000000000119,
+      "gapAfterIdx": 288,
+      "displayText": "它需要有龐大的粉絲基礎，"
+    },
+    {
+      "text": "相對來說它做的內容都是屬於很初階很簡單的",
+      "wordIndices": [
+        289,
+        290,
+        291,
+        292,
+        293,
+        294,
+        295,
+        296,
+        297,
+        298,
+        299,
+        300,
+        301,
+        302,
+        303,
+        304,
+        305,
+        306,
+        307
+      ],
+      "gapIndices": [],
+      "startTime": 98.54000091552734,
+      "endTime": 103.16000366210938,
+      "gapAfter": 1,
+      "gapAfterIdx": 308,
+      "displayText": "相對來說它做的內容都是屬於很初階很簡單的。"
+    },
+    {
+      "text": "所以幾乎不包含什麼洞察就是單純就是非常簡淺的知識因為這樣受眾才大",
+      "wordIndices": [
+        310,
+        311,
+        312,
+        313,
+        314,
+        315,
+        316,
+        317,
+        318,
+        319,
+        320,
+        321,
+        322,
+        323,
+        324,
+        325,
+        326,
+        327,
+        328,
+        330,
+        331,
+        332,
+        333,
+        334,
+        335
+      ],
+      "gapIndices": [
+        329
+      ],
+      "startTime": 105.0199966430664,
+      "endTime": 111.5199966430664,
+      "gapAfter": 1,
+      "gapAfterIdx": 336,
+      "displayText": "所以幾乎不包含什麼洞察就是單純就是非常簡淺的知識因為這樣受眾才大。"
+    },
+    {
+      "text": "所以這些網紅出書的話那內容多半都是那些很淺淺的知識",
+      "wordIndices": [
+        338,
+        339,
+        340,
+        341,
+        342,
+        343,
+        344,
+        345,
+        346,
+        347,
+        348,
+        349,
+        350,
+        351,
+        352,
+        353,
+        354,
+        355,
+        356,
+        357,
+        358,
+        359
+      ],
+      "gapIndices": [
+        337
+      ],
+      "startTime": 112.5999984741211,
+      "endTime": 117.19999694824219,
+      "gapAfter": 0.7999999999999972,
+      "gapAfterIdx": 360,
+      "displayText": "所以這些網紅出書的話那內容多半都是那些很淺淺的知識，"
+    },
+    {
+      "text": "你很難獲得什麼洞察",
+      "wordIndices": [
+        361,
+        362,
+        363,
+        364,
+        365,
+        366,
+        367,
+        368
+      ],
+      "gapIndices": [],
+      "startTime": 118,
+      "endTime": 120.5,
+      "gapAfter": 1,
+      "gapAfterIdx": 369,
+      "displayText": "你很難獲得什麼洞察。"
+    },
+    {
+      "text": "那至於譬如說Google文章",
+      "wordIndices": [
+        377,
+        378,
+        379,
+        380,
+        381,
+        382,
+        383,
+        384,
+        385,
+        386
+      ],
+      "gapIndices": [],
+      "startTime": 128.44000244140625,
+      "endTime": 130.52000427246094,
+      "gapAfter": 0.3599999999999852,
+      "gapAfterIdx": 387,
+      "displayText": "那至於譬如說Google文章，"
+    },
+    {
+      "text": "那其實也不是說沒有用可是問題是你想要從Google上面搜尋到好內容的成本太高了而如果一個人在入門之前你還沒有辦法判斷優劣的時候",
+      "wordIndices": [
+        388,
+        389,
+        390,
+        391,
+        392,
+        393,
+        394,
+        395,
+        396,
+        397,
+        398,
+        399,
+        400,
+        401,
+        402,
+        403,
+        404,
+        405,
+        406,
+        407,
+        408,
+        409,
+        410,
+        411,
+        412,
+        413,
+        414,
+        415,
+        416,
+        417,
+        418,
+        419,
+        420,
+        421,
+        422,
+        423,
+        425,
+        426,
+        427,
+        428,
+        429,
+        430,
+        431,
+        432,
+        433,
+        434
+      ],
+      "gapIndices": [
+        424
+      ],
+      "startTime": 130.8800048828125,
+      "endTime": 142.94000244140625,
+      "gapAfter": 0.47999999999998977,
+      "gapAfterIdx": 435,
+      "displayText": "那其實也不是說沒有用可是問題是你想要從Google上面搜尋到好內容的成本太高了而如果一個人在入門之前你還沒有辦法判斷優劣的時候，"
+    },
+    {
+      "text": "你就把一些旁門左道的內容當作主流來看的話",
+      "wordIndices": [
+        436,
+        437,
+        438,
+        439,
+        440,
+        441,
+        442,
+        443,
+        444,
+        445,
+        446,
+        447,
+        448,
+        449,
+        450,
+        451,
+        452
+      ],
+      "gapIndices": [],
+      "startTime": 143.4199981689453,
+      "endTime": 148.25999450683594,
+      "gapAfter": 1,
+      "gapAfterIdx": 453,
+      "displayText": "你就把一些旁門左道的內容當作主流來看的話，"
+    },
+    {
+      "text": "你如果把",
+      "wordIndices": [
+        459,
+        460,
+        461
+      ],
+      "gapIndices": [],
+      "startTime": 154.1199951171875,
+      "endTime": 155,
+      "gapAfter": 1,
+      "gapAfterIdx": 462,
+      "displayText": "你如果把，"
+    },
+    {
+      "text": "特別是當一個人在入門之前還無法判斷優劣的時候",
+      "wordIndices": [
+        467,
+        468,
+        469,
+        470,
+        471,
+        472,
+        473,
+        474,
+        475,
+        476,
+        477,
+        478,
+        479,
+        480,
+        481,
+        482,
+        483,
+        484
+      ],
+      "gapIndices": [],
+      "startTime": 159.5399932861328,
+      "endTime": 163.72000122070312,
+      "gapAfter": 0.30000000000001137,
+      "gapAfterIdx": 485,
+      "displayText": "特別是當一個人在入門之前還無法判斷優劣的時候，"
+    },
+    {
+      "text": "你如果一旦是把旁門左道的內容當作主流",
+      "wordIndices": [
+        486,
+        487,
+        488,
+        489,
+        490,
+        491,
+        492,
+        493,
+        494,
+        495,
+        496,
+        497,
+        498,
+        499,
+        500,
+        501,
+        502
+      ],
+      "gapIndices": [],
+      "startTime": 164.02000427246094,
+      "endTime": 167.9199981689453,
+      "gapAfter": 1,
+      "gapAfterIdx": 503,
+      "displayText": "你如果一旦是把旁門左道的內容當作主流，"
+    },
+    {
+      "text": "特別是說",
+      "wordIndices": [
+        507,
+        508,
+        509,
+        510
+      ],
+      "gapIndices": [],
+      "startTime": 171.5800018310547,
+      "endTime": 172.60000610351562,
+      "gapAfter": 1,
+      "gapAfterIdx": 511,
+      "displayText": "特別是說，"
+    },
+    {
+      "text": "特別是當一個人他還在入門的時候他沒有辦法判斷優劣",
+      "wordIndices": [
+        514,
+        515,
+        516,
+        517,
+        518,
+        519,
+        520,
+        521,
+        522,
+        523,
+        524,
+        525,
+        527,
+        528,
+        529,
+        530,
+        531,
+        532,
+        533,
+        534
+      ],
+      "gapIndices": [
+        513,
+        526
+      ],
+      "startTime": 174.8000030517578,
+      "endTime": 178.94000244140625,
+      "gapAfter": 0.4399999999999977,
+      "gapAfterIdx": 535,
+      "displayText": "特別是當一個人他還在入門的時候他沒有辦法判斷優劣，"
+    },
+    {
+      "text": "而一旦是把那些旁門左道",
+      "wordIndices": [
+        536,
+        537,
+        538,
+        539,
+        540,
+        541,
+        542,
+        543,
+        544,
+        545,
+        546
+      ],
+      "gapIndices": [],
+      "startTime": 179.3800048828125,
+      "endTime": 181.4600067138672,
+      "gapAfter": 0.3599999999999852,
+      "gapAfterIdx": 547,
+      "displayText": "而一旦是把那些旁門左道，"
+    },
+    {
+      "text": "當作主流來讀的話那品位就很難提高了像是楊振寧先生講過你習慣於讀什麼樣的物理學論文",
+      "wordIndices": [
+        548,
+        549,
+        550,
+        551,
+        552,
+        553,
+        554,
+        555,
+        556,
+        557,
+        558,
+        559,
+        560,
+        561,
+        562,
+        563,
+        564,
+        565,
+        566,
+        567,
+        568,
+        569,
+        570,
+        571,
+        572,
+        573,
+        574,
+        575,
+        576,
+        577,
+        578,
+        579,
+        580,
+        581,
+        582,
+        583,
+        584
+      ],
+      "gapIndices": [],
+      "startTime": 181.82000732421875,
+      "endTime": 190.5399932861328,
+      "gapAfter": 0.4800000000000182,
+      "gapAfterIdx": 585,
+      "displayText": "當作主流來讀的話那品位就很難提高了像是楊振寧先生講過你習慣於讀什麼樣的物理學論文，"
+    },
+    {
+      "text": "就決定了你在物理學的領域能走多遠",
+      "wordIndices": [
+        586,
+        587,
+        588,
+        589,
+        590,
+        591,
+        592,
+        593,
+        594,
+        595,
+        596,
+        597,
+        598,
+        599,
+        600
+      ],
+      "gapIndices": [],
+      "startTime": 191.02000427246094,
+      "endTime": 193.89999389648438,
+      "gapAfter": 1,
+      "gapAfterIdx": 601,
+      "displayText": "就決定了你在物理學的領域能走多遠。"
+    },
+    {
+      "text": "就是說如果能在這麼多的論文中迅速找到那些品位高的是成功的第一步你如果滿足那些隨便拿來的論文就讀",
+      "wordIndices": [
+        604,
+        605,
+        606,
+        607,
+        608,
+        609,
+        610,
+        611,
+        612,
+        613,
+        614,
+        615,
+        616,
+        617,
+        618,
+        619,
+        620,
+        621,
+        622,
+        623,
+        624,
+        625,
+        626,
+        627,
+        628,
+        629,
+        630,
+        632,
+        633,
+        634,
+        635,
+        636,
+        637,
+        638,
+        639,
+        640,
+        641,
+        642,
+        643,
+        644,
+        645,
+        646
+      ],
+      "gapIndices": [
+        631
+      ],
+      "startTime": 196.4199981689453,
+      "endTime": 206.13999938964844,
+      "gapAfter": 1,
+      "gapAfterIdx": 647,
+      "displayText": "就是說如果能在這麼多的論文中迅速找到那些品位高的是成功的第一步你如果滿足那些隨便拿來的論文就讀，"
+    },
+    {
+      "text": "你如果滿足於隨便拿來一些論文就讀然後找到一個論文的課題就去研究",
+      "wordIndices": [
+        649,
+        650,
+        651,
+        652,
+        653,
+        654,
+        655,
+        656,
+        657,
+        658,
+        659,
+        660,
+        661,
+        662,
+        663,
+        664,
+        665,
+        666,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675
+      ],
+      "gapIndices": [
+        648
+      ],
+      "startTime": 207.27999877929688,
+      "endTime": 212.44000244140625,
+      "gapAfter": 0.5,
+      "gapAfterIdx": 676,
+      "displayText": "你如果滿足於隨便拿來一些論文就讀然後找到一個論文的課題就去研究，"
+    },
+    {
+      "text": "那你論文看再多",
+      "wordIndices": [
+        677,
+        678,
+        679,
+        680,
+        681,
+        682,
+        683
+      ],
+      "gapIndices": [],
+      "startTime": 212.94000244140625,
+      "endTime": 214.55999755859375,
+      "gapAfter": 1,
+      "gapAfterIdx": 684,
+      "displayText": "那你論文看再多，"
+    },
+    {
+      "text": "那你論文看再多也就只是二三流",
+      "wordIndices": [
+        687,
+        688,
+        689,
+        690,
+        691,
+        692,
+        693,
+        694,
+        695,
+        696,
+        697,
+        698,
+        699
+      ],
+      "gapIndices": [
+        686
+      ],
+      "startTime": 216.60000610351562,
+      "endTime": 219.44000244140625,
+      "gapAfter": 1,
+      "gapAfterIdx": 700,
+      "displayText": "那你論文看再多也就只是二三流。"
+    },
+    {
+      "text": "嗯",
+      "wordIndices": [
+        712
+      ],
+      "gapIndices": [
+        711
+      ],
+      "startTime": 230.6999969482422,
+      "endTime": 232.10000610351562,
+      "gapAfter": 1,
+      "gapAfterIdx": 713,
+      "displayText": "嗯，"
+    },
+    {
+      "text": "那我幫那我幫你做一個挑逐的GPT這個是展示",
+      "wordIndices": [
+        741,
+        742,
+        743,
+        744,
+        745,
+        746,
+        747,
+        748,
+        749,
+        750,
+        751,
+        752,
+        753,
+        754,
+        755,
+        757,
+        758,
+        759,
+        760
+      ],
+      "gapIndices": [
+        756
+      ],
+      "startTime": 259.4800109863281,
+      "endTime": 265.0400085449219,
+      "gapAfter": 0.6800000000000068,
+      "gapAfterIdx": 761,
+      "displayText": "那我幫那我幫你做一個挑逐的GPT這個是展示，"
+    },
+    {
+      "text": "你可以在下面打上你要研究的領域",
+      "wordIndices": [
+        762,
+        763,
+        764,
+        765,
+        766,
+        767,
+        768,
+        769,
+        770,
+        771,
+        772
+      ],
+      "gapIndices": [],
+      "startTime": 265.7200012207031,
+      "endTime": 268.7799987792969,
+      "gapAfter": 1,
+      "gapAfterIdx": 773,
+      "displayText": "你可以在下面打上你要研究的領域。"
+    },
+    {
+      "text": "嗯",
+      "wordIndices": [
+        775
+      ],
+      "gapIndices": [],
+      "startTime": 270.2200012207031,
+      "endTime": 270.55999755859375,
+      "gapAfter": 1,
+      "gapAfterIdx": 776,
+      "displayText": "嗯，"
+    },
+    {
+      "text": "那他就會幫你做細分",
+      "wordIndices": [
+        797,
+        798,
+        799,
+        800,
+        801,
+        802,
+        803,
+        804,
+        805
+      ],
+      "gapIndices": [],
+      "startTime": 290.94000244140625,
+      "endTime": 292.6199951171875,
+      "gapAfter": 1,
+      "gapAfterIdx": 806,
+      "displayText": "那他就會幫你做細分。"
+    },
+    {
+      "text": "嗯",
+      "wordIndices": [
+        820
+      ],
+      "gapIndices": [],
+      "startTime": 306.5400085449219,
+      "endTime": 307.94000244140625,
+      "gapAfter": 1,
+      "gapAfterIdx": 821,
+      "displayText": "嗯，"
+    },
+    {
+      "text": "嗯",
+      "wordIndices": [
+        843
+      ],
+      "gapIndices": [
+        842
+      ],
+      "startTime": 328.9800109863281,
+      "endTime": 330.3800048828125,
+      "gapAfter": 1,
+      "gapAfterIdx": 844,
+      "displayText": "嗯，"
+    },
+    {
+      "text": "嗯",
+      "wordIndices": [
+        881
+      ],
+      "gapIndices": [],
+      "startTime": 367.1400146484375,
+      "endTime": 368.5400085449219,
+      "gapAfter": 1,
+      "gapAfterIdx": 882,
+      "displayText": "嗯，"
+    },
+    {
+      "text": "嗯",
+      "wordIndices": [
+        917
+      ],
+      "gapIndices": [],
+      "startTime": 403.3599853515625,
+      "endTime": 404.760009765625,
+      "gapAfter": 1,
+      "gapAfterIdx": 918,
+      "displayText": "嗯，"
+    },
+    {
+      "text": "嗯",
+      "wordIndices": [
+        934
+      ],
+      "gapIndices": [],
+      "startTime": 420.20001220703125,
+      "endTime": 420.8999938964844,
+      "gapAfter": 1,
+      "gapAfterIdx": 935,
+      "displayText": "嗯，"
+    },
+    {
+      "text": "嗯",
+      "wordIndices": [
+        963
+      ],
+      "gapIndices": [],
+      "startTime": 448.8399963378906,
+      "endTime": 449.2799987792969,
+      "gapAfter": 1,
+      "gapAfterIdx": 964,
+      "displayText": "嗯，"
+    },
+    {
+      "text": "那他就會列舉一些書單給你然後並且會有推薦理由那你就可以參考或者你想要再換其他書籍",
+      "wordIndices": [
+        988,
+        989,
+        990,
+        991,
+        992,
+        993,
+        994,
+        995,
+        996,
+        997,
+        998,
+        999,
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010,
+        1011,
+        1012,
+        1013,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020,
+        1021
+      ],
+      "gapIndices": [
+        987
+      ],
+      "startTime": 472.3599853515625,
+      "endTime": 480.5799865722656,
+      "gapAfter": 1,
+      "gapAfterIdx": 1022,
+      "displayText": "那他就會列舉一些書單給你然後並且會有推薦理由那你就可以參考或者你想要再換其他書籍。"
+    },
+    {
+      "text": "那你就可以參考或是就是",
+      "wordIndices": [
+        1028,
+        1029,
+        1030,
+        1031,
+        1032,
+        1033,
+        1034,
+        1035
+      ],
+      "gapIndices": [],
+      "startTime": 485.94000244140625,
+      "endTime": 488.2799987792969,
+      "gapAfter": 1,
+      "gapAfterIdx": 1036,
+      "displayText": "那你就可以參考或是就是，"
+    },
+    {
+      "text": "那你就可以參考",
+      "wordIndices": [
+        1042,
+        1043,
+        1044,
+        1045,
+        1046
+      ],
+      "gapIndices": [],
+      "startTime": 493.739990234375,
+      "endTime": 495.17999267578125,
+      "gapAfter": 0.3199999999999932,
+      "gapAfterIdx": 1047,
+      "displayText": "那你就可以參考，"
+    },
+    {
+      "text": "或是就是讓他在做比較細分的推薦",
+      "wordIndices": [
+        1048,
+        1049,
+        1050,
+        1051,
+        1052,
+        1053,
+        1054,
+        1055,
+        1056,
+        1057,
+        1058,
+        1059,
+        1060,
+        1061
+      ],
+      "gapIndices": [],
+      "startTime": 495.5,
+      "endTime": 498.760009765625,
+      "gapAfter": 0.34000000000003183,
+      "gapAfterIdx": 1062,
+      "displayText": "或是就是讓他在做比較細分的推薦，"
+    },
+    {
+      "text": "比如說消費者心理學",
+      "wordIndices": [
+        1063,
+        1064,
+        1065,
+        1066,
+        1067,
+        1068,
+        1069,
+        1070
+      ],
+      "gapIndices": [],
+      "startTime": 499.1000061035156,
+      "endTime": 500.9200134277344,
+      "gapAfter": 1,
+      "gapAfterIdx": 1071,
+      "displayText": "比如說消費者心理學，"
+    },
+    {
+      "text": "嗯",
+      "wordIndices": [
+        1078
+      ],
+      "gapIndices": [
+        1077
+      ],
+      "startTime": 507.0799865722656,
+      "endTime": 507.1199951171875,
+      "gapAfter": 1,
+      "gapAfterIdx": 1079,
+      "displayText": "嗯，"
+    },
+    {
+      "text": "好做個總結",
+      "wordIndices": [
+        1089,
+        1090,
+        1091,
+        1092,
+        1093
+      ],
+      "gapIndices": [],
+      "startTime": 516.47998046875,
+      "endTime": 517.8400268554688,
+      "gapAfter": 0.5,
+      "gapAfterIdx": 1094,
+      "displayText": "好做個總結，"
+    },
+    {
+      "text": "挑書很關鍵那挑書呢有四個原則",
+      "wordIndices": [
+        1095,
+        1096,
+        1097,
+        1098,
+        1099,
+        1101,
+        1102,
+        1103,
+        1104,
+        1105,
+        1106,
+        1107,
+        1108,
+        1109
+      ],
+      "gapIndices": [
+        1100
+      ],
+      "startTime": 518.3400268554688,
+      "endTime": 521.6400146484375,
+      "gapAfter": 1,
+      "gapAfterIdx": 1110,
+      "displayText": "挑書很關鍵那挑書呢有四個原則。"
+    },
+    {
+      "text": "就是找著名出版社出版的在版次數多的",
+      "wordIndices": [
+        1112,
+        1113,
+        1114,
+        1115,
+        1116,
+        1117,
+        1118,
+        1119,
+        1120,
+        1121,
+        1122,
+        1123,
+        1124,
+        1125,
+        1126,
+        1127
+      ],
+      "gapIndices": [
+        1111
+      ],
+      "startTime": 522.6799926757812,
+      "endTime": 526.1199951171875,
+      "gapAfter": 0.5199999999999818,
+      "gapAfterIdx": 1128,
+      "displayText": "就是找著名出版社出版的在版次數多的，"
+    },
+    {
+      "text": "重印次數多的以及符合這類書的文末的參考目錄去找出這個作者推薦的其他書籍",
+      "wordIndices": [
+        1129,
+        1130,
+        1131,
+        1132,
+        1133,
+        1134,
+        1135,
+        1136,
+        1137,
+        1138,
+        1139,
+        1140,
+        1141,
+        1142,
+        1143,
+        1144,
+        1145,
+        1146,
+        1147,
+        1148,
+        1150,
+        1151,
+        1152,
+        1153,
+        1154,
+        1155,
+        1156,
+        1157,
+        1158,
+        1159,
+        1160,
+        1161,
+        1162
+      ],
+      "gapIndices": [
+        1149
+      ],
+      "startTime": 526.6400146484375,
+      "endTime": 533.3599853515625,
+      "gapAfter": 1,
+      "gapAfterIdx": 1163,
+      "displayText": "重印次數多的以及符合這類書的文末的參考目錄去找出這個作者推薦的其他書籍。"
+    },
+    {
+      "text": "嗯",
+      "wordIndices": [
+        1167
+      ],
+      "gapIndices": [],
+      "startTime": 537.0800170898438,
+      "endTime": 538.0599975585938,
+      "displayText": "嗯，"
+    }
+  ],
+  "ruleDeletions": [
+    {
+      "phraseIdx": 4,
+      "rule": "adjacent_repeat",
+      "reason": "相鄰重複: 前5字「其實輸的數」相同（留後刪前）"
+    },
+    {
+      "phraseIdx": 32,
+      "rule": "adjacent_repeat",
+      "reason": "相鄰重複: 前5字「那你論文看」相同（留後刪前）"
+    },
+    {
+      "phraseIdx": 46,
+      "rule": "adjacent_repeat",
+      "reason": "相鄰重複: 前5字「那你就可以」相同（留後刪前）"
+    },
+    {
+      "phraseIdx": 1,
+      "rule": "take_group",
+      "reason": "重複Take(2次): 「挑輸邏輯只看經典讀物...」→ 保留最後"
+    },
+    {
+      "phraseIdx": 23,
+      "rule": "take_group",
+      "reason": "重複Take(2次): 「特別是當一個人在入門之前還無法...」→ 保留最後"
+    },
+    {
+      "phraseIdx": 34,
+      "rule": "discourse_opener",
+      "reason": "話語標記開頭: 「嗯...」(1字短句)"
+    },
+    {
+      "phraseIdx": 37,
+      "rule": "discourse_opener",
+      "reason": "話語標記開頭: 「嗯...」(1字短句)"
+    },
+    {
+      "phraseIdx": 39,
+      "rule": "discourse_opener",
+      "reason": "話語標記開頭: 「嗯...」(1字短句)"
+    },
+    {
+      "phraseIdx": 40,
+      "rule": "discourse_opener",
+      "reason": "話語標記開頭: 「嗯...」(1字短句)"
+    },
+    {
+      "phraseIdx": 41,
+      "rule": "discourse_opener",
+      "reason": "話語標記開頭: 「嗯...」(1字短句)"
+    },
+    {
+      "phraseIdx": 42,
+      "rule": "discourse_opener",
+      "reason": "話語標記開頭: 「嗯...」(1字短句)"
+    },
+    {
+      "phraseIdx": 43,
+      "rule": "discourse_opener",
+      "reason": "話語標記開頭: 「嗯...」(1字短句)"
+    },
+    {
+      "phraseIdx": 44,
+      "rule": "discourse_opener",
+      "reason": "話語標記開頭: 「嗯...」(1字短句)"
+    },
+    {
+      "phraseIdx": 50,
+      "rule": "discourse_opener",
+      "reason": "話語標記開頭: 「嗯...」(1字短句)"
+    },
+    {
+      "phraseIdx": 55,
+      "rule": "discourse_opener",
+      "reason": "話語標記開頭: 「嗯...」(1字短句)"
+    }
+  ],
+  "gapDeletions": [],
+  "candidatePairs": [
+    {
+      "id": "P1",
+      "earlier": {
+        "phraseIdx": 2,
+        "displayText": "那挑輸的基本邏輯是只看經典讀物那其實輸的數量其實不，",
+        "prevText": "挑輸邏輯只看經典讀物。",
+        "nextText": "挑輸的邏輯就是只看經典讀物。",
+        "startTime": 17.260000228881836,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.3,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 5,
+        "displayText": "其實輸的數量根本不重要，",
+        "prevText": "其實輸的數量根本不重要還有我多米挑輸邏輯只看經典讀物。",
+        "nextText": "因為你如果要搞懂一個領域的話你所需要看的經典書也不會超過50本，",
+        "startTime": 52.2400016784668,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.3,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.313,
+      "lcsRatio": 0.545,
+      "timeGap": 35,
+      "phraseGap": 3
+    },
+    {
+      "id": "P2",
+      "earlier": {
+        "phraseIdx": 3,
+        "displayText": "挑輸的邏輯就是只看經典讀物。",
+        "prevText": "那挑輸的基本邏輯是只看經典讀物那其實輸的數量其實不，",
+        "nextText": "其實輸的數量根本不重要還有我多米挑輸邏輯只看經典讀物。",
+        "startTime": 25.81999969482422,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.1,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 9,
+        "displayText": "最簡單的邏輯就是選擇著名出版社出版的再版次數多的重印次數多的以及符合這類書的文末參考目錄，",
+        "prevText": "而看書最重要的就是挑輸，",
+        "nextText": "然後順著這個目錄找出作者推薦的其他作者的書，",
+        "startTime": 66.22000122070312,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.1,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.157,
+      "lcsRatio": 0.385,
+      "timeGap": 40.4,
+      "phraseGap": 6
+    },
+    {
+      "id": "P3",
+      "earlier": {
+        "phraseIdx": 11,
+        "displayText": "至於網紅書，",
+        "prevText": "然後順著這個目錄找出作者推薦的其他作者的書，",
+        "nextText": "它的知識含量太低，",
+        "startTime": 82.0999984741211,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.2,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 13,
+        "displayText": "你時間寶貴所以可以等你經典書看完了再看那為什麼網紅書的知識含量會太低呢因為網紅書，",
+        "prevText": "它的知識含量太低，",
+        "nextText": "它需要有龐大的粉絲基礎，",
+        "startTime": 85.73999786376953,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.4,
+          "pauseRatio": 5
+        }
+      },
+      "similarity": 0.098,
+      "lcsRatio": 0.6,
+      "timeGap": 3.6,
+      "phraseGap": 2
+    },
+    {
+      "id": "P4",
+      "earlier": {
+        "phraseIdx": 11,
+        "displayText": "至於網紅書，",
+        "prevText": "然後順著這個目錄找出作者推薦的其他作者的書，",
+        "nextText": "它的知識含量太低，",
+        "startTime": 82.0999984741211,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.2,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 17,
+        "displayText": "所以這些網紅出書的話那內容多半都是那些很淺淺的知識，",
+        "prevText": "所以幾乎不包含什麼洞察就是單純就是非常簡淺的知識因為這樣受眾才大。",
+        "nextText": "你很難獲得什麼洞察。",
+        "startTime": 112.5999984741211,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.4,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.071,
+      "lcsRatio": 0.4,
+      "timeGap": 30.5,
+      "phraseGap": 6
+    },
+    {
+      "id": "P5",
+      "earlier": {
+        "phraseIdx": 11,
+        "displayText": "至於網紅書，",
+        "prevText": "然後順著這個目錄找出作者推薦的其他作者的書，",
+        "nextText": "它的知識含量太低，",
+        "startTime": 82.0999984741211,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.2,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 19,
+        "displayText": "那至於譬如說Google文章，",
+        "prevText": "你很難獲得什麼洞察。",
+        "nextText": "那其實也不是說沒有用可是問題是你想要從Google上面搜尋到好內容的成本太高了而",
+        "startTime": 128.44000244140625,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 6.7,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.118,
+      "lcsRatio": 0.4,
+      "timeGap": 46.3,
+      "phraseGap": 8
+    },
+    {
+      "id": "P6",
+      "earlier": {
+        "phraseIdx": 12,
+        "displayText": "它的知識含量太低，",
+        "prevText": "至於網紅書，",
+        "nextText": "你時間寶貴所以可以等你經典書看完了再看那為什麼網紅書的知識含量會太低呢因為網紅書",
+        "startTime": 83.69999694824219,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.5,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 16,
+        "displayText": "所以幾乎不包含什麼洞察就是單純就是非常簡淺的知識因為這樣受眾才大。",
+        "prevText": "相對來說它做的內容都是屬於很初階很簡單的。",
+        "nextText": "所以這些網紅出書的話那內容多半都是那些很淺淺的知識，",
+        "startTime": 105.0199966430664,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.9,
+          "pauseRatio": 3
+        }
+      },
+      "similarity": 0.108,
+      "lcsRatio": 0.375,
+      "timeGap": 21.3,
+      "phraseGap": 4
+    },
+    {
+      "id": "P7",
+      "earlier": {
+        "phraseIdx": 12,
+        "displayText": "它的知識含量太低，",
+        "prevText": "至於網紅書，",
+        "nextText": "你時間寶貴所以可以等你經典書看完了再看那為什麼網紅書的知識含量會太低呢因為網紅書",
+        "startTime": 83.69999694824219,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.5,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 17,
+        "displayText": "所以這些網紅出書的話那內容多半都是那些很淺淺的知識，",
+        "prevText": "所以幾乎不包含什麼洞察就是單純就是非常簡淺的知識因為這樣受眾才大。",
+        "nextText": "你很難獲得什麼洞察。",
+        "startTime": 112.5999984741211,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.4,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.129,
+      "lcsRatio": 0.375,
+      "timeGap": 28.9,
+      "phraseGap": 5
+    },
+    {
+      "id": "P8",
+      "earlier": {
+        "phraseIdx": 16,
+        "displayText": "所以幾乎不包含什麼洞察就是單純就是非常簡淺的知識因為這樣受眾才大。",
+        "prevText": "相對來說它做的內容都是屬於很初階很簡單的。",
+        "nextText": "所以這些網紅出書的話那內容多半都是那些很淺淺的知識，",
+        "startTime": 105.0199966430664,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.9,
+          "pauseRatio": 3
+        }
+      },
+      "later": {
+        "phraseIdx": 18,
+        "displayText": "你很難獲得什麼洞察。",
+        "prevText": "所以這些網紅出書的話那內容多半都是那些很淺淺的知識，",
+        "nextText": "那至於譬如說Google文章，",
+        "startTime": 118,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 3.6,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.158,
+      "lcsRatio": 0.444,
+      "timeGap": 13,
+      "phraseGap": 2
+    },
+    {
+      "id": "P9",
+      "earlier": {
+        "phraseIdx": 20,
+        "displayText": "那其實也不是說沒有用可是問題是你想要從Google上面搜尋到好內容的成本太高了而如果一個人在入門之前你還沒有辦法判斷優劣的時候，",
+        "prevText": "那至於譬如說Google文章，",
+        "nextText": "你就把一些旁門左道的內容當作主流來看的話，",
+        "startTime": 130.8800048828125,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.2,
+          "pauseRatio": 1
+        }
+      },
+      "later": {
+        "phraseIdx": 22,
+        "displayText": "你如果把，",
+        "prevText": "你就把一些旁門左道的內容當作主流來看的話，",
+        "nextText": "特別是當一個人在入門之前還無法判斷優劣的時候，",
+        "startTime": 154.1199951171875,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.5,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.031,
+      "lcsRatio": 0.5,
+      "timeGap": 23.2,
+      "phraseGap": 2
+    },
+    {
+      "id": "P10",
+      "earlier": {
+        "phraseIdx": 20,
+        "displayText": "那其實也不是說沒有用可是問題是你想要從Google上面搜尋到好內容的成本太高了而如果一個人在入門之前你還沒有辦法判斷優劣的時候，",
+        "prevText": "那至於譬如說Google文章，",
+        "nextText": "你就把一些旁門左道的內容當作主流來看的話，",
+        "startTime": 130.8800048828125,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.2,
+          "pauseRatio": 1
+        }
+      },
+      "later": {
+        "phraseIdx": 25,
+        "displayText": "特別是說，",
+        "prevText": "你如果一旦是把旁門左道的內容當作主流，",
+        "nextText": "特別是當一個人他還在入門的時候他沒有辦法判斷優劣，",
+        "startTime": 171.5800018310547,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 3.9,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.031,
+      "lcsRatio": 0.5,
+      "timeGap": 40.7,
+      "phraseGap": 5
+    },
+    {
+      "id": "P11",
+      "earlier": {
+        "phraseIdx": 20,
+        "displayText": "那其實也不是說沒有用可是問題是你想要從Google上面搜尋到好內容的成本太高了而如果一個人在入門之前你還沒有辦法判斷優劣的時候，",
+        "prevText": "那至於譬如說Google文章，",
+        "nextText": "你就把一些旁門左道的內容當作主流來看的話，",
+        "startTime": 130.8800048828125,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.2,
+          "pauseRatio": 1
+        }
+      },
+      "later": {
+        "phraseIdx": 26,
+        "displayText": "特別是當一個人他還在入門的時候他沒有辦法判斷優劣，",
+        "prevText": "特別是說，",
+        "nextText": "而一旦是把那些旁門左道，",
+        "startTime": 174.8000030517578,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.8,
+          "pauseRatio": 6
+        }
+      },
+      "similarity": 0.31,
+      "lcsRatio": 0.333,
+      "timeGap": 43.9,
+      "phraseGap": 6
+    },
+    {
+      "id": "P12",
+      "earlier": {
+        "phraseIdx": 21,
+        "displayText": "你就把一些旁門左道的內容當作主流來看的話，",
+        "prevText": "那其實也不是說沒有用可是問題是你想要從Google上面搜尋到好內容的成本太高了而",
+        "nextText": "你如果把，",
+        "startTime": 143.4199981689453,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.1,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 24,
+        "displayText": "你如果一旦是把旁門左道的內容當作主流，",
+        "prevText": "特別是當一個人在入門之前還無法判斷優劣的時候，",
+        "nextText": "特別是說，",
+        "startTime": 164.02000427246094,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.6,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.556,
+      "lcsRatio": 0.611,
+      "timeGap": 20.6,
+      "phraseGap": 3
+    },
+    {
+      "id": "P13",
+      "earlier": {
+        "phraseIdx": 21,
+        "displayText": "你就把一些旁門左道的內容當作主流來看的話，",
+        "prevText": "那其實也不是說沒有用可是問題是你想要從Google上面搜尋到好內容的成本太高了而",
+        "nextText": "你如果把，",
+        "startTime": 143.4199981689453,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.1,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 27,
+        "displayText": "而一旦是把那些旁門左道，",
+        "prevText": "特別是當一個人他還在入門的時候他沒有辦法判斷優劣，",
+        "nextText": "當作主流來讀的話那品位就很難提高了像是楊振寧先生講過你習慣於讀什麼樣的物理學論文",
+        "startTime": 179.3800048828125,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.3,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.276,
+      "lcsRatio": 0.455,
+      "timeGap": 36,
+      "phraseGap": 6
+    },
+    {
+      "id": "P14",
+      "earlier": {
+        "phraseIdx": 22,
+        "displayText": "你如果把，",
+        "prevText": "你就把一些旁門左道的內容當作主流來看的話，",
+        "nextText": "特別是當一個人在入門之前還無法判斷優劣的時候，",
+        "startTime": 154.1199951171875,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.5,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 24,
+        "displayText": "你如果一旦是把旁門左道的內容當作主流，",
+        "prevText": "特別是當一個人在入門之前還無法判斷優劣的時候，",
+        "nextText": "特別是說，",
+        "startTime": 164.02000427246094,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.6,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.2,
+      "lcsRatio": 0.75,
+      "timeGap": 9.9,
+      "phraseGap": 2
+    },
+    {
+      "id": "P15",
+      "earlier": {
+        "phraseIdx": 22,
+        "displayText": "你如果把，",
+        "prevText": "你就把一些旁門左道的內容當作主流來看的話，",
+        "nextText": "特別是當一個人在入門之前還無法判斷優劣的時候，",
+        "startTime": 154.1199951171875,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.5,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 30,
+        "displayText": "就是說如果能在這麼多的論文中迅速找到那些品位高的是成功的第一步你如果滿足那些隨便拿來的論文就讀，",
+        "prevText": "就決定了你在物理學的領域能走多遠。",
+        "nextText": "你如果滿足於隨便拿來一些論文就讀然後找到一個論文的課題就去研究，",
+        "startTime": 196.4199981689453,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.8,
+          "pauseRatio": 2
+        }
+      },
+      "similarity": 0.089,
+      "lcsRatio": 0.75,
+      "timeGap": 42.3,
+      "phraseGap": 8
+    },
+    {
+      "id": "P16",
+      "earlier": {
+        "phraseIdx": 24,
+        "displayText": "你如果一旦是把旁門左道的內容當作主流，",
+        "prevText": "特別是當一個人在入門之前還無法判斷優劣的時候，",
+        "nextText": "特別是說，",
+        "startTime": 164.02000427246094,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.6,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 27,
+        "displayText": "而一旦是把那些旁門左道，",
+        "prevText": "特別是當一個人他還在入門的時候他沒有辦法判斷優劣，",
+        "nextText": "當作主流來讀的話那品位就很難提高了像是楊振寧先生講過你習慣於讀什麼樣的物理學論文",
+        "startTime": 179.3800048828125,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.3,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.444,
+      "lcsRatio": 0.364,
+      "timeGap": 15.4,
+      "phraseGap": 3
+    },
+    {
+      "id": "P17",
+      "earlier": {
+        "phraseIdx": 25,
+        "displayText": "特別是說，",
+        "prevText": "你如果一旦是把旁門左道的內容當作主流，",
+        "nextText": "特別是當一個人他還在入門的時候他沒有辦法判斷優劣，",
+        "startTime": 171.5800018310547,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 3.9,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 30,
+        "displayText": "就是說如果能在這麼多的論文中迅速找到那些品位高的是成功的第一步你如果滿足那些隨便拿來的論文就讀，",
+        "prevText": "就決定了你在物理學的領域能走多遠。",
+        "nextText": "你如果滿足於隨便拿來一些論文就讀然後找到一個論文的課題就去研究，",
+        "startTime": 196.4199981689453,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.8,
+          "pauseRatio": 2
+        }
+      },
+      "similarity": 0.044,
+      "lcsRatio": 0.5,
+      "timeGap": 24.8,
+      "phraseGap": 5
+    },
+    {
+      "id": "P18",
+      "earlier": {
+        "phraseIdx": 35,
+        "displayText": "那我幫那我幫你做一個挑逐的GPT這個是展示，",
+        "prevText": "嗯，",
+        "nextText": "你可以在下面打上你要研究的領域。",
+        "startTime": 259.4800109863281,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 3.8,
+          "pauseRatio": 3
+        }
+      },
+      "later": {
+        "phraseIdx": 38,
+        "displayText": "那他就會幫你做細分。",
+        "prevText": "嗯，",
+        "nextText": "嗯，",
+        "startTime": 290.94000244140625,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.4,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.154,
+      "lcsRatio": 0.333,
+      "timeGap": 31.5,
+      "phraseGap": 3
+    },
+    {
+      "id": "P19",
+      "earlier": {
+        "phraseIdx": 38,
+        "displayText": "那他就會幫你做細分。",
+        "prevText": "嗯，",
+        "nextText": "嗯，",
+        "startTime": 290.94000244140625,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 5.4,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 45,
+        "displayText": "那他就會列舉一些書單給你然後並且會有推薦理由那你就可以參考或者你想要再換其他書籍。",
+        "prevText": "嗯，",
+        "nextText": "那你就可以參考或是就是，",
+        "startTime": 472.3599853515625,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.9,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.128,
+      "lcsRatio": 0.444,
+      "timeGap": 181.4,
+      "phraseGap": 7
+    },
+    {
+      "id": "P20",
+      "earlier": {
+        "phraseIdx": 45,
+        "displayText": "那他就會列舉一些書單給你然後並且會有推薦理由那你就可以參考或者你想要再換其他書籍。",
+        "prevText": "嗯，",
+        "nextText": "那你就可以參考或是就是，",
+        "startTime": 472.3599853515625,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.9,
+          "pauseRatio": 0
+        }
+      },
+      "later": {
+        "phraseIdx": 47,
+        "displayText": "那你就可以參考，",
+        "prevText": "那你就可以參考或是就是，",
+        "nextText": "或是就是讓他在做比較細分的推薦，",
+        "startTime": 493.739990234375,
+        "thoughtUnit": null,
+        "audioFeatures": {
+          "speakingRate": 4.9,
+          "pauseRatio": 0
+        }
+      },
+      "similarity": 0.267,
+      "lcsRatio": 1,
+      "timeGap": 21.4,
+      "phraseGap": 2
+    }
+  ],
+  "config": {
+    "silence_threshold": 1.85,
+    "take_similarity": 0.6,
+    "take_window": 6,
+    "pair_similarity": 0.3,
+    "pair_lcs_ratio": 0.3,
+    "pair_window": 8,
+    "pair_max": 50,
+    "repeat_prefix_len": 5
+  },
+  "stats": {
+    "totalPhrases": 56,
+    "ruleDeleted": 15,
+    "gapMarked": 0,
+    "candidatePairs": 20
+  }
+}
