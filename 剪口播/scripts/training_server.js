@@ -20,6 +20,34 @@ const buildReviewHtml = require('./generate_review');
 const { parseAutoSelected } = buildReviewHtml;
 const { getAvailableEncoders } = require('./encoder_utils');
 
+// ── 匯出後驗證：呼叫 verify_export.js，回傳解析後結果（永不 throw，驗證問題不阻斷匯出）──
+function runVerify(outputFile, inputFile, deleteSegmentsPath, tag = '') {
+  try {
+    const verifyScript = path.join(__dirname, 'verify_export.js');
+    if (!fs.existsSync(verifyScript)) return null;
+    let stdout;
+    try {
+      stdout = execSync(
+        `node "${verifyScript}" --output "${outputFile}" --input "${inputFile}" --delete "${deleteSegmentsPath}" --json`,
+        { encoding: 'utf8' }
+      );
+    } catch (e) {
+      // verify_export 在有 FAIL 時退出碼 2，execSync 會 throw，但 stdout 仍含完整 JSON
+      stdout = e.stdout;
+    }
+    const result = JSON.parse(stdout);
+    const fails = result.checks.filter(c => c.level === 'fail');
+    const warns = result.checks.filter(c => c.level === 'warn');
+    if (fails.length)      console.error(`❌ ${tag}匯出驗證 FAIL：${fails.map(c => `${c.name} — ${c.msg}`).join('; ')}`);
+    else if (warns.length) console.warn (`⚠️ ${tag}匯出驗證警示：${warns.map(c => `${c.name} — ${c.msg}`).join('; ')}`);
+    else                   console.log  (`✅ ${tag}匯出驗證全數通過`);
+    return result;
+  } catch (err) {
+    console.error(`⚠️ ${tag}匯出驗證無法執行（不影響匯出）：${err.message}`);
+    return null;
+  }
+}
+
 const PORT = process.argv[2] || 8900;
 const SCRIPT_DIR = __dirname;
 
@@ -604,6 +632,9 @@ const server = http.createServer((req, res) => {
         const deletedDuration = originalDuration - newDuration;
         const savedPercent = ((deletedDuration / originalDuration) * 100).toFixed(1);
 
+        // ── 匯出後自動驗證（verify_export，advisory：驗證失敗不阻斷匯出）──
+        const verify = runVerify(outputFile, ctx.videoPath, deleteSegmentsPath, `[${videoName}] `);
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: true,
@@ -613,6 +644,7 @@ const server = http.createServer((req, res) => {
           newDuration: newDuration.toFixed(2),
           deletedDuration: deletedDuration.toFixed(2),
           savedPercent,
+          verify,
           message: `[${videoName}] 剪輯完成`,
         }));
       } catch (err) {
@@ -1919,6 +1951,17 @@ const server = http.createServer((req, res) => {
           cutState.outputPath = outputFile;
           cutState.log.push('✅ 剪輯完成: ' + outputFile);
           cutState.progress = 90;
+
+          // ── 匯出後自動驗證（verify_export，advisory：不影響已完成的匯出）──
+          const verify = runVerify(outputFile, cutState.videoPath, deleteFile);
+          cutState.verify = verify;
+          if (verify) {
+            const fails = verify.checks.filter(c => c.level === 'fail');
+            const warns = verify.checks.filter(c => c.level === 'warn');
+            if (fails.length)      cutState.log.push('❌ 匯出驗證 FAIL：' + fails.map(c => `${c.name} — ${c.msg}`).join('; '));
+            else if (warns.length) cutState.log.push('⚠️ 匯出驗證警示：' + warns.map(c => `${c.name} — ${c.msg}`).join('; '));
+            else                   cutState.log.push('✅ 匯出驗證全數通過');
+          }
 
           // SRT 字幕匯出
           if (exportSrt) {

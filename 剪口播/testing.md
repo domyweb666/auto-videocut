@@ -68,6 +68,28 @@ node --test scripts/test/
 
 ---
 
+### L4 — 匯出後成品驗證（每次匯出自動跑）
+
+`verify_export.js` 在每次剪輯匯出後由 `review_server.js` / `training_server.js` 自動呼叫，
+驗證「成品本身」是否符合預期（前三層驗證的是 AI 判斷與分析輸出，這層驗證實際 ffmpeg 產物）。
+
+```bash
+# 也可手動單獨跑（任何 _cut.mp4 都行）
+node verify_export.js --output <cut.mp4> --input <原片> --delete <delete_segments.json>
+```
+
+| 檢查 | 等級 | 門檻 |
+|------|------|------|
+| 時長對帳（keepSegs 預計 vs ffprobe 實際） | **FAIL** | 落差 > 0.5s |
+| 殘留長靜音（silencedetect 掃成品） | WARN | -30dB / > 1.5s（排除頭尾 1.2s） |
+| 音畫漂移（video 流 vs audio 流時長） | WARN | 差 > 0.3s |
+
+**退出碼**：0 = 通過（含 warn）／2 = 有 FAIL／3 = `--strict` 下有 warn。
+**advisory**：驗證問題只記 log、塞進 API 回應，**不阻斷**已完成的匯出（成品已產出，由人決定要不要重剪）。
+門檻常數集中在 `verify_export.js` 檔頭（`TOL_DURATION` / `SILENCE_MIN` / `AV_DRIFT_TOL`）。
+
+---
+
 ## 測試觸發決策表
 
 | 修改類型 | L1 | L2 | L3 |
@@ -77,12 +99,13 @@ node --test scripts/test/
 | 修改純函式模組 | ✅ | — | ✅ |
 | 只改 UI（review_server 前端） | ✅ | — | — |
 | 修改 training_config.json | ✅ | — | — |
+| 修改 `verify_export.js` 或匯出後驗證接線 | — | L4 手動跑一次成品驗證即可 | — |
 
 ---
 
 ## 尚未覆蓋的盲區
 
-- `cut_video.sh` 的實際剪輯輸出（需要真實影片，不易自動化）
+- `cut_video.sh` 的實際剪輯輸出 → **L4 已部分覆蓋**（時長對帳 / 殘留靜音 / 音畫漂移），但畫面內容正確性仍靠人工
 - `detect_redundancy.py` 的語意重複準確率（依賴 sentence-transformers）
 - waveform API 的 RMS 值正確性
 
