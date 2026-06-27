@@ -270,7 +270,9 @@ const segInfos = [];
 keepSegs.forEach((seg, i) => {
   const padded = String(i).padStart(5, '0');
   const outFile = '$TMP_DIR/seg_' + padded + '.mp4';
-  concatLines.push(\"file '\" + outFile + \"'\");
+  // concat.txt 與 seg 檔同在 TMP_DIR：concat demuxer 會把 file 路徑當成相對於 concat.txt 所在資料夾，
+  // 故此處只寫檔名（不加 TMP_DIR 前綴），否則 OUTPUT 為相對路徑時會疊成 TMP_DIR/TMP_DIR/seg 而找不到
+  concatLines.push(\"file 'seg_\" + padded + \".mp4'\");
   segInfos.push({ i, start: seg.start, end: seg.end, out: outFile });
 });
 
