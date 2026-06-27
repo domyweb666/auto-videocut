@@ -588,6 +588,48 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── API: 波形峰值（ffmpeg 抽單聲道 PCM 算每桶峰值，結果快取）──
+  if (req.method === 'GET' && req.url === '/api/waveform') {
+    try {
+      const cacheFile = path.resolve('waveform_cache.json');
+      // 快取：存在且不舊於影片就直接回
+      if (fs.existsSync(cacheFile)) {
+        try {
+          const cst = fs.statSync(cacheFile), vst = fs.statSync(VIDEO_FILE);
+          if (cst.mtimeMs >= vst.mtimeMs) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(fs.readFileSync(cacheFile, 'utf8'));
+            return;
+          }
+        } catch (e) { /* 快取讀取失敗就重算 */ }
+      }
+      const SR = 8000, BUCKETS = 1600;
+      const pcm = execSync(`ffmpeg -v error -i "file:${VIDEO_FILE}" -ac 1 -ar ${SR} -f s16le -`,
+        { maxBuffer: 1024 * 1024 * 512 });
+      const samples = Math.floor(pcm.length / 2);
+      const per = Math.max(1, Math.floor(samples / BUCKETS));
+      const peaks = [];
+      for (let b = 0; b < BUCKETS; b++) {
+        let max = 0;
+        const startS = b * per, endS = Math.min(samples, startS + per);
+        for (let s = startS; s < endS; s++) {
+          const v = Math.abs(pcm.readInt16LE(s * 2));
+          if (v > max) max = v;
+        }
+        peaks.push(+(max / 32768).toFixed(4));
+      }
+      const duration = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${VIDEO_FILE}"`).toString().trim()) || 0;
+      const payload = JSON.stringify({ peaks, duration, buckets: BUCKETS });
+      try { fs.writeFileSync(cacheFile, payload); } catch (e) { /* 快取寫入失敗不影響回應 */ }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(payload);
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
   // 静态文件服务（从当前目录读取）
   let filePath = req.url === '/' ? '/review.html' : req.url;
   filePath = '.' + filePath;

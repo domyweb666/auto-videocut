@@ -57,6 +57,7 @@ function buildReviewHtml(words, autoSelected, autoReasons, opts) {
   const cutApiPath        = opts.cutApiPath        || '/api/cut';
   const encodersApiPath   = opts.encodersApiPath   || '/api/encoders';
   const diffReportApiPath = opts.diffReportApiPath || '/api/diff-report';
+  const waveformApiPath   = opts.waveformApiPath   || '/api/waveform';
 
 return `<!DOCTYPE html>
 <html lang="zh-TW">
@@ -474,6 +475,11 @@ return `<!DOCTYPE html>
 <div class="main">
   <div class="left-panel">
     <video id="player" src="${videoSrc}" preload="auto"></video>
+    <div id="wfWrap" style="position:relative;width:100%;margin-top:8px">
+      <canvas id="waveform" style="display:block;width:100%;height:72px;background:#161616;border-radius:4px;cursor:pointer"></canvas>
+      <canvas id="waveheadCanvas" style="position:absolute;left:0;top:0;width:100%;height:72px;pointer-events:none"></canvas>
+      <div style="font-size:11px;color:#777;margin-top:2px">波形：藍=音量 · <span style="color:#f44336">紅</span>=刪除段 · <span style="color:#ffeb3b">黃</span>=播放位置 · 點波形跳轉</div>
+    </div>
     <div class="legend">
       <div class="legend-item"><div class="legend-dot ai"></div><span>AI預選</span></div>
       <div class="legend-item"><div class="legend-dot del"></div><span>確認刪除</span></div>
@@ -503,6 +509,10 @@ return `<!DOCTYPE html>
   const player = document.getElementById('player');
   const timeDisplay = document.getElementById('time');
   const scriptDiv = document.getElementById('script');
+
+  // ── 波形圖狀態 ──
+  let wfPeaks = null;
+  let wfDuration = 0;
 
   // wordEl[i] = the DOM span for word index i (null for gaps inside silence blocks)
   let wordEl = [];
@@ -713,7 +723,96 @@ return `<!DOCTYPE html>
     selected.forEach(i => { dur += words[i].end - words[i].start; });
     document.getElementById('selCount').textContent = selected.size;
     document.getElementById('selDur').textContent = dur.toFixed(1);
+    if (wfPeaks) drawWaveformBase();
   }
+
+  // ── 波形圖：載入峰值、畫波形 + 刪除段、畫播放游標、點擊跳轉 ──
+  function wfDeleteRanges() {
+    const sorted = Array.from(selected).sort((a, b) => a - b);
+    const ranges = [];
+    let i = 0;
+    while (i < sorted.length) {
+      let st = words[sorted[i]].start, en = words[sorted[i]].end, j = i + 1;
+      while (j < sorted.length && words[sorted[j]].start - en < 0.1) { en = words[sorted[j]].end; j++; }
+      ranges.push({ start: st, end: en });
+      i = j;
+    }
+    return ranges;
+  }
+
+  function drawWaveformBase() {
+    if (!wfPeaks) return;
+    const c = document.getElementById('waveform');
+    const dpr = window.devicePixelRatio || 1;
+    const W = c.clientWidth, H = c.clientHeight;
+    if (!W || !H) return;
+    c.width = W * dpr; c.height = H * dpr;
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#161616';
+    ctx.fillRect(0, 0, W, H);
+    const mid = H / 2, n = wfPeaks.length;
+    ctx.strokeStyle = '#4a9eff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x < W; x++) {
+      const p = wfPeaks[Math.floor(x / W * n)] || 0;
+      const h = p * (mid - 2);
+      ctx.moveTo(x + 0.5, mid - h);
+      ctx.lineTo(x + 0.5, mid + h);
+    }
+    ctx.stroke();
+    const dur = wfDuration || player.duration || 0;
+    if (dur > 0) {
+      ctx.fillStyle = 'rgba(244,67,54,0.35)';
+      wfDeleteRanges().forEach(r => {
+        const x1 = r.start / dur * W, x2 = r.end / dur * W;
+        ctx.fillRect(x1, 0, Math.max(1, x2 - x1), H);
+      });
+    }
+  }
+
+  function drawWaveformHead() {
+    const c = document.getElementById('waveheadCanvas');
+    if (!c) return;
+    const dpr = window.devicePixelRatio || 1;
+    const W = c.clientWidth, H = c.clientHeight;
+    if (!W || !H) return;
+    if (c.width !== W * dpr || c.height !== H * dpr) { c.width = W * dpr; c.height = H * dpr; }
+    const ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const dur = wfDuration || player.duration || 0;
+    if (dur > 0) {
+      const x = (player.currentTime / dur) * W;
+      ctx.strokeStyle = '#ffeb3b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+  }
+
+  async function loadWaveform() {
+    try {
+      const r = await fetch('${waveformApiPath}');
+      const d = await r.json();
+      if (d && d.peaks && d.peaks.length) {
+        wfPeaks = d.peaks;
+        wfDuration = d.duration || 0;
+        drawWaveformBase();
+      }
+    } catch (e) { /* 波形載入失敗不影響審核 */ }
+  }
+
+  document.getElementById('waveform').addEventListener('click', function (e) {
+    const rect = this.getBoundingClientRect();
+    const dur = wfDuration || player.duration || 0;
+    if (dur > 0) player.currentTime = (e.clientX - rect.left) / rect.width * dur;
+  });
+  window.addEventListener('resize', () => { if (wfPeaks) drawWaveformBase(); });
 
   // ── Web Audio API (mute during skipped segments) ──
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -769,6 +868,8 @@ return `<!DOCTYPE html>
     }
 
     timeDisplay.textContent = formatTime(t) + ' / ' + formatTime(player.duration || 0);
+
+    if (wfPeaks) drawWaveformHead();
 
     // Highlight current word
     let curr = -1;
@@ -927,7 +1028,7 @@ return `<!DOCTYPE html>
       if (data.status === 'up_to_date') {
         alert('✅ 守則已是最新，無需更新');
       } else if (data.status === 'started') {
-        alert('🧠 開始更新守則（' + data.newVideos + ' 支新影片）\n\n' + data.message + '\n\n視窗關閉後在背景執行，完成後自動生效。');
+        alert('🧠 開始更新守則（' + data.newVideos + ' 支新影片）\\n\\n' + data.message + '\\n\\n視窗關閉後在背景執行，完成後自動生效。');
       } else {
         alert('⚠️ ' + (data.message || '未知狀態'));
       }
@@ -947,7 +1048,7 @@ return `<!DOCTYPE html>
       modal.innerHTML = '<div style="background:#1a1a1a;border:1px solid #444;border-radius:8px;padding:24px;min-width:480px;max-width:680px;max-height:80vh;overflow-y:auto">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
         '<h3 style="margin:0;color:#fff">↶ 守則快照歷史</h3>' +
-        '<button onclick="document.getElementById(\'rollbackModal\').remove()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>' +
+        '<button onclick="document.getElementById(\\'rollbackModal\\').remove()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>' +
         '</div>' +
         '<div id="rollbackList">載入中...</div>' +
         '</div>';
@@ -986,7 +1087,7 @@ return `<!DOCTYPE html>
           '<div style="color:#ccc;font-size:14px">' + date + '</div>' +
           '<div style="color:#666;font-size:12px">' + s.filename + ' (' + kb + ' KB)</div>' +
           '</div>' +
-          '<button onclick="doRollback(\'' + s.filename + '\')" style="background:#3a1a1a;border:1px solid #8b2e2e;color:#e88;padding:6px 14px;border-radius:4px;cursor:pointer">還原此版本</button>' +
+          '<button onclick="doRollback(\\'' + s.filename + '\\')" style="background:#3a1a1a;border:1px solid #8b2e2e;color:#e88;padding:6px 14px;border-radius:4px;cursor:pointer">還原此版本</button>' +
           '</div>';
       }).join('');
       list.innerHTML = (latestF1 ? '<div style="margin-bottom:12px;padding:8px 12px;background:#1e2a1e;border-radius:4px;color:#8c8">' +
@@ -997,7 +1098,7 @@ return `<!DOCTYPE html>
   }
 
   async function doRollback(filename) {
-    if (!confirm('確定要還原到「' + filename + '」？\n\n目前守則會先備份一份，再還原。')) return;
+    if (!confirm('確定要還原到「' + filename + '」？\\n\\n目前守則會先備份一份，再還原。')) return;
     try {
       const r = await fetch('/api/narrative-style-rollback', {
         method: 'POST',
@@ -1159,7 +1260,19 @@ return `<!DOCTYPE html>
       const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
 
       if (data.success) {
-        alert('✅ 剪輯完成！(耗時 ' + totalTime + 's)\\n\\n📁 輸出: ' + data.output + '\\n\\n原時長: ' + formatDuration(data.originalDuration) + '\\n新時長: ' + formatDuration(data.newDuration) + '\\n刪減: ' + formatDuration(data.deletedDuration) + ' (' + data.savedPercent + '%)');
+        var verifyText = '';
+        if (data.verify && data.verify.checks) {
+          var vf = data.verify.checks.filter(function(c){ return c.level === 'fail'; });
+          var vw = data.verify.checks.filter(function(c){ return c.level === 'warn'; });
+          if (vf.length === 0 && vw.length === 0) {
+            verifyText = '\\n\\n🔎 自我評估: ✅ 全數通過';
+          } else {
+            verifyText = '\\n\\n🔎 自我評估:';
+            vf.forEach(function(c){ verifyText += '\\n  ❌ ' + c.name + '：' + c.msg; });
+            vw.forEach(function(c){ verifyText += '\\n  ⚠️ ' + c.name + '：' + c.msg; });
+          }
+        }
+        alert('✅ 剪輯完成！(耗時 ' + totalTime + 's)\\n\\n📁 輸出: ' + data.output + '\\n\\n原時長: ' + formatDuration(data.originalDuration) + '\\n新時長: ' + formatDuration(data.newDuration) + '\\n刪減: ' + formatDuration(data.deletedDuration) + ' (' + data.savedPercent + '%)' + verifyText);
       } else {
         alert('❌ 剪輯失敗: ' + data.error);
       }
@@ -1218,6 +1331,7 @@ return `<!DOCTYPE html>
   });
 
   render();
+  loadWaveform();
 </script>
 </body>
 </html>`;
@@ -1264,6 +1378,7 @@ if (require.main === module) {
     cutApiPath: '/api/cut',
     encodersApiPath: '/api/encoders',
     diffReportApiPath: '/api/diff-report',
+    waveformApiPath: '/api/waveform',
   });
   fs.writeFileSync('review.html', html);
   console.log('✅ 已生成 review.html');

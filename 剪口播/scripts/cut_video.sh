@@ -153,8 +153,13 @@ detect_encoder
 
 SCALE_FILTER=""
 FPS_ARGS=""
-# -async 1 解決剪接點 A/V 漂移（音畫不同步累積到後段才爆）
-AUDIO_ARGS="-c:a aac -b:a 128k -async 1"
+# 注意：A/V 漂移修正（原 -async 1）改由每段 -af 內的 aresample=async=1 處理，
+# 因為 -async 與 -af 不能同時使用，故把同步折進 filter chain。
+AUDIO_ARGS="-c:a aac -b:a 128k"
+
+# 切點淡入淡出秒數（借鑑 video-use：每段頭尾各加微淡入/淡出，消除 concat 接點爆音）
+# 可用 CUT_FADE_DUR 覆寫；設 0 關閉。無損模式音訊 copy 無法套 filter，自動略過。
+FADE_DUR="${CUT_FADE_DUR:-0.03}"
 
 if [ "$CUT_LOSSLESS" = "1" ]; then
   echo "💎 無損模式：音訊 stream copy、影片 libx264 CRF 17（忽略解析度/codec）"
@@ -164,6 +169,7 @@ if [ "$CUT_LOSSLESS" = "1" ]; then
   # lossless 也要 CFR，否則剪接點仍會定格
   FPS_ARGS="-r $INPUT_FPS -fps_mode cfr"
   AUDIO_ARGS="-c:a copy"
+  FADE_DUR=""  # copy 串流無法套 afade
 else
   if [ "$CUT_RESOLUTION" = "4320" ]; then
     SCALE_FILTER="-vf scale=7680:4320:force_original_aspect_ratio=decrease,pad=7680:4320:-1:-1:color=black"
@@ -229,6 +235,9 @@ else
 fi
 
 echo "🎯 編碼器: $ENCODER_LABEL"
+if [ -n "$FADE_DUR" ] && [ "$FADE_DUR" != "0" ]; then
+  echo "🔊 切點淡入淡出: ${FADE_DUR}s（消除接點爆音）"
+fi
 
 # 用 node 计算保留片段，生成提取脚本和 concat 列表
 TOTAL_SEGS=$(node -e "
@@ -299,7 +308,21 @@ node -e "
 const fs = require('fs');
 const segs = JSON.parse(fs.readFileSync('$TMP_DIR/segments.json', 'utf8'));
 const isLossless = process.argv[11] === '1';
+const fadeDur = parseFloat(process.argv[12] || '0') || 0;
 segs.forEach((s, i) => {
+  // 切點淡入淡出 + A/V 同步：折進同一條 -af（無損 copy 模式略過）
+  let afArg = '';
+  if (!isLossless) {
+    const segDur = s.end - s.start;
+    const fd = Math.min(fadeDur, segDur / 2);
+    const chain = [];
+    if (fd > 0.001) {
+      chain.push('afade=t=in:st=0:d=' + fd.toFixed(3));
+      chain.push('afade=t=out:st=' + Math.max(0, segDur - fd).toFixed(3) + ':d=' + fd.toFixed(3));
+    }
+    chain.push('aresample=async=1');
+    afArg = ' -af \"' + chain.join(',') + '\"';
+  }
   let cmd = '#!/bin/bash\nffmpeg -y -v error' +
     ' -ss ' + s.start.toFixed(3) + ' -to ' + s.end.toFixed(3) +
     ' -accurate_seek -i \"file:' + process.argv[1] + '\"' +
@@ -310,13 +333,13 @@ segs.forEach((s, i) => {
   cmd += ' -pix_fmt ' + process.argv[6] +
     (process.argv[8] ? ' ' + process.argv[8] : '') +
     (process.argv[9] ? ' ' + process.argv[9] : '') +
-    ' ' + process.argv[10] +
+    ' ' + process.argv[10] + afArg +
     ' -avoid_negative_ts make_zero' +
     ' \"file:' + s.out + '\"\n';
   const padded = String(i).padStart(5, '0');
   fs.writeFileSync('$TMP_DIR/cmd_' + padded + '.sh', cmd);
 });
-" "$INPUT" "$ENCODER" "$BITRATE_K" "$MAXRATE_K" "$BUFSIZE_K" "$PIX_FMT" "$ENCODER_ARGS" "$SCALE_FILTER" "$FPS_ARGS" "$AUDIO_ARGS" "${CUT_LOSSLESS:-0}"
+" "$INPUT" "$ENCODER" "$BITRATE_K" "$MAXRATE_K" "$BUFSIZE_K" "$PIX_FMT" "$ENCODER_ARGS" "$SCALE_FILTER" "$FPS_ARGS" "$AUDIO_ARGS" "${CUT_LOSSLESS:-0}" "$FADE_DUR"
 
 # 逐段提取（控制并行度）
 RUNNING=0
