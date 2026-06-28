@@ -125,13 +125,18 @@ let cutState = {
   error: null
 };
 
-function startCutProcess(videoPath) {
+function startCutProcess(videoPath, referenceText) {
   const baseName = path.basename(videoPath).replace(/\.[^/.]+$/, '');
   const workDir = path.join(process.cwd(), 'cut_work', baseName);
   const transcribeDir = path.join(workDir, '1_轉錄');
   const analysisDir = path.join(workDir, '2_分析');
   fs.mkdirSync(transcribeDir, { recursive: true });
   fs.mkdirSync(analysisDir, { recursive: true });
+
+  // 前台貼的參考文稿 → 存成 reference.txt，transcribe_pipeline 會自動偵測並啟用 gpt-4o 文檔校正
+  if (referenceText && referenceText.trim()) {
+    fs.writeFileSync(path.join(transcribeDir, 'reference.txt'), referenceText.trim(), 'utf8');
+  }
 
   cutState = {
     running: true,
@@ -1417,7 +1422,7 @@ const server = http.createServer((req, res) => {
     req.on('data', c => body += c);
     req.on('end', () => {
       try {
-        const { videoPath } = JSON.parse(body);
+        const { videoPath, referenceText } = JSON.parse(body);
         if (!videoPath || !fs.existsSync(videoPath)) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: '找不到影片: ' + videoPath }));
@@ -1428,7 +1433,7 @@ const server = http.createServer((req, res) => {
           res.end(JSON.stringify({ error: '剪輯進行中' }));
           return;
         }
-        startCutProcess(videoPath);
+        startCutProcess(videoPath, referenceText);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ message: '處理已啟動' }));
       } catch (err) {
@@ -4829,6 +4834,10 @@ const CUT_HTML = `<!DOCTYPE html>
       <div id="batchQueueBox" class="batch-queue" style="display:none;">
         <div class="batch-queue-empty" id="batchEmpty">\u5C1A\u672A\u52A0\u5165\u5F71\u7247</div>
       </div>
+      <div style="margin-top:8px;">
+        <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px;">\uD83D\uDCC4 \u53C3\u8003\u6587\u7A3F\uFF08\u9078\u586B\uFF0C\u8B1B\u7A3F/\u5927\u7DB1\u5373\u53EF\uFF0C\u4E0D\u5FC5\u9010\u5B57\uFF09\u2014 \u7528\u4F86\u6821\u6B63\u8FA8\u8B58\u932F\u5B57</label>
+        <textarea id="referenceText" rows="4" placeholder="\u8CBC\u4E0A\u9019\u652F\u5F71\u7247\u7684\u8B1B\u7A3F\u6216\u5927\u7DB1\uFF1B\u7559\u7A7A\u5247\u7528 gpt-4o \u7D14\u8FA8\u8B58" style="width:100%;box-sizing:border-box;background:#1e1e1e;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:8px;font-size:12px;resize:vertical;"></textarea>
+      </div>
       <button class="process-btn" id="processBtn" onclick="processVideo()">\u{1F3AC} \u958B\u59CB\u8655\u7406</button>
     </div>
 
@@ -5043,10 +5052,11 @@ const CUT_HTML = `<!DOCTYPE html>
       document.getElementById('cutBadge').textContent = running + '/' + batchQueue.length;
     }
     try {
+      const refEl = document.getElementById('referenceText');
       const res = await fetch('/api/process-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoPath })
+        body: JSON.stringify({ videoPath, referenceText: refEl ? refEl.value : '' })
       });
       const data = await res.json();
       if (!res.ok) {
