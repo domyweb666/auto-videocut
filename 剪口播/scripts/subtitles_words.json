@@ -1,0 +1,8399 @@
+[
+  {
+    "text": "",
+    "start": 0,
+    "end": 1,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 1,
+    "end": 2,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 2,
+    "end": 3,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 3,
+    "end": 4,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 4,
+    "end": 5,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 5,
+    "end": 6,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 6,
+    "end": 7,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 7,
+    "end": 8,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 8,
+    "end": 9,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 9,
+    "end": 10,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 10,
+    "end": 11,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 11,
+    "end": 12,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 12,
+    "end": 13,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 13,
+    "end": 14,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 14,
+    "end": 15,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 15,
+    "end": 16,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 16,
+    "end": 17,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 17,
+    "end": 18,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 18,
+    "end": 19,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 19,
+    "end": 20,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 20,
+    "end": 21,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 21,
+    "end": 22,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 22,
+    "end": 23,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 23,
+    "end": 23.48,
+    "isGap": true
+  },
+  {
+    "text": "情",
+    "start": 23.48,
+    "end": 23.72,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒",
+    "start": 23.76,
+    "end": 24,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "它",
+    "start": 24.08,
+    "end": 24.24,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 24.24,
+    "end": 24.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "影",
+    "start": 24.38,
+    "end": 24.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "響",
+    "start": 24.52,
+    "end": 24.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "信",
+    "start": 24.76,
+    "end": 25,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "念。",
+    "start": 25,
+    "end": 25.24,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 25.24,
+    "end": 25.88,
+    "isGap": true
+  },
+  {
+    "text": "而",
+    "start": 25.88,
+    "end": 26.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "信",
+    "start": 26.18,
+    "end": 26.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "念",
+    "start": 26.44,
+    "end": 26.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "呢",
+    "start": 26.62,
+    "end": 26.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 26.86,
+    "end": 27,
+    "isGap": true
+  },
+  {
+    "text": "會",
+    "start": 27,
+    "end": 27.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "影",
+    "start": 27.22,
+    "end": 27.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "響",
+    "start": 27.34,
+    "end": 27.56,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "決",
+    "start": 27.56,
+    "end": 27.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "策。",
+    "start": 27.76,
+    "end": 28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 28,
+    "end": 29,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 29,
+    "end": 29.16,
+    "isGap": true
+  },
+  {
+    "text": "例",
+    "start": 29.16,
+    "end": 29.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "如",
+    "start": 29.38,
+    "end": 29.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "焦",
+    "start": 29.64,
+    "end": 29.8,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "慮",
+    "start": 29.8,
+    "end": 30,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 30,
+    "end": 30.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "話，",
+    "start": 30.16,
+    "end": 30.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 30.4,
+    "end": 30.62,
+    "isGap": true
+  },
+  {
+    "text": "它",
+    "start": 30.62,
+    "end": 30.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 30.82,
+    "end": 30.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "把",
+    "start": 30.94,
+    "end": 31.14,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 31.14,
+    "end": 31.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "確",
+    "start": 31.38,
+    "end": 31.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "定",
+    "start": 31.54,
+    "end": 31.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "性，",
+    "start": 31.76,
+    "end": 32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 32,
+    "end": 32.42,
+    "isGap": true
+  },
+  {
+    "text": "解",
+    "start": 32.42,
+    "end": 32.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "讀",
+    "start": 32.66,
+    "end": 32.78,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 32.78,
+    "end": 33,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "威",
+    "start": 33,
+    "end": 33.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "脅。",
+    "start": 33.2,
+    "end": 33.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 33.44,
+    "end": 34.04,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 34.04,
+    "end": 34.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "這",
+    "start": 34.28,
+    "end": 34.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "樣",
+    "start": 34.4,
+    "end": 34.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 34.5,
+    "end": 34.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 34.58,
+    "end": 34.74,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "信",
+    "start": 34.74,
+    "end": 34.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "念",
+    "start": 34.94,
+    "end": 35.18,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 35.22,
+    "end": 35.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 35.36,
+    "end": 35.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "變",
+    "start": 35.5,
+    "end": 35.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "成。",
+    "start": 35.66,
+    "end": 35.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 35.9,
+    "end": 36.54,
+    "isGap": true
+  },
+  {
+    "text": "這",
+    "start": 36.54,
+    "end": 36.74,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "個",
+    "start": 36.74,
+    "end": 36.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "世",
+    "start": 36.88,
+    "end": 37.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "界",
+    "start": 37.04,
+    "end": 37.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "很",
+    "start": 37.16,
+    "end": 37.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "危",
+    "start": 37.36,
+    "end": 37.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "險，",
+    "start": 37.58,
+    "end": 37.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 37.82,
+    "end": 38.14,
+    "isGap": true
+  },
+  {
+    "text": "我",
+    "start": 38.14,
+    "end": 38.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 38.34,
+    "end": 38.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "先",
+    "start": 38.46,
+    "end": 38.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "確",
+    "start": 38.68,
+    "end": 38.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "保",
+    "start": 38.88,
+    "end": 39.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 39.02,
+    "end": 39.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "犯",
+    "start": 39.2,
+    "end": 39.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "錯。",
+    "start": 39.42,
+    "end": 39.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 39.66,
+    "end": 40.56,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 40.56,
+    "end": 40.8,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "沮",
+    "start": 40.88,
+    "end": 41.1,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "喪",
+    "start": 41.1,
+    "end": 41.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "呢",
+    "start": 41.34,
+    "end": 41.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 41.58,
+    "end": 41.74,
+    "isGap": true
+  },
+  {
+    "text": "它",
+    "start": 41.74,
+    "end": 41.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 41.94,
+    "end": 42.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "把，",
+    "start": 42.08,
+    "end": 42.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 42.32,
+    "end": 42.56,
+    "isGap": true
+  },
+  {
+    "text": "困",
+    "start": 42.56,
+    "end": 42.8,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "難",
+    "start": 42.84,
+    "end": 43.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "解",
+    "start": 43.1,
+    "end": 43.26,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "讀",
+    "start": 43.26,
+    "end": 43.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "成",
+    "start": 43.44,
+    "end": 43.64,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "無",
+    "start": 43.64,
+    "end": 43.8,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "望。",
+    "start": 43.8,
+    "end": 44.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 44.04,
+    "end": 44.8,
+    "isGap": true
+  },
+  {
+    "text": "這",
+    "start": 44.8,
+    "end": 45,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "樣",
+    "start": 45,
+    "end": 45.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "信",
+    "start": 45.2,
+    "end": 45.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "念",
+    "start": 45.36,
+    "end": 45.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 45.54,
+    "end": 45.64,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 45.64,
+    "end": 45.78,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "變",
+    "start": 45.78,
+    "end": 45.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "成",
+    "start": 45.88,
+    "end": 46.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "努",
+    "start": 46.2,
+    "end": 46.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "力",
+    "start": 46.36,
+    "end": 46.56,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "也",
+    "start": 46.56,
+    "end": 46.72,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "沒",
+    "start": 46.72,
+    "end": 46.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "用",
+    "start": 46.84,
+    "end": 47.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 47.08,
+    "end": 47.28,
+    "isGap": true
+  },
+  {
+    "text": "我",
+    "start": 47.28,
+    "end": 47.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "做",
+    "start": 47.46,
+    "end": 47.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 47.62,
+    "end": 47.8,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "到。",
+    "start": 47.8,
+    "end": 48.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 48.04,
+    "end": 49.04,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 49.04,
+    "end": 49.06,
+    "isGap": true
+  },
+  {
+    "text": "憤",
+    "start": 49.06,
+    "end": 49.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "怒",
+    "start": 49.36,
+    "end": 49.6,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 49.6,
+    "end": 49.72,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 49.72,
+    "end": 49.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 49.84,
+    "end": 49.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "將",
+    "start": 49.96,
+    "end": 50.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "問",
+    "start": 50.22,
+    "end": 50.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "題。",
+    "start": 50.44,
+    "end": 50.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 50.68,
+    "end": 51.26,
+    "isGap": true
+  },
+  {
+    "text": "解",
+    "start": 51.26,
+    "end": 51.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "讀",
+    "start": 51.52,
+    "end": 51.64,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "成",
+    "start": 51.64,
+    "end": 51.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 51.82,
+    "end": 51.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "公",
+    "start": 51.96,
+    "end": 52.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "平。",
+    "start": 52.04,
+    "end": 52.715,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 52.72,
+    "end": 53.29,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 53.29,
+    "end": 53.47,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "信",
+    "start": 53.47,
+    "end": 53.63,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "念",
+    "start": 53.63,
+    "end": 53.87,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 53.87,
+    "end": 53.97,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 53.97,
+    "end": 54.11,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "變",
+    "start": 54.11,
+    "end": 54.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "成",
+    "start": 54.27,
+    "end": 54.51,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 54.59,
+    "end": 54.67,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 54.67,
+    "end": 54.85,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "爭",
+    "start": 54.85,
+    "end": 55.03,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "回",
+    "start": 55.03,
+    "end": 55.21,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "來，",
+    "start": 55.21,
+    "end": 55.45,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 55.45,
+    "end": 55.71,
+    "isGap": true
+  },
+  {
+    "text": "我",
+    "start": 55.71,
+    "end": 55.87,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 55.87,
+    "end": 55.97,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "能",
+    "start": 55.97,
+    "end": 56.15,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "退。",
+    "start": 56.15,
+    "end": 56.535,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 56.54,
+    "end": 57.54,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 57.54,
+    "end": 58.49,
+    "isGap": true
+  },
+  {
+    "text": "愧",
+    "start": 58.49,
+    "end": 58.73,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "疚",
+    "start": 58.75,
+    "end": 58.99,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 58.99,
+    "end": 59.09,
+    "isGap": true
+  },
+  {
+    "text": "則",
+    "start": 59.09,
+    "end": 59.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 59.23,
+    "end": 59.33,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "將",
+    "start": 59.33,
+    "end": 59.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "性",
+    "start": 59.59,
+    "end": 59.83,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "事",
+    "start": 59.91,
+    "end": 60.11,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "件",
+    "start": 60.11,
+    "end": 60.35,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 60.35,
+    "end": 60.47,
+    "isGap": true
+  },
+  {
+    "text": "解",
+    "start": 60.47,
+    "end": 60.63,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "讀",
+    "start": 60.63,
+    "end": 60.75,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "成",
+    "start": 60.75,
+    "end": 60.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "自",
+    "start": 60.91,
+    "end": 61.03,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 61.03,
+    "end": 61.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "否",
+    "start": 61.23,
+    "end": 61.39,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "定。",
+    "start": 61.39,
+    "end": 61.715,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 61.72,
+    "end": 62.72,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 62.72,
+    "end": 63.72,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 63.72,
+    "end": 64.02,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 64.02,
+    "end": 64.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "信",
+    "start": 64.16,
+    "end": 64.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "念",
+    "start": 64.34,
+    "end": 64.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 64.52,
+    "end": 64.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 64.68,
+    "end": 64.78,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "變",
+    "start": 64.78,
+    "end": 64.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "成",
+    "start": 64.92,
+    "end": 65.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 65.08,
+    "end": 65.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 65.2,
+    "end": 65.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "夠",
+    "start": 65.32,
+    "end": 65.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "好",
+    "start": 65.5,
+    "end": 65.74,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 65.8,
+    "end": 65.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 65.9,
+    "end": 66.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "配。",
+    "start": 66.08,
+    "end": 66.435,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 66.44,
+    "end": 67.44,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 67.44,
+    "end": 68.44,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 68.44,
+    "end": 69.44,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 69.44,
+    "end": 70.44,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 70.44,
+    "end": 71.42,
+    "isGap": true
+  },
+  {
+    "text": "呃",
+    "start": 71.42,
+    "end": 71.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 71.66,
+    "end": 71.76,
+    "isGap": true
+  },
+  {
+    "text": "雖",
+    "start": 71.76,
+    "end": 71.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "然",
+    "start": 71.88,
+    "end": 72.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 72.08,
+    "end": 72.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "們",
+    "start": 72.16,
+    "end": 72.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "能",
+    "start": 72.28,
+    "end": 72.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "夠，",
+    "start": 72.38,
+    "end": 72.795,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 72.8,
+    "end": 73.18,
+    "isGap": true
+  },
+  {
+    "text": "感",
+    "start": 73.18,
+    "end": 73.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "受",
+    "start": 73.28,
+    "end": 73.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "到",
+    "start": 73.4,
+    "end": 73.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "d",
+    "start": 73.62,
+    "end": 73.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 73.86,
+    "end": 74.04,
+    "isGap": true
+  },
+  {
+    "text": "傷",
+    "start": 74.04,
+    "end": 74.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "心",
+    "start": 74.2,
+    "end": 74.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "快",
+    "start": 74.5,
+    "end": 74.74,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "樂",
+    "start": 74.74,
+    "end": 74.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "生",
+    "start": 74.94,
+    "end": 75.14,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "氣。",
+    "start": 75.14,
+    "end": 75.525,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 75.53,
+    "end": 76.46,
+    "isGap": true
+  },
+  {
+    "text": "但",
+    "start": 76.46,
+    "end": 76.64,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "有",
+    "start": 76.64,
+    "end": 76.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "時",
+    "start": 76.84,
+    "end": 77,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "候",
+    "start": 77,
+    "end": 77.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "卻",
+    "start": 77.12,
+    "end": 77.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 77.3,
+    "end": 77.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 77.4,
+    "end": 77.6,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "真",
+    "start": 77.6,
+    "end": 77.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 77.7,
+    "end": 77.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "知",
+    "start": 77.82,
+    "end": 77.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "道",
+    "start": 77.94,
+    "end": 78.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 78.06,
+    "end": 78.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "什",
+    "start": 78.22,
+    "end": 78.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "麼",
+    "start": 78.32,
+    "end": 78.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "自",
+    "start": 78.42,
+    "end": 78.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "己",
+    "start": 78.58,
+    "end": 78.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 78.7,
+    "end": 78.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "產",
+    "start": 78.84,
+    "end": 78.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "生",
+    "start": 78.92,
+    "end": 79.1,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "這",
+    "start": 79.1,
+    "end": 79.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "種",
+    "start": 79.22,
+    "end": 79.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 79.32,
+    "end": 79.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒。",
+    "start": 79.52,
+    "end": 79.845,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 79.85,
+    "end": 80.85,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 80.85,
+    "end": 81.85,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 81.85,
+    "end": 82.85,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 82.85,
+    "end": 83.39,
+    "isGap": true
+  },
+  {
+    "text": "像",
+    "start": 83.39,
+    "end": 83.59,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 83.59,
+    "end": 83.69,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 83.69,
+    "end": 83.81,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "現",
+    "start": 83.81,
+    "end": 83.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 83.91,
+    "end": 84.11,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "生",
+    "start": 84.11,
+    "end": 84.25,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "氣，",
+    "start": 84.25,
+    "end": 84.635,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 84.64,
+    "end": 85,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 85,
+    "end": 85.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 85.12,
+    "end": 85.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 85.22,
+    "end": 85.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "只",
+    "start": 85.38,
+    "end": 85.48,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 85.48,
+    "end": 85.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "說",
+    "start": 85.7,
+    "end": 85.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 85.88,
+    "end": 85.98,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "被",
+    "start": 85.98,
+    "end": 86.18,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "某",
+    "start": 86.18,
+    "end": 86.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "個",
+    "start": 86.28,
+    "end": 86.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "人",
+    "start": 86.4,
+    "end": 86.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "激",
+    "start": 86.54,
+    "end": 86.74,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "怒",
+    "start": 86.74,
+    "end": 86.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "了。",
+    "start": 86.92,
+    "end": 87.155,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 87.16,
+    "end": 88.16,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 88.16,
+    "end": 89,
+    "isGap": true
+  },
+  {
+    "text": "但",
+    "start": 89,
+    "end": 89.18,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 89.18,
+    "end": 89.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 89.28,
+    "end": 89.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "說",
+    "start": 89.42,
+    "end": 89.56,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 89.56,
+    "end": 89.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "出",
+    "start": 89.68,
+    "end": 89.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "來。",
+    "start": 89.84,
+    "end": 90.135,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 90.14,
+    "end": 90.84,
+    "isGap": true
+  },
+  {
+    "text": "為",
+    "start": 90.84,
+    "end": 91.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "什",
+    "start": 91.04,
+    "end": 91.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "麼",
+    "start": 91.16,
+    "end": 91.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "那",
+    "start": 91.28,
+    "end": 91.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "人",
+    "start": 91.38,
+    "end": 91.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "說",
+    "start": 91.58,
+    "end": 91.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "出",
+    "start": 91.68,
+    "end": 91.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 91.84,
+    "end": 91.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "話",
+    "start": 91.96,
+    "end": 92.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 92.2,
+    "end": 92.42,
+    "isGap": true
+  },
+  {
+    "text": "會",
+    "start": 92.42,
+    "end": 92.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 92.66,
+    "end": 92.82,
+    "isGap": true
+  },
+  {
+    "text": "會",
+    "start": 92.82,
+    "end": 93.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "激",
+    "start": 93.04,
+    "end": 93.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "怒",
+    "start": 93.2,
+    "end": 93.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你。",
+    "start": 93.38,
+    "end": 93.675,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 93.68,
+    "end": 94.68,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 94.68,
+    "end": 95.2,
+    "isGap": true
+  },
+  {
+    "text": "是",
+    "start": 95.2,
+    "end": 95.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "有",
+    "start": 95.38,
+    "end": 95.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "違",
+    "start": 95.52,
+    "end": 95.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "背",
+    "start": 95.66,
+    "end": 95.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "自",
+    "start": 95.84,
+    "end": 95.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "己",
+    "start": 95.92,
+    "end": 96.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "什",
+    "start": 96.02,
+    "end": 96.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "麼",
+    "start": 96.12,
+    "end": 96.26,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "信",
+    "start": 96.26,
+    "end": 96.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "念",
+    "start": 96.4,
+    "end": 96.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "嗎。",
+    "start": 96.58,
+    "end": 96.905,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 96.91,
+    "end": 97.91,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 97.91,
+    "end": 98.04,
+    "isGap": true
+  },
+  {
+    "text": "這",
+    "start": 98.04,
+    "end": 98.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "次",
+    "start": 98.2,
+    "end": 98.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 98.42,
+    "end": 98.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 98.54,
+    "end": 98.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "進",
+    "start": 98.66,
+    "end": 98.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "行",
+    "start": 98.76,
+    "end": 98.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "弄",
+    "start": 98.86,
+    "end": 98.98,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "嗎。",
+    "start": 98.98,
+    "end": 99.305,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 99.31,
+    "end": 99.88,
+    "isGap": true
+  },
+  {
+    "text": "還",
+    "start": 99.88,
+    "end": 100.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 100.02,
+    "end": 100.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 100.2,
+    "end": 100.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 100.3,
+    "end": 100.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "背",
+    "start": 100.42,
+    "end": 100.6,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "什",
+    "start": 100.6,
+    "end": 100.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "麼",
+    "start": 100.68,
+    "end": 100.78,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "別",
+    "start": 100.78,
+    "end": 100.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 100.94,
+    "end": 101.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "東",
+    "start": 101.06,
+    "end": 101.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "西，",
+    "start": 101.22,
+    "end": 101.515,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 101.52,
+    "end": 101.86,
+    "isGap": true
+  },
+  {
+    "text": "反",
+    "start": 101.86,
+    "end": 102,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "倒",
+    "start": 102,
+    "end": 102.18,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "受",
+    "start": 102.18,
+    "end": 102.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 102.28,
+    "end": 102.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "了",
+    "start": 102.4,
+    "end": 102.56,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "了。",
+    "start": 102.56,
+    "end": 102.855,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 102.86,
+    "end": 103.68,
+    "isGap": true
+  },
+  {
+    "text": "他",
+    "start": 103.68,
+    "end": 103.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "只",
+    "start": 103.86,
+    "end": 103.98,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 103.98,
+    "end": 104.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "壓",
+    "start": 104.16,
+    "end": 104.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "垮。",
+    "start": 104.3,
+    "end": 104.685,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 104.69,
+    "end": 105.69,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 105.69,
+    "end": 106.69,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 106.69,
+    "end": 107.69,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 107.69,
+    "end": 108.69,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 108.69,
+    "end": 109.26,
+    "isGap": true
+  },
+  {
+    "text": "他",
+    "start": 109.26,
+    "end": 109.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "只",
+    "start": 109.42,
+    "end": 109.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 109.54,
+    "end": 109.72,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "最",
+    "start": 109.72,
+    "end": 109.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "後",
+    "start": 109.82,
+    "end": 109.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "一",
+    "start": 109.94,
+    "end": 110.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "根",
+    "start": 110.02,
+    "end": 110.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "壓",
+    "start": 110.2,
+    "end": 110.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "垮",
+    "start": 110.4,
+    "end": 110.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 110.5,
+    "end": 110.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "稻",
+    "start": 110.66,
+    "end": 110.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "草。",
+    "start": 110.86,
+    "end": 111.155,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 111.16,
+    "end": 112.16,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 112.16,
+    "end": 112.25,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 112.25,
+    "end": 112.43,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 112.43,
+    "end": 112.61,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 112.61,
+    "end": 112.71,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "用",
+    "start": 112.71,
+    "end": 112.83,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "這",
+    "start": 112.83,
+    "end": 112.95,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "被",
+    "start": 112.95,
+    "end": 113.09,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "操",
+    "start": 113.09,
+    "end": 113.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "控",
+    "start": 113.23,
+    "end": 113.41,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 113.41,
+    "end": 113.51,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "木",
+    "start": 113.51,
+    "end": 113.63,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "偶。",
+    "start": 113.63,
+    "end": 113.955,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 113.96,
+    "end": 114.67,
+    "isGap": true
+  },
+  {
+    "text": "總",
+    "start": 114.67,
+    "end": 114.83,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 114.83,
+    "end": 114.93,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "被",
+    "start": 114.93,
+    "end": 115.13,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "外",
+    "start": 115.13,
+    "end": 115.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 115.27,
+    "end": 115.47,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "牽",
+    "start": 115.47,
+    "end": 115.61,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "引",
+    "start": 115.61,
+    "end": 115.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "著。",
+    "start": 115.79,
+    "end": 116.055,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 116.06,
+    "end": 116.99,
+    "isGap": true
+  },
+  {
+    "text": "心",
+    "start": 116.99,
+    "end": 117.17,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "裡",
+    "start": 117.17,
+    "end": 117.29,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "沒",
+    "start": 117.29,
+    "end": 117.39,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "有",
+    "start": 117.39,
+    "end": 117.53,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "見",
+    "start": 117.53,
+    "end": 117.67,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "過。",
+    "start": 117.67,
+    "end": 118.085,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 118.09,
+    "end": 118.78,
+    "isGap": true
+  },
+  {
+    "text": "心",
+    "start": 118.78,
+    "end": 118.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "裡",
+    "start": 118.92,
+    "end": 119.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "沒",
+    "start": 119.08,
+    "end": 119.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "建",
+    "start": 119.22,
+    "end": 119.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "立",
+    "start": 119.38,
+    "end": 119.48,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "過",
+    "start": 119.48,
+    "end": 119.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "防",
+    "start": 119.68,
+    "end": 119.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "火",
+    "start": 119.76,
+    "end": 120,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "牆。",
+    "start": 120,
+    "end": 120.295,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 120.3,
+    "end": 121.3,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 121.3,
+    "end": 122.2,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 122.2,
+    "end": 122.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 122.4,
+    "end": 122.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "對",
+    "start": 122.52,
+    "end": 122.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "於",
+    "start": 122.62,
+    "end": 122.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 122.76,
+    "end": 122.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒",
+    "start": 122.96,
+    "end": 123.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 123.08,
+    "end": 123.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "定",
+    "start": 123.22,
+    "end": 123.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "義",
+    "start": 123.36,
+    "end": 123.6,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是。",
+    "start": 123.6,
+    "end": 123.925,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 123.93,
+    "end": 124.93,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 124.93,
+    "end": 125.93,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 125.93,
+    "end": 126.76,
+    "isGap": true
+  },
+  {
+    "text": "大",
+    "start": 126.76,
+    "end": 126.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "腦",
+    "start": 126.94,
+    "end": 127.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "對",
+    "start": 127.12,
+    "end": 127.24,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "於",
+    "start": 127.24,
+    "end": 127.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "世",
+    "start": 127.32,
+    "end": 127.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "界",
+    "start": 127.46,
+    "end": 127.64,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "和",
+    "start": 127.64,
+    "end": 127.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "需",
+    "start": 127.84,
+    "end": 127.98,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "求",
+    "start": 127.98,
+    "end": 128.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "落",
+    "start": 128.2,
+    "end": 128.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "差",
+    "start": 128.4,
+    "end": 128.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 128.52,
+    "end": 128.72,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "及",
+    "start": 128.72,
+    "end": 128.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "時",
+    "start": 128.92,
+    "end": 129.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "判",
+    "start": 129.12,
+    "end": 129.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "讀。",
+    "start": 129.34,
+    "end": 129.635,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 129.64,
+    "end": 130.26,
+    "isGap": true
+  },
+  {
+    "text": "可",
+    "start": 130.26,
+    "end": 130.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "以",
+    "start": 130.44,
+    "end": 130.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "分",
+    "start": 130.58,
+    "end": 130.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 130.66,
+    "end": 130.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "三",
+    "start": 130.86,
+    "end": 131.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "層。",
+    "start": 131.06,
+    "end": 131.385,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 131.39,
+    "end": 132.39,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 132.39,
+    "end": 133.39,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 133.39,
+    "end": 134.39,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 134.39,
+    "end": 135.39,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 135.39,
+    "end": 136.29,
+    "isGap": true
+  },
+  {
+    "text": "第",
+    "start": 136.29,
+    "end": 136.45,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "一",
+    "start": 136.45,
+    "end": 136.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "層",
+    "start": 136.57,
+    "end": 136.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 136.79,
+    "end": 137.03,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 137.03,
+    "end": 137.15,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "本",
+    "start": 137.15,
+    "end": 137.31,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "身",
+    "start": 137.31,
+    "end": 137.43,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 137.43,
+    "end": 137.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "需",
+    "start": 137.57,
+    "end": 137.81,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "求，",
+    "start": 137.83,
+    "end": 138.125,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 138.13,
+    "end": 138.45,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 138.45,
+    "end": 138.55,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 138.55,
+    "end": 138.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "生",
+    "start": 138.81,
+    "end": 139.03,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "存",
+    "start": 139.03,
+    "end": 139.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "安",
+    "start": 139.35,
+    "end": 139.49,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "全",
+    "start": 139.49,
+    "end": 139.73,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 139.73,
+    "end": 139.85,
+    "isGap": true
+  },
+  {
+    "text": "歸",
+    "start": 139.85,
+    "end": 140.01,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "屬",
+    "start": 140.01,
+    "end": 140.25,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "地",
+    "start": 140.29,
+    "end": 140.49,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "位",
+    "start": 140.49,
+    "end": 140.73,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "成",
+    "start": 140.75,
+    "end": 140.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 140.89,
+    "end": 141.09,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "等",
+    "start": 141.09,
+    "end": 141.25,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "等。",
+    "start": 141.25,
+    "end": 141.515,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 141.51,
+    "end": 142.44,
+    "isGap": true
+  },
+  {
+    "text": "第",
+    "start": 142.44,
+    "end": 142.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "二",
+    "start": 142.58,
+    "end": 142.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "層",
+    "start": 142.7,
+    "end": 142.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "次",
+    "start": 142.88,
+    "end": 143.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "評",
+    "start": 143.08,
+    "end": 143.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "估",
+    "start": 143.3,
+    "end": 143.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 143.54,
+    "end": 143.74,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 143.74,
+    "end": 143.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 143.88,
+    "end": 144,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 144,
+    "end": 144.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "當",
+    "start": 144.2,
+    "end": 144.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "前",
+    "start": 144.36,
+    "end": 144.6,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "進",
+    "start": 144.62,
+    "end": 144.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "度",
+    "start": 144.76,
+    "end": 144.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "還",
+    "start": 144.94,
+    "end": 145.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "有",
+    "start": 145.06,
+    "end": 145.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "目",
+    "start": 145.16,
+    "end": 145.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "標",
+    "start": 145.3,
+    "end": 145.48,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "進",
+    "start": 145.48,
+    "end": 145.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "度",
+    "start": 145.58,
+    "end": 145.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 145.7,
+    "end": 145.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "差",
+    "start": 145.84,
+    "end": 146.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "值。",
+    "start": 146.06,
+    "end": 146.385,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 146.39,
+    "end": 147.39,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 147.39,
+    "end": 148.39,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 148.39,
+    "end": 148.94,
+    "isGap": true
+  },
+  {
+    "text": "第",
+    "start": 148.94,
+    "end": 149.14,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "三",
+    "start": 149.14,
+    "end": 149.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "層",
+    "start": 149.32,
+    "end": 149.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "呢",
+    "start": 149.54,
+    "end": 149.78,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 149.8,
+    "end": 149.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 149.94,
+    "end": 150.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 150.08,
+    "end": 150.24,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒",
+    "start": 150.24,
+    "end": 150.48,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "反",
+    "start": 150.48,
+    "end": 150.64,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "應，",
+    "start": 150.64,
+    "end": 150.965,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 150.97,
+    "end": 151.29,
+    "isGap": true
+  },
+  {
+    "text": "你",
+    "start": 151.29,
+    "end": 151.43,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "這",
+    "start": 151.43,
+    "end": 151.55,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "個",
+    "start": 151.55,
+    "end": 151.67,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "差",
+    "start": 151.67,
+    "end": 151.87,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "值。",
+    "start": 151.87,
+    "end": 152.255,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 152.26,
+    "end": 152.86,
+    "isGap": true
+  },
+  {
+    "text": "導",
+    "start": 152.86,
+    "end": 153.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "致",
+    "start": 153.06,
+    "end": 153.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 153.22,
+    "end": 153.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "心",
+    "start": 153.42,
+    "end": 153.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "理",
+    "start": 153.5,
+    "end": 153.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "反",
+    "start": 153.7,
+    "end": 153.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "應。",
+    "start": 153.84,
+    "end": 154.165,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 154.17,
+    "end": 155.17,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 155.17,
+    "end": 155.47,
+    "isGap": true
+  },
+  {
+    "text": "嗯。",
+    "start": 155.47,
+    "end": 155.735,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 155.74,
+    "end": 156.74,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 156.74,
+    "end": 157.74,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 157.74,
+    "end": 158.74,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 158.74,
+    "end": 159.74,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 159.74,
+    "end": 159.96,
+    "isGap": true
+  },
+  {
+    "text": "當",
+    "start": 159.96,
+    "end": 160.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "外",
+    "start": 160.22,
+    "end": 160.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "界",
+    "start": 160.44,
+    "end": 160.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "刺",
+    "start": 160.68,
+    "end": 160.78,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "激",
+    "start": 160.78,
+    "end": 160.98,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "進",
+    "start": 160.98,
+    "end": 161.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "入",
+    "start": 161.06,
+    "end": 161.26,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "感",
+    "start": 161.26,
+    "end": 161.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "官",
+    "start": 161.42,
+    "end": 161.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 161.58,
+    "end": 161.72,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "時",
+    "start": 161.72,
+    "end": 161.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "候，",
+    "start": 161.88,
+    "end": 162.235,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 162.24,
+    "end": 162.69,
+    "isGap": true
+  },
+  {
+    "text": "你",
+    "start": 162.69,
+    "end": 162.83,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "這",
+    "start": 162.83,
+    "end": 162.99,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "個",
+    "start": 162.99,
+    "end": 163.09,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "配",
+    "start": 163.09,
+    "end": 163.33,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "對",
+    "start": 163.33,
+    "end": 163.53,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "內",
+    "start": 163.53,
+    "end": 163.63,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 163.63,
+    "end": 163.81,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "需",
+    "start": 163.81,
+    "end": 163.97,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "求",
+    "start": 163.97,
+    "end": 164.09,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 164.09,
+    "end": 164.25,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 164.25,
+    "end": 164.39,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "啟",
+    "start": 164.39,
+    "end": 164.55,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "動。",
+    "start": 164.55,
+    "end": 164.905,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 164.91,
+    "end": 165.69,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 165.69,
+    "end": 165.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "經",
+    "start": 165.89,
+    "end": 165.99,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "過",
+    "start": 165.99,
+    "end": 166.19,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "毫",
+    "start": 166.19,
+    "end": 166.29,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "秒",
+    "start": 166.29,
+    "end": 166.45,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "級",
+    "start": 166.45,
+    "end": 166.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 166.57,
+    "end": 166.69,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "評",
+    "start": 166.69,
+    "end": 166.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "估，",
+    "start": 166.91,
+    "end": 167.295,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 167.3,
+    "end": 167.68,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 167.68,
+    "end": 167.78,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 167.78,
+    "end": 167.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "啟",
+    "start": 167.92,
+    "end": 168.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "動",
+    "start": 168.06,
+    "end": 168.26,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 168.26,
+    "end": 168.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒。",
+    "start": 168.4,
+    "end": 168.785,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 168.79,
+    "end": 169.79,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 169.79,
+    "end": 169.79,
+    "isGap": true
+  },
+  {
+    "text": "也",
+    "start": 169.79,
+    "end": 169.95,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 169.95,
+    "end": 170.11,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 170.11,
+    "end": 170.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "說",
+    "start": 170.23,
+    "end": 170.41,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "展",
+    "start": 170.41,
+    "end": 170.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "開",
+    "start": 170.57,
+    "end": 170.69,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "來",
+    "start": 170.69,
+    "end": 170.85,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "看，",
+    "start": 170.85,
+    "end": 171.175,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 171.18,
+    "end": 171.49,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 171.49,
+    "end": 171.69,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 171.69,
+    "end": 171.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒",
+    "start": 171.89,
+    "end": 172.13,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "他",
+    "start": 172.15,
+    "end": 172.25,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 172.25,
+    "end": 172.43,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "代",
+    "start": 172.43,
+    "end": 172.53,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "表",
+    "start": 172.53,
+    "end": 172.69,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "什",
+    "start": 172.69,
+    "end": 172.81,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "麼。",
+    "start": 172.81,
+    "end": 173.105,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 173.11,
+    "end": 173.61,
+    "isGap": true
+  },
+  {
+    "text": "他",
+    "start": 173.61,
+    "end": 173.83,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "只",
+    "start": 173.83,
+    "end": 173.93,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 173.93,
+    "end": 174.09,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "個",
+    "start": 174.09,
+    "end": 174.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "反",
+    "start": 174.23,
+    "end": 174.37,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "饋",
+    "start": 174.37,
+    "end": 174.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "信",
+    "start": 174.57,
+    "end": 174.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "號",
+    "start": 174.79,
+    "end": 174.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "而",
+    "start": 174.91,
+    "end": 175.07,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "已。",
+    "start": 175.07,
+    "end": 175.335,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 175.34,
+    "end": 176.05,
+    "isGap": true
+  },
+  {
+    "text": "如",
+    "start": 176.05,
+    "end": 176.17,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "果",
+    "start": 176.17,
+    "end": 176.35,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "產",
+    "start": 176.35,
+    "end": 176.51,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "生",
+    "start": 176.51,
+    "end": 176.63,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "負",
+    "start": 176.63,
+    "end": 176.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "面",
+    "start": 176.79,
+    "end": 176.97,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 176.97,
+    "end": 177.13,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒，",
+    "start": 177.13,
+    "end": 177.485,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 177.49,
+    "end": 177.84,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 177.84,
+    "end": 177.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 177.96,
+    "end": 178.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 178.06,
+    "end": 178.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "提",
+    "start": 178.2,
+    "end": 178.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "醒",
+    "start": 178.34,
+    "end": 178.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 178.52,
+    "end": 178.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "們",
+    "start": 178.62,
+    "end": 178.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "對",
+    "start": 178.88,
+    "end": 178.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "吧",
+    "start": 178.96,
+    "end": 179.07,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 179.1,
+    "end": 179.18,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "去",
+    "start": 179.18,
+    "end": 179.26,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "做",
+    "start": 179.26,
+    "end": 179.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "某",
+    "start": 179.38,
+    "end": 179.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "件",
+    "start": 179.54,
+    "end": 179.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "事。",
+    "start": 179.7,
+    "end": 180.025,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 180.03,
+    "end": 181.03,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 181.03,
+    "end": 181.68,
+    "isGap": true
+  },
+  {
+    "text": "呃",
+    "start": 181.68,
+    "end": 181.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "如",
+    "start": 181.88,
+    "end": 181.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "果",
+    "start": 181.96,
+    "end": 182.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 182.04,
+    "end": 182.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "正",
+    "start": 182.22,
+    "end": 182.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "面",
+    "start": 182.32,
+    "end": 182.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 182.5,
+    "end": 182.72,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒。",
+    "start": 182.72,
+    "end": 183.045,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 183.05,
+    "end": 183.7,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 183.7,
+    "end": 183.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "只",
+    "start": 183.9,
+    "end": 184.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 184.02,
+    "end": 184.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "對",
+    "start": 184.12,
+    "end": 184.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 184.32,
+    "end": 184.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "們",
+    "start": 184.42,
+    "end": 184.56,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "採",
+    "start": 184.56,
+    "end": 184.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "取",
+    "start": 184.7,
+    "end": 184.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "正",
+    "start": 184.9,
+    "end": 185.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "確",
+    "start": 185.04,
+    "end": 185.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 185.28,
+    "end": 185.46,
+    "isGap": true
+  },
+  {
+    "text": "正",
+    "start": 185.46,
+    "end": 185.64,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "確。",
+    "start": 185.64,
+    "end": 185.965,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 185.97,
+    "end": 186.94,
+    "isGap": true
+  },
+  {
+    "text": "呃",
+    "start": 186.94,
+    "end": 187.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "如",
+    "start": 187.16,
+    "end": 187.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "果",
+    "start": 187.28,
+    "end": 187.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 187.46,
+    "end": 187.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "正",
+    "start": 187.7,
+    "end": 187.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "確。",
+    "start": 187.84,
+    "end": 188.085,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 188.09,
+    "end": 189.05,
+    "isGap": true
+  },
+  {
+    "text": "而",
+    "start": 189.05,
+    "end": 189.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "如",
+    "start": 189.23,
+    "end": 189.31,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "果",
+    "start": 189.31,
+    "end": 189.43,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 189.43,
+    "end": 189.61,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "正",
+    "start": 189.61,
+    "end": 189.77,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "面",
+    "start": 189.77,
+    "end": 189.95,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 189.95,
+    "end": 190.17,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒。",
+    "start": 190.17,
+    "end": 190.465,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 190.47,
+    "end": 190.98,
+    "isGap": true
+  },
+  {
+    "text": "只",
+    "start": 190.98,
+    "end": 191.18,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 191.18,
+    "end": 191.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "對",
+    "start": 191.3,
+    "end": 191.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 191.44,
+    "end": 191.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "們",
+    "start": 191.52,
+    "end": 191.72,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "採",
+    "start": 191.72,
+    "end": 191.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "取",
+    "start": 191.82,
+    "end": 192.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "正",
+    "start": 192.06,
+    "end": 192.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "確",
+    "start": 192.22,
+    "end": 192.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "行",
+    "start": 192.42,
+    "end": 192.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "動",
+    "start": 192.58,
+    "end": 192.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 192.68,
+    "end": 192.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "獎",
+    "start": 192.82,
+    "end": 192.98,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "勵。",
+    "start": 192.98,
+    "end": 193.335,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 193.34,
+    "end": 194.34,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 194.34,
+    "end": 194.41,
+    "isGap": true
+  },
+  {
+    "text": "所",
+    "start": 194.41,
+    "end": 194.51,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "以",
+    "start": 194.51,
+    "end": 194.59,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 194.59,
+    "end": 194.73,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "可",
+    "start": 194.73,
+    "end": 194.81,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "以",
+    "start": 194.81,
+    "end": 194.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "把",
+    "start": 194.89,
+    "end": 195.01,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "二",
+    "start": 195.01,
+    "end": 195.09,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "條",
+    "start": 195.09,
+    "end": 195.25,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "想。",
+    "start": 195.25,
+    "end": 195.475,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 195.48,
+    "end": 196.48,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 196.48,
+    "end": 197.48,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 197.48,
+    "end": 198.34,
+    "isGap": true
+  },
+  {
+    "text": "所",
+    "start": 198.34,
+    "end": 198.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "以",
+    "start": 198.46,
+    "end": 198.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 198.58,
+    "end": 198.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "可",
+    "start": 198.68,
+    "end": 198.8,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "以",
+    "start": 198.8,
+    "end": 198.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "想",
+    "start": 198.88,
+    "end": 198.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 198.96,
+    "end": 199.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "整",
+    "start": 199.08,
+    "end": 199.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "只",
+    "start": 199.2,
+    "end": 199.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "養",
+    "start": 199.32,
+    "end": 199.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "狗，",
+    "start": 199.54,
+    "end": 199.865,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 199.87,
+    "end": 200.28,
+    "isGap": true
+  },
+  {
+    "text": "如",
+    "start": 200.28,
+    "end": 200.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "果",
+    "start": 200.38,
+    "end": 200.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 200.5,
+    "end": 200.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "想",
+    "start": 200.66,
+    "end": 200.78,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 200.78,
+    "end": 200.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "訓",
+    "start": 200.9,
+    "end": 201,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "練",
+    "start": 201,
+    "end": 201.18,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "狗",
+    "start": 201.18,
+    "end": 201.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "做",
+    "start": 201.32,
+    "end": 201.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "什",
+    "start": 201.52,
+    "end": 201.64,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "麼，",
+    "start": 201.64,
+    "end": 201.935,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 201.94,
+    "end": 202.34,
+    "isGap": true
+  },
+  {
+    "text": "讓",
+    "start": 202.34,
+    "end": 202.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "他",
+    "start": 202.5,
+    "end": 202.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "聽",
+    "start": 202.68,
+    "end": 202.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "話。",
+    "start": 202.82,
+    "end": 203.235,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 203.24,
+    "end": 203.92,
+    "isGap": true
+  },
+  {
+    "text": "握",
+    "start": 203.92,
+    "end": 204.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "手。",
+    "start": 204.16,
+    "end": 204.525,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 204.53,
+    "end": 205.25,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 205.25,
+    "end": 205.45,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 205.45,
+    "end": 205.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 205.57,
+    "end": 205.69,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "可",
+    "start": 205.69,
+    "end": 205.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "以",
+    "start": 205.79,
+    "end": 205.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "給",
+    "start": 205.91,
+    "end": 206.01,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "他",
+    "start": 206.01,
+    "end": 206.15,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "摸",
+    "start": 206.15,
+    "end": 206.37,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "頭",
+    "start": 206.37,
+    "end": 206.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "或",
+    "start": 206.57,
+    "end": 206.71,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是。",
+    "start": 206.71,
+    "end": 207.035,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 207.04,
+    "end": 208.04,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 208.04,
+    "end": 209.03,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 209.03,
+    "end": 209.15,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 209.15,
+    "end": 209.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "讓",
+    "start": 209.27,
+    "end": 209.37,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "他",
+    "start": 209.37,
+    "end": 209.55,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "聽",
+    "start": 209.55,
+    "end": 209.65,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 209.65,
+    "end": 209.81,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 209.81,
+    "end": 209.93,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "話，",
+    "start": 209.93,
+    "end": 210.315,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 210.32,
+    "end": 210.7,
+    "isGap": true
+  },
+  {
+    "text": "像",
+    "start": 210.7,
+    "end": 210.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 210.84,
+    "end": 211.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "握",
+    "start": 211.04,
+    "end": 211.24,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "手",
+    "start": 211.24,
+    "end": 211.48,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "準",
+    "start": 211.54,
+    "end": 211.72,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 211.72,
+    "end": 211.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "吃",
+    "start": 211.9,
+    "end": 212.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "飯",
+    "start": 212.06,
+    "end": 212.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 212.38,
+    "end": 212.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "吵",
+    "start": 212.54,
+    "end": 212.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "鬧。",
+    "start": 212.7,
+    "end": 213.115,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 213.12,
+    "end": 213.74,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 213.74,
+    "end": 213.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "可",
+    "start": 213.94,
+    "end": 214.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "以",
+    "start": 214.04,
+    "end": 214.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "給",
+    "start": 214.12,
+    "end": 214.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "他",
+    "start": 214.2,
+    "end": 214.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "摸",
+    "start": 214.38,
+    "end": 214.56,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "頭",
+    "start": 214.56,
+    "end": 214.74,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "或",
+    "start": 214.74,
+    "end": 214.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 214.9,
+    "end": 215.04,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "臨",
+    "start": 215.04,
+    "end": 215.14,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "時",
+    "start": 215.14,
+    "end": 215.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "做",
+    "start": 215.3,
+    "end": 215.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "獎",
+    "start": 215.44,
+    "end": 215.6,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "勵。",
+    "start": 215.6,
+    "end": 215.925,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 215.93,
+    "end": 216.93,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 216.93,
+    "end": 217.57,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 217.57,
+    "end": 217.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "相",
+    "start": 217.79,
+    "end": 217.93,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "反",
+    "start": 217.93,
+    "end": 218.09,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的。",
+    "start": 218.09,
+    "end": 218.355,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 218.36,
+    "end": 218.89,
+    "isGap": true
+  },
+  {
+    "text": "如",
+    "start": 218.89,
+    "end": 219.01,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "果",
+    "start": 219.01,
+    "end": 219.13,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "他",
+    "start": 219.13,
+    "end": 219.33,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "亂",
+    "start": 219.33,
+    "end": 219.53,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "叫",
+    "start": 219.53,
+    "end": 219.77,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 219.77,
+    "end": 219.99,
+    "isGap": true
+  },
+  {
+    "text": "在",
+    "start": 219.99,
+    "end": 220.15,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "家",
+    "start": 220.15,
+    "end": 220.29,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "裡",
+    "start": 220.29,
+    "end": 220.49,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "隨",
+    "start": 220.49,
+    "end": 220.59,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "意",
+    "start": 220.59,
+    "end": 220.69,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "大",
+    "start": 220.69,
+    "end": 220.81,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "小",
+    "start": 220.81,
+    "end": 220.99,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "便。",
+    "start": 220.99,
+    "end": 221.285,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 221.29,
+    "end": 221.86,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 221.86,
+    "end": 222.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 222.02,
+    "end": 222.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "需",
+    "start": 222.2,
+    "end": 222.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 222.3,
+    "end": 222.4,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "口",
+    "start": 222.4,
+    "end": 222.6,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "中",
+    "start": 222.6,
+    "end": 222.8,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "警",
+    "start": 222.8,
+    "end": 222.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "告",
+    "start": 222.94,
+    "end": 223.18,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 223.18,
+    "end": 223.38,
+    "isGap": true
+  },
+  {
+    "text": "作",
+    "start": 223.38,
+    "end": 223.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 223.52,
+    "end": 223.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "警",
+    "start": 223.66,
+    "end": 223.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "告。",
+    "start": 223.82,
+    "end": 224.235,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 224.24,
+    "end": 225.24,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 225.24,
+    "end": 225.56,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 225.56,
+    "end": 225.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 225.7,
+    "end": 225.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "需",
+    "start": 225.82,
+    "end": 225.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 225.92,
+    "end": 226.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "口",
+    "start": 226.06,
+    "end": 226.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "頭",
+    "start": 226.22,
+    "end": 226.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "警",
+    "start": 226.36,
+    "end": 226.56,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "告",
+    "start": 226.56,
+    "end": 226.8,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "作",
+    "start": 226.88,
+    "end": 227.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 227.02,
+    "end": 227.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "處",
+    "start": 227.16,
+    "end": 227.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "罰，",
+    "start": 227.32,
+    "end": 227.675,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 227.68,
+    "end": 228.16,
+    "isGap": true
+  },
+  {
+    "text": "讓",
+    "start": 228.16,
+    "end": 228.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "他",
+    "start": 228.28,
+    "end": 228.48,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "知",
+    "start": 228.48,
+    "end": 228.56,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "道",
+    "start": 228.56,
+    "end": 228.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "這",
+    "start": 228.76,
+    "end": 228.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "件",
+    "start": 228.86,
+    "end": 228.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "事",
+    "start": 228.96,
+    "end": 229.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 229.08,
+    "end": 229.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 229.22,
+    "end": 229.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "對",
+    "start": 229.36,
+    "end": 229.6,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的。",
+    "start": 229.6,
+    "end": 229.865,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 229.87,
+    "end": 230.87,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 230.87,
+    "end": 231.72,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 231.72,
+    "end": 231.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 231.9,
+    "end": 232.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "現",
+    "start": 232.02,
+    "end": 232.14,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 232.14,
+    "end": 232.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "換",
+    "start": 232.28,
+    "end": 232.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "位",
+    "start": 232.36,
+    "end": 232.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "思",
+    "start": 232.58,
+    "end": 232.78,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "考",
+    "start": 232.78,
+    "end": 233.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 233.02,
+    "end": 233.24,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 233.24,
+    "end": 233.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 233.42,
+    "end": 233.6,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "狗",
+    "start": 233.6,
+    "end": 233.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 233.84,
+    "end": 234.04,
+    "isGap": true
+  },
+  {
+    "text": "想",
+    "start": 234.04,
+    "end": 234.2,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "成",
+    "start": 234.2,
+    "end": 234.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 234.36,
+    "end": 234.48,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 234.48,
+    "end": 234.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "自",
+    "start": 234.62,
+    "end": 234.78,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "己。",
+    "start": 234.78,
+    "end": 235.075,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 235.08,
+    "end": 235.69,
+    "isGap": true
+  },
+  {
+    "text": "呃",
+    "start": 235.69,
+    "end": 235.87,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "人",
+    "start": 235.87,
+    "end": 236.05,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 236.05,
+    "end": 236.17,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "角",
+    "start": 236.17,
+    "end": 236.31,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "色，",
+    "start": 236.31,
+    "end": 236.665,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 236.67,
+    "end": 237,
+    "isGap": true
+  },
+  {
+    "text": "假",
+    "start": 237,
+    "end": 237.14,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "者",
+    "start": 237.14,
+    "end": 237.38,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 237.38,
+    "end": 237.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "萬",
+    "start": 237.5,
+    "end": 237.66,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "物",
+    "start": 237.66,
+    "end": 237.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "主。",
+    "start": 237.82,
+    "end": 238.145,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 238.15,
+    "end": 238.66,
+    "isGap": true
+  },
+  {
+    "text": "他",
+    "start": 238.66,
+    "end": 238.8,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "用",
+    "start": 238.8,
+    "end": 239.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "幾",
+    "start": 239.02,
+    "end": 239.18,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "百",
+    "start": 239.18,
+    "end": 239.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "萬",
+    "start": 239.3,
+    "end": 239.48,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "年",
+    "start": 239.48,
+    "end": 239.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 239.58,
+    "end": 239.72,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "演",
+    "start": 239.72,
+    "end": 239.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "化",
+    "start": 239.82,
+    "end": 240.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "時",
+    "start": 240.06,
+    "end": 240.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "間。",
+    "start": 240.22,
+    "end": 240.575,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 240.58,
+    "end": 241.25,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 241.25,
+    "end": 241.39,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 241.39,
+    "end": 241.61,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "調",
+    "start": 241.61,
+    "end": 241.81,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "教",
+    "start": 241.81,
+    "end": 241.99,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 241.99,
+    "end": 242.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "告",
+    "start": 242.23,
+    "end": 242.33,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "訴",
+    "start": 242.33,
+    "end": 242.45,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 242.45,
+    "end": 242.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "說",
+    "start": 242.57,
+    "end": 242.75,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "哪",
+    "start": 242.75,
+    "end": 242.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "些",
+    "start": 242.91,
+    "end": 243.11,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "行",
+    "start": 243.11,
+    "end": 243.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 243.27,
+    "end": 243.43,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 243.43,
+    "end": 243.55,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "不",
+    "start": 243.55,
+    "end": 243.67,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "對",
+    "start": 243.67,
+    "end": 243.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的。",
+    "start": 243.91,
+    "end": 244.175,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 244.18,
+    "end": 244.81,
+    "isGap": true
+  },
+  {
+    "text": "不",
+    "start": 244.81,
+    "end": 244.95,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "對",
+    "start": 244.95,
+    "end": 245.13,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 245.13,
+    "end": 245.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "行",
+    "start": 245.27,
+    "end": 245.43,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 245.43,
+    "end": 245.59,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "呢",
+    "start": 245.59,
+    "end": 245.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 245.79,
+    "end": 245.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 245.89,
+    "end": 246.01,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "用",
+    "start": 246.01,
+    "end": 246.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "恐",
+    "start": 246.23,
+    "end": 246.41,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "懼",
+    "start": 246.41,
+    "end": 246.65,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "悲",
+    "start": 246.67,
+    "end": 246.77,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "傷",
+    "start": 246.77,
+    "end": 246.95,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 246.95,
+    "end": 247.15,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "負",
+    "start": 247.15,
+    "end": 247.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "面",
+    "start": 247.23,
+    "end": 247.41,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 247.41,
+    "end": 247.53,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒",
+    "start": 247.53,
+    "end": 247.75,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "告",
+    "start": 247.75,
+    "end": 247.95,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "知。",
+    "start": 247.95,
+    "end": 248.305,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 248.31,
+    "end": 248.97,
+    "isGap": true
+  },
+  {
+    "text": "正",
+    "start": 248.97,
+    "end": 249.21,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "確",
+    "start": 249.21,
+    "end": 249.39,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 249.39,
+    "end": 249.51,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "行",
+    "start": 249.51,
+    "end": 249.61,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 249.61,
+    "end": 249.83,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 249.83,
+    "end": 249.95,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 249.95,
+    "end": 250.03,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "用",
+    "start": 250.03,
+    "end": 250.21,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "洗",
+    "start": 250.21,
+    "end": 250.41,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "浴。",
+    "start": 250.41,
+    "end": 250.825,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 250.83,
+    "end": 251.53,
+    "isGap": true
+  },
+  {
+    "text": "正",
+    "start": 251.53,
+    "end": 251.71,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "確",
+    "start": 251.71,
+    "end": 251.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 251.89,
+    "end": 252.03,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "行",
+    "start": 252.03,
+    "end": 252.19,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 252.19,
+    "end": 252.37,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "就",
+    "start": 252.37,
+    "end": 252.47,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 252.47,
+    "end": 252.65,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "用",
+    "start": 252.65,
+    "end": 252.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "喜",
+    "start": 252.95,
+    "end": 253.13,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "悅",
+    "start": 253.13,
+    "end": 253.37,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "平",
+    "start": 253.45,
+    "end": 253.65,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "靜",
+    "start": 253.65,
+    "end": 253.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 253.89,
+    "end": 254.05,
+    "isGap": true
+  },
+  {
+    "text": "等",
+    "start": 254.05,
+    "end": 254.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "正",
+    "start": 254.27,
+    "end": 254.43,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "面",
+    "start": 254.43,
+    "end": 254.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 254.57,
+    "end": 254.71,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒",
+    "start": 254.71,
+    "end": 254.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "告",
+    "start": 254.91,
+    "end": 255.07,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "知。",
+    "start": 255.07,
+    "end": 255.425,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 255.43,
+    "end": 256.43,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 256.43,
+    "end": 257.37,
+    "isGap": true
+  },
+  {
+    "text": "所",
+    "start": 257.37,
+    "end": 257.51,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "以",
+    "start": 257.51,
+    "end": 257.65,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 257.65,
+    "end": 257.85,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒",
+    "start": 257.85,
+    "end": 257.97,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "它",
+    "start": 257.97,
+    "end": 258.13,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "只",
+    "start": 258.13,
+    "end": 258.25,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 258.25,
+    "end": 258.33,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "個",
+    "start": 258.33,
+    "end": 258.45,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "信",
+    "start": 258.45,
+    "end": 258.65,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "號。",
+    "start": 258.65,
+    "end": 259.065,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 259.07,
+    "end": 259.76,
+    "isGap": true
+  },
+  {
+    "text": "但",
+    "start": 259.76,
+    "end": 259.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 259.9,
+    "end": 260.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "有",
+    "start": 260.02,
+    "end": 260.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "個",
+    "start": 260.12,
+    "end": 260.24,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "壞",
+    "start": 260.24,
+    "end": 260.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "消",
+    "start": 260.46,
+    "end": 260.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "息",
+    "start": 260.62,
+    "end": 260.8,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是。",
+    "start": 260.8,
+    "end": 261.155,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 261.15,
+    "end": 261.67,
+    "isGap": true
+  },
+  {
+    "text": "情",
+    "start": 261.67,
+    "end": 261.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒",
+    "start": 261.93,
+    "end": 262.11,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 262.11,
+    "end": 262.35,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "演",
+    "start": 262.41,
+    "end": 262.63,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "化",
+    "start": 262.63,
+    "end": 262.81,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "遺",
+    "start": 262.81,
+    "end": 262.97,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "留",
+    "start": 262.97,
+    "end": 263.15,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 263.15,
+    "end": 263.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "信",
+    "start": 263.23,
+    "end": 263.43,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "號。",
+    "start": 263.43,
+    "end": 263.815,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 263.82,
+    "end": 264.82,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 264.82,
+    "end": 265.22,
+    "isGap": true
+  },
+  {
+    "text": "那",
+    "start": 265.22,
+    "end": 265.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "債",
+    "start": 265.48,
+    "end": 265.64,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "務",
+    "start": 265.64,
+    "end": 265.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "組",
+    "start": 265.76,
+    "end": 265.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 265.92,
+    "end": 266.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "設",
+    "start": 266.12,
+    "end": 266.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "立",
+    "start": 266.34,
+    "end": 266.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "這",
+    "start": 266.52,
+    "end": 266.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "條",
+    "start": 266.62,
+    "end": 266.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "規",
+    "start": 266.82,
+    "end": 266.98,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "則",
+    "start": 266.98,
+    "end": 267.14,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 267.14,
+    "end": 267.24,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "時",
+    "start": 267.24,
+    "end": 267.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "候，",
+    "start": 267.44,
+    "end": 267.765,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 267.77,
+    "end": 268.2,
+    "isGap": true
+  },
+  {
+    "text": "是",
+    "start": 268.2,
+    "end": 268.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 268.36,
+    "end": 268.48,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "了",
+    "start": 268.48,
+    "end": 268.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "幫",
+    "start": 268.62,
+    "end": 268.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "助",
+    "start": 268.76,
+    "end": 268.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "原",
+    "start": 268.96,
+    "end": 269.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "始",
+    "start": 269.12,
+    "end": 269.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "人",
+    "start": 269.3,
+    "end": 269.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "類",
+    "start": 269.46,
+    "end": 269.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 269.7,
+    "end": 269.9,
+    "isGap": true
+  },
+  {
+    "text": "更",
+    "start": 269.9,
+    "end": 270.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "好",
+    "start": 270.06,
+    "end": 270.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 270.16,
+    "end": 270.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "生",
+    "start": 270.3,
+    "end": 270.52,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "存，",
+    "start": 270.52,
+    "end": 270.845,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 270.85,
+    "end": 271.33,
+    "isGap": true
+  },
+  {
+    "text": "是",
+    "start": 271.33,
+    "end": 271.53,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "基",
+    "start": 271.53,
+    "end": 271.69,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "於",
+    "start": 271.69,
+    "end": 271.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "當",
+    "start": 271.89,
+    "end": 272.05,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "時",
+    "start": 272.05,
+    "end": 272.25,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "原",
+    "start": 272.25,
+    "end": 272.45,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "始",
+    "start": 272.45,
+    "end": 272.63,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "環",
+    "start": 272.63,
+    "end": 272.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "境，",
+    "start": 272.79,
+    "end": 273.145,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 273.15,
+    "end": 273.62,
+    "isGap": true
+  },
+  {
+    "text": "可",
+    "start": 273.62,
+    "end": 273.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 273.76,
+    "end": 273.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "問",
+    "start": 273.9,
+    "end": 273.98,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "題",
+    "start": 273.98,
+    "end": 274.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 274.16,
+    "end": 274.3,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "現",
+    "start": 274.3,
+    "end": 274.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 274.44,
+    "end": 274.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "環",
+    "start": 274.58,
+    "end": 274.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "境",
+    "start": 274.68,
+    "end": 274.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "變",
+    "start": 274.92,
+    "end": 275.14,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "了。",
+    "start": 275.14,
+    "end": 275.405,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 275.4,
+    "end": 276.1,
+    "isGap": true
+  },
+  {
+    "text": "我",
+    "start": 276.1,
+    "end": 276.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "們",
+    "start": 276.22,
+    "end": 276.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 276.34,
+    "end": 276.48,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "反",
+    "start": 276.48,
+    "end": 276.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "饋",
+    "start": 276.62,
+    "end": 276.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "機",
+    "start": 276.88,
+    "end": 277.1,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "制",
+    "start": 277.1,
+    "end": 277.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "還",
+    "start": 277.34,
+    "end": 277.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "停",
+    "start": 277.5,
+    "end": 277.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "留",
+    "start": 277.62,
+    "end": 277.72,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 277.72,
+    "end": 277.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "以",
+    "start": 277.92,
+    "end": 278.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "前。",
+    "start": 278.02,
+    "end": 278.315,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 278.32,
+    "end": 279.32,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 279.32,
+    "end": 280.24,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 280.24,
+    "end": 280.42,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "像",
+    "start": 280.42,
+    "end": 280.58,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "孔。",
+    "start": 280.58,
+    "end": 280.945,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 280.95,
+    "end": 281.72,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 281.72,
+    "end": 281.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "像",
+    "start": 281.86,
+    "end": 282.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "恐",
+    "start": 282.06,
+    "end": 282.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "懼",
+    "start": 282.22,
+    "end": 282.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 282.48,
+    "end": 282.7,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒",
+    "start": 282.7,
+    "end": 282.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "原",
+    "start": 283,
+    "end": 283.1,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "本",
+    "start": 283.1,
+    "end": 283.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 283.22,
+    "end": 283.36,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "為",
+    "start": 283.36,
+    "end": 283.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "了",
+    "start": 283.46,
+    "end": 283.6,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "幫",
+    "start": 283.6,
+    "end": 283.74,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "助",
+    "start": 283.74,
+    "end": 283.86,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "我",
+    "start": 283.86,
+    "end": 283.94,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "們",
+    "start": 283.94,
+    "end": 284.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "更",
+    "start": 284.06,
+    "end": 284.22,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "好",
+    "start": 284.22,
+    "end": 284.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 284.34,
+    "end": 284.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "躲",
+    "start": 284.46,
+    "end": 284.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "避",
+    "start": 284.62,
+    "end": 284.82,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "劍",
+    "start": 284.82,
+    "end": 284.98,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "齒",
+    "start": 284.98,
+    "end": 285.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "虎。",
+    "start": 285.16,
+    "end": 285.455,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 285.46,
+    "end": 286.08,
+    "isGap": true
+  },
+  {
+    "text": "啊",
+    "start": 286.08,
+    "end": 286.32,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "大",
+    "start": 286.38,
+    "end": 286.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "腦",
+    "start": 286.54,
+    "end": 286.64,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "沒",
+    "start": 286.64,
+    "end": 286.76,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "有",
+    "start": 286.76,
+    "end": 286.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "時",
+    "start": 286.88,
+    "end": 286.98,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "間",
+    "start": 286.98,
+    "end": 287.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "理",
+    "start": 287.12,
+    "end": 287.28,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "性",
+    "start": 287.28,
+    "end": 287.46,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "分",
+    "start": 287.46,
+    "end": 287.68,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "析，",
+    "start": 287.68,
+    "end": 288.065,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 288.07,
+    "end": 288.4,
+    "isGap": true
+  },
+  {
+    "text": "必",
+    "start": 288.4,
+    "end": 288.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "須",
+    "start": 288.5,
+    "end": 288.74,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 288.74,
+    "end": 288.92,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "毫",
+    "start": 288.92,
+    "end": 289.02,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "秒",
+    "start": 289.02,
+    "end": 289.26,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "內",
+    "start": 289.26,
+    "end": 289.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "決",
+    "start": 289.52,
+    "end": 289.62,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "定",
+    "start": 289.62,
+    "end": 289.74,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 289.74,
+    "end": 289.9,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "打",
+    "start": 289.9,
+    "end": 290.12,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 290.12,
+    "end": 290.26,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "跑",
+    "start": 290.26,
+    "end": 290.5,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 290.5,
+    "end": 290.7,
+    "isGap": true
+  },
+  {
+    "text": "還",
+    "start": 290.7,
+    "end": 290.84,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 290.84,
+    "end": 290.96,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "要",
+    "start": 290.96,
+    "end": 291.08,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "逃。",
+    "start": 291.08,
+    "end": 291.465,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 291.46,
+    "end": 292.43,
+    "isGap": true
+  },
+  {
+    "text": "但",
+    "start": 292.43,
+    "end": 292.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 292.57,
+    "end": 292.67,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "現",
+    "start": 292.67,
+    "end": 292.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 292.79,
+    "end": 292.93,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "和",
+    "start": 292.93,
+    "end": 293.07,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "平",
+    "start": 293.07,
+    "end": 293.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "時",
+    "start": 293.27,
+    "end": 293.41,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "代",
+    "start": 293.41,
+    "end": 293.59,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "了，",
+    "start": 293.59,
+    "end": 293.855,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 293.86,
+    "end": 294.11,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 294.11,
+    "end": 294.21,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 294.21,
+    "end": 294.33,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 294.33,
+    "end": 294.45,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "生",
+    "start": 294.45,
+    "end": 294.61,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "命",
+    "start": 294.61,
+    "end": 294.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "中",
+    "start": 294.79,
+    "end": 294.97,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "一",
+    "start": 294.97,
+    "end": 295.07,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "點",
+    "start": 295.07,
+    "end": 295.21,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "小",
+    "start": 295.21,
+    "end": 295.43,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "壓",
+    "start": 295.43,
+    "end": 295.59,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "力，",
+    "start": 295.59,
+    "end": 295.915,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 295.92,
+    "end": 296.29,
+    "isGap": true
+  },
+  {
+    "text": "也",
+    "start": 296.29,
+    "end": 296.39,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 296.39,
+    "end": 296.53,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "助",
+    "start": 296.53,
+    "end": 296.67,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "發",
+    "start": 296.67,
+    "end": 296.87,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "焦",
+    "start": 296.87,
+    "end": 297.07,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "慮。",
+    "start": 297.07,
+    "end": 297.365,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 297.37,
+    "end": 298.02,
+    "isGap": true
+  },
+  {
+    "text": "讓",
+    "start": 298.02,
+    "end": 298.16,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "你",
+    "start": 298.16,
+    "end": 298.34,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "感",
+    "start": 298.34,
+    "end": 298.44,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "覺",
+    "start": 298.44,
+    "end": 298.54,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 298.54,
+    "end": 298.74,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "危",
+    "start": 298.74,
+    "end": 298.88,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "險",
+    "start": 298.88,
+    "end": 299.06,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "中。",
+    "start": 299.06,
+    "end": 299.415,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 299.42,
+    "end": 300.03,
+    "isGap": true
+  },
+  {
+    "text": "這",
+    "start": 300.03,
+    "end": 300.17,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "個",
+    "start": 300.17,
+    "end": 300.29,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "後",
+    "start": 300.29,
+    "end": 300.45,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "臺",
+    "start": 300.45,
+    "end": 300.59,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "警",
+    "start": 300.59,
+    "end": 300.75,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "報",
+    "start": 300.75,
+    "end": 300.99,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "持",
+    "start": 301.05,
+    "end": 301.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "續",
+    "start": 301.23,
+    "end": 301.35,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 301.35,
+    "end": 301.47,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 301.47,
+    "end": 301.65,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "響。",
+    "start": 301.65,
+    "end": 301.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 301.89,
+    "end": 302.59,
+    "isGap": true
+  },
+  {
+    "text": "長",
+    "start": 302.59,
+    "end": 302.83,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "期",
+    "start": 302.85,
+    "end": 303.09,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "反",
+    "start": 303.11,
+    "end": 303.33,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "復。",
+    "start": 303.33,
+    "end": 303.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 303.57,
+    "end": 304.55,
+    "isGap": true
+  },
+  {
+    "text": "長",
+    "start": 304.55,
+    "end": 304.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "期。",
+    "start": 304.87,
+    "end": 305.11,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 305.11,
+    "end": 306.11,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 306.11,
+    "end": 306.15,
+    "isGap": true
+  },
+  {
+    "text": "長",
+    "start": 306.15,
+    "end": 306.39,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "期",
+    "start": 306.43,
+    "end": 306.67,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "反",
+    "start": 306.71,
+    "end": 306.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "復，",
+    "start": 306.91,
+    "end": 307.15,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 307.15,
+    "end": 307.37,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 307.37,
+    "end": 307.57,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 307.57,
+    "end": 307.69,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "得",
+    "start": 307.69,
+    "end": 307.93,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 307.93,
+    "end": 308.07,
+    "isGap": true
+  },
+  {
+    "text": "慢",
+    "start": 308.07,
+    "end": 308.29,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "性",
+    "start": 308.29,
+    "end": 308.53,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "病。",
+    "start": 308.53,
+    "end": 308.77,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 308.77,
+    "end": 309.77,
+    "isGap": true
+  },
+  {
+    "text": "",
+    "start": 309.77,
+    "end": 310.03,
+    "isGap": true
+  },
+  {
+    "text": "長",
+    "start": 310.03,
+    "end": 310.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 310.27,
+    "end": 310.39,
+    "isGap": true
+  },
+  {
+    "text": "期",
+    "start": 310.39,
+    "end": 310.59,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "反",
+    "start": 310.59,
+    "end": 310.79,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "復",
+    "start": 310.79,
+    "end": 311.03,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 311.03,
+    "end": 311.17,
+    "isGap": true
+  },
+  {
+    "text": "就",
+    "start": 311.17,
+    "end": 311.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "會",
+    "start": 311.27,
+    "end": 311.39,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "得",
+    "start": 311.39,
+    "end": 311.55,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "慢",
+    "start": 311.55,
+    "end": 311.69,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "性",
+    "start": 311.69,
+    "end": 311.87,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "病。",
+    "start": 311.87,
+    "end": 312.11,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 312.11,
+    "end": 312.69,
+    "isGap": true
+  },
+  {
+    "text": "所",
+    "start": 312.69,
+    "end": 312.89,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "以",
+    "start": 312.89,
+    "end": 313.03,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "如",
+    "start": 313.03,
+    "end": 313.13,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "何",
+    "start": 313.13,
+    "end": 313.27,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "辨",
+    "start": 313.27,
+    "end": 313.49,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "識",
+    "start": 313.49,
+    "end": 313.63,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "情",
+    "start": 313.63,
+    "end": 313.83,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "緒，",
+    "start": 313.83,
+    "end": 314.07,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 314.07,
+    "end": 314.31,
+    "isGap": true
+  },
+  {
+    "text": "跟",
+    "start": 314.31,
+    "end": 314.49,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "其",
+    "start": 314.49,
+    "end": 314.71,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "共",
+    "start": 314.71,
+    "end": 314.91,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "處，",
+    "start": 314.91,
+    "end": 315.15,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "",
+    "start": 315.15,
+    "end": 315.57,
+    "isGap": true
+  },
+  {
+    "text": "會",
+    "start": 315.57,
+    "end": 315.81,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "是",
+    "start": 315.81,
+    "end": 315.95,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "現",
+    "start": 315.95,
+    "end": 316.11,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "在",
+    "start": 316.11,
+    "end": 316.23,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "的",
+    "start": 316.23,
+    "end": 316.35,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "必",
+    "start": 316.35,
+    "end": 316.47,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "修",
+    "start": 316.47,
+    "end": 316.71,
+    "isGap": false,
+    "confidence": 1
+  },
+  {
+    "text": "課。",
+    "start": 316.71,
+    "end": 317.635,
+    "isGap": false,
+    "confidence": 1
+  }
+]

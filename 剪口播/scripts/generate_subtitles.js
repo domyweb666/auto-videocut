@@ -50,7 +50,7 @@ const allWords = [];
 if (isGoogleSTT) {
   // Google STT 格式：words[].word / start / end（秒，已在 python 腳本轉好）
   // OpenAI Whisper 也用此格式（_actual_source = 'openai_whisper'），需要 OpenCC
-  const needConvert = result._actual_source === 'openai_whisper' || result._actual_source === 'faster_whisper';
+  const needConvert = result._actual_source === 'openai_whisper' || result._actual_source === 'faster_whisper' || result._actual_source === 'funasr';
   if (needConvert) console.log('🔄 Whisper 輸出，啟用簡繁轉換');
   for (const w of (result.words || [])) {
     const text = needConvert ? toTrad((w.word || '').trim()) : (w.word || '').trim();
