@@ -195,6 +195,22 @@ function startCutProcess(videoPath, referenceText) {
           timeout: 900000
         });
       }
+      cutState.progress = 63;
+
+      // Step 3.5: 抽聲學特徵（重複句「留講得圓滿那句」用，非無腦留後句）— 失敗不阻斷，退回留後句
+      cutState.log.push('🔊 抽取聲學特徵（篤定度選 take）...');
+      try {
+        const featFile = path.join(transcribeDir, 'audio_features.json');
+        if (!fs.existsSync(featFile)) {
+          await runCmd('python', [path.join(SCRIPT_DIR, 'extract_audio_features.py'), 'audio.mp3', 'subtitles_words.json', 'audio_features.json'], {
+            cwd: transcribeDir,
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+            timeout: 300000
+          });
+        }
+      } catch (featErr) {
+        cutState.log.push('⚠️ 聲學特徵抽取失敗（退回留後句）: ' + featErr.message);
+      }
       cutState.progress = 65;
 
       // Step 4: AI 智慧分析（兩階段：潤飾 + 剪輯, 65-95%）
@@ -254,6 +270,8 @@ function startCutProcess(videoPath, referenceText) {
           if (fs.existsSync(outlinePath))              prefilterArgs.push('--outline-file', outlinePath);
           if (cutState.subtitlesPath && fs.existsSync(cutState.subtitlesPath))
                                                        prefilterArgs.push('--words-file', cutState.subtitlesPath);
+          const featFile1 = path.join(transcribeDir, 'audio_features.json');
+          if (fs.existsSync(featFile1))                prefilterArgs.push('--audio-features', featFile1);
           await runCmd('node', prefilterArgs, { timeout: 120000 });
           cutState.progress = 83;
 
@@ -1716,6 +1734,8 @@ const server = http.createServer((req, res) => {
           if (fs.existsSync(outlinePath2))               preArgs2.push('--outline-file', outlinePath2);
           if (cutState.subtitlesPath && fs.existsSync(cutState.subtitlesPath))
                                                          preArgs2.push('--words-file', cutState.subtitlesPath);
+          const featFile2 = cutState.subtitlesPath && path.join(path.dirname(cutState.subtitlesPath), 'audio_features.json');
+          if (featFile2 && fs.existsSync(featFile2))     preArgs2.push('--audio-features', featFile2);
           await runAI('node', preArgs2, { timeout: 120000 });
 
           cutState.log.push('✂️ [2c/6] 重新候選對判斷...');
