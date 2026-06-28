@@ -170,31 +170,24 @@ function startCutProcess(videoPath) {
       cutState.log.push('🎵 提取音頻...');
       const audioPath = path.join(transcribeDir, 'audio.mp3');
       if (!fs.existsSync(audioPath)) {
-        await runCmd('ffmpeg', ['-y', '-i', videoPath, '-vn', '-acodec', 'libmp3lame', audioPath]);
+        // -ac 1 單聲道：openai/whisper 設定為單聲道，立體聲來源會被誤讀成兩倍長 → 轉錄全錯
+        await runCmd('ffmpeg', ['-y', '-i', videoPath, '-vn', '-ac', '1', '-ar', '16000', '-acodec', 'libmp3lame', '-q:a', '2', audioPath]);
       }
       cutState.progress = 10;
 
-      // Step 2: 轉錄 (10-55%)
-      cutState.step = '語音轉錄';
+      // Step 2+3: 轉錄+對齊一條龍 (gpt-4o 底稿 → 可選文檔校正 → 本地 Whisper 字級時間戳對齊) (10-65%)
+      cutState.step = '語音轉錄+校正';
       cutState.progress = 12;
-      cutState.log.push('🎙️ OpenAI Whisper 轉錄...');
-      const googleResult = path.join(transcribeDir, 'google_result.json');
-      if (!fs.existsSync(googleResult)) {
-        await runCmd('python', [path.join(SCRIPT_DIR, 'openai_transcribe.py'), 'audio.mp3', 'google_result.json'], {
+      cutState.log.push('🎙️ gpt-4o 轉錄 + 本地時間戳對齊...');
+      if (!fs.existsSync(cutState.subtitlesPath)) {
+        // 同目錄放 reference.txt（講稿/大綱，不必逐字）→ 自動啟用 gpt-4o 文檔校正
+        const refDoc = path.join(transcribeDir, 'reference.txt');
+        const pipeArgs = [path.join(SCRIPT_DIR, 'transcribe_pipeline.py'), 'audio.mp3', cutState.subtitlesPath];
+        if (fs.existsSync(refDoc)) { pipeArgs.push(refDoc); cutState.log.push('📄 偵測到 reference.txt，啟用文檔校正'); }
+        await runCmd('python', pipeArgs, {
           cwd: transcribeDir,
           env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
-          timeout: 600000
-        });
-      }
-      cutState.progress = 55;
-
-      // Step 3: 生成字幕 (55-65%)
-      cutState.step = '生成字幕';
-      cutState.progress = 58;
-      cutState.log.push('📝 生成逐字字幕...');
-      if (!fs.existsSync(cutState.subtitlesPath)) {
-        await runCmd('node', [path.join(SCRIPT_DIR, 'generate_subtitles.js')], {
-          cwd: transcribeDir
+          timeout: 900000
         });
       }
       cutState.progress = 65;
@@ -588,6 +581,7 @@ const server = http.createServer((req, res) => {
           CUT_CONTAINER: container,
           CUT_AUDIO_ONLY: exportOptions.audioOnly ? '1' : '0',
           CUT_EXPORT_GIF: exportOptions.gif ? '1' : '0',
+          CUT_LOSSLESS: exportOptions.lossless ? '1' : '0',  // 原畫質：影片 CRF17 近無損 + 音訊複製(真無損)
         };
 
         console.log(`🎬 [${videoName}] 調用 cut_video.sh，匯出選項:`, {
