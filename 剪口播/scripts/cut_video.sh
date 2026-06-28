@@ -315,17 +315,27 @@ segs.forEach((s, i) => {
   if (!isLossless) {
     const segDur = s.end - s.start;
     const fd = Math.min(fadeDur, segDur / 2);
+    // 注意：混合跳轉用 -accurate_seek，每段影音已幀準對齊，不需 aresample=async=1
+    // （它原是補償 input-seek 的 A/V 漂移；精準 seek 下反而會塞 padding 造成累積漂移/殘音）
     const chain = [];
     if (fd > 0.001) {
       chain.push('afade=t=in:st=0:d=' + fd.toFixed(3));
       chain.push('afade=t=out:st=' + Math.max(0, segDur - fd).toFixed(3) + ':d=' + fd.toFixed(3));
     }
-    chain.push('aresample=async=1');
-    afArg = ' -af \"' + chain.join(',') + '\"';
+    if (chain.length) afArg = ' -af \"' + chain.join(',') + '\"';
   }
+  // 混合跳轉：先 input seek 快速到 START 前 PAD 秒（落在前一個 keyframe），
+  // 再用 output seek（-ss 在 -i 之後）精準微調到 START，-t 取精確長度。
+  // 純 input seek + CFR 會讓每段影/音各自多出不一致的零頭 → 拼接後嘴型漂移；
+  // output seek 則幀準且影音對齊。input seek 保留 → 末段也不必從頭解碼，維持速度。
+  const PAD = 1.0;
+  const seekPre = Math.max(0, s.start - PAD);
+  const fineOff = s.start - seekPre;
+  const segLen2 = s.end - s.start;
   let cmd = '#!/bin/bash\nffmpeg -y -v error' +
-    ' -ss ' + s.start.toFixed(3) + ' -to ' + s.end.toFixed(3) +
-    ' -accurate_seek -i \"file:' + process.argv[1] + '\"' +
+    ' -ss ' + seekPre.toFixed(3) + ' -accurate_seek' +
+    ' -i \"file:' + process.argv[1] + '\"' +
+    ' -ss ' + fineOff.toFixed(3) + ' -t ' + segLen2.toFixed(3) +
     ' -c:v ' + process.argv[2] + ' ' + process.argv[7];
   if (!isLossless) {
     cmd += ' -b:v ' + process.argv[3] + 'k -maxrate ' + process.argv[4] + 'k -bufsize ' + process.argv[5] + 'k';
