@@ -91,3 +91,22 @@
 - 準確率實測：pair mode F1 = 96.83%，不比逐句模式差
 
 **限制**：候選對相似度閾值（目前 0.30）若設太高，會漏掉某些口誤。`training_config.json` 的 `candidate_pair.similarity` 可調整。
+
+---
+
+## ADR-008：匯出後加 verify_export.js 驗證層，不靠人眼把關
+
+**決策**：`cut_video.sh` 匯出成品後，由 `verify_export.js` 自動跑三項檢查（時長對帳 / 殘留長靜音 / 音畫漂移），結果接進 `review_server.js`、`training_server.js`，異常標記給使用者複查。
+
+**原因**：
+- pipeline 原本「匯出 → 直接進訓練」中間沒有成品自我驗證，剪壞了只能靠人從頭看才發現
+- 借鑑 video-autopilot-kit/`delivery_qa.py` 的「匯出後自動 QA」模式，但**只取適用口播的檢查**：它那套頻閃 / 圖片黑邊是 CapCut 視覺合成缺陷，口播大頭影片不適用，故捨棄
+- 三項檢查對應口播真正的缺陷型態：時長對不上＝concat/編碼 bug、殘留長靜音＝漏剪、音畫漂移＝剪接點 A/V drift
+- silencedetect 在此是**驗收**用途（掃成品殘留），不是規劃用途（規劃階段已由 `silence.threshold` 處理），兩者不衝突
+
+**邊界**：
+- 時長對帳 = FAIL（會擋）；殘留靜音、音畫漂移 = WARN（標記不擋，因可能是刻意停頓）
+- 獨立 CLI，可 `node verify_export.js --output ... --json` 單獨跑；`--json` 供 server 解析
+- 容忍值：時長 ±0.5s、A/V 0.3s、殘留靜音門檻 1.5s（對齊 delivery_qa）
+
+**不抄的部分**：video-autopilot-kit 的 `meta-lessons.md`（靜態 102 條給人讀）刻意不引入——`用户习惯/` + 訓練閉環已是其進化版（自動回灌 `training_config.json`），抄它是降級。
