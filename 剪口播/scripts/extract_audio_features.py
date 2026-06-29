@@ -76,7 +76,13 @@ def main():
 
     audio_path = sys.argv[1]
     words_path = sys.argv[2]
-    out_path = sys.argv[3] if len(sys.argv) > 3 else "audio_features.json"
+    # out_path = 第 3 個「非 flag」參數（避免把 --dump-series 當成輸出路徑）
+    positional = [a for a in sys.argv[3:] if not a.startswith("--")]
+    # 排除緊跟在 --dump-series 後面的值
+    if "--dump-series" in sys.argv:
+        ds_val = sys.argv[sys.argv.index("--dump-series") + 1] if sys.argv.index("--dump-series") + 1 < len(sys.argv) else None
+        positional = [a for a in positional if a != ds_val]
+    out_path = positional[0] if positional else "audio_features.json"
 
     with open(words_path, "r", encoding="utf-8") as f:
         words = json.load(f)
@@ -87,6 +93,18 @@ def main():
         print("ERROR: ffmpeg 沒有輸出 RMS 資料")
         sys.exit(1)
     print("  {0} 格 x {1}s = {2:.1f}s".format(len(series), FRAME_SEC, series[-1][0]))
+
+    # ── 落檔原始 RMS 序列（給 refine_segments.js 做切點吸附用）──
+    # 抽取邏輯只此一處，避免 JS 端複製出第二套標準。零新依賴。
+    if "--dump-series" in sys.argv:
+        series_path = sys.argv[sys.argv.index("--dump-series") + 1]
+        with open(series_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "frame_sec": FRAME_SEC,
+                "rms_floor_db": RMS_FLOOR_DB,
+                "series": [[round(t, 3), round(db, 2)] for (t, db) in series],
+            }, f, ensure_ascii=False)
+        print("OK 已落檔 RMS 序列: " + series_path)
 
     voiced_dbs = [db for (_, db) in series if db > RMS_FLOOR_DB + 8]
     g_mean = sum(voiced_dbs) / len(voiced_dbs) if voiced_dbs else RMS_FLOOR_DB

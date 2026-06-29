@@ -149,9 +149,33 @@ const server = http.createServer((req, res) => {
           exportOptions = parsed.exportOptions || {};
         }
 
-        // 保存删除列表到当前目录
+        // 保存删除列表到当前目录（原始＝內容決策，訓練/diff/F1 用這份，別動）
         fs.writeFileSync('delete_segments.json', JSON.stringify(deleteList, null, 2));
         console.log(`📝 保存 ${deleteList.length} 个删除片段`);
+
+        // ── 苦工層精修：停頓壓平 + 切點吸附（產出 refined，落刀/SRT 用）──
+        // 任何一步失敗都降級用原始切點，不擋出片。
+        let cutSourceName = 'delete_segments.json';
+        try {
+          const subsForRefine = path.resolve('..', '1_轉錄', 'subtitles_words.json');
+          const audioForRefine = path.resolve('..', '1_轉錄', 'audio.mp3');
+          if (fs.existsSync(subsForRefine)) {
+            // 確保有 RMS 序列（沒有就抽一次，audio_rms.json 可快取重用）
+            if (!fs.existsSync('audio_rms.json') && fs.existsSync(audioForRefine)) {
+              const featScript = path.join(__dirname, 'extract_audio_features.py');
+              execSync(`python "${featScript}" "${audioForRefine}" "${subsForRefine}" audio_features.json --dump-series audio_rms.json`, { stdio: 'inherit' });
+            }
+            const refineScript = path.join(__dirname, 'refine_segments.js');
+            execSync(`node "${refineScript}" "${subsForRefine}" delete_segments.json audio_rms.json delete_segments.refined.json`, { stdio: 'inherit' });
+            if (fs.existsSync('delete_segments.refined.json')) {
+              cutSourceName = 'delete_segments.refined.json';
+              console.log('✨ 已套用停頓壓平 + 切點吸附（落刀用 refined）');
+            }
+          }
+        } catch (refineErr) {
+          console.warn('⚠️ 精修失敗，fallback 用原始切點：', refineErr.message);
+          cutSourceName = 'delete_segments.json';
+        }
 
         // 決定副檔名：audioOnly 強制 .mp3、gif 僅附加不影響主檔、否則依 container
         const container = (exportOptions.container || 'mp4').toLowerCase();
@@ -163,9 +187,9 @@ const server = http.createServer((req, res) => {
         const shellOutputFile = path.resolve(`${baseName}_cut.${container}`);
         const finalOutputFile = path.resolve(`${baseName}_cut.${mainExt}`);
 
-        // 執行剪輯
+        // 執行剪輯（落刀吃精修後的 refined；若精修失敗則退回原始）
         const scriptPath = path.join(__dirname, 'cut_video.sh');
-        const deleteSegmentsPath = path.resolve('delete_segments.json');
+        const deleteSegmentsPath = path.resolve(cutSourceName);
 
         // 組環境變數給 cut_video.sh
         const env = {
