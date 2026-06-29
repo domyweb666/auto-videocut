@@ -170,8 +170,37 @@ const server = http.createServer((req, res) => {
               const silScript = path.join(__dirname, 'detect_silences.js');
               execSync(`node "${silScript}" "${audioForRefine}" silences.json`, { stdio: 'inherit' });
             }
+
+            // ── ML 咳嗽/清喉偵測 → 自動併入刪除（conf ≥ 門檻）──
+            // 內容層：把 ML 偵測到的咳嗽併進「要刪的內容」，再交給 refine 壓平。
+            // 訓練配對仍用使用者原始 deleteList（不含咳嗽），不污染 F1。
+            let contentForRefine = 'delete_segments.json';
+            try {
+              let cfg = {};
+              try { cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'training_config.json'), 'utf8')); } catch (_) {}
+              const coughCfg = cfg.cough_ml || {};
+              if (coughCfg.enabled !== false) {
+                const minConf = coughCfg.min_confidence ?? 0.5;
+                if (!fs.existsSync('cough_ml.json')) {
+                  const coughScript = path.join(__dirname, 'detect_coughs_ml.py');
+                  execSync(`python "${coughScript}" "${audioForRefine}" cough_ml.json --thr 0.2`, { stdio: 'inherit' });
+                }
+                const coughs = JSON.parse(fs.readFileSync('cough_ml.json', 'utf8'))
+                  .filter(c => (c.confidence ?? 0) >= minConf)
+                  .map(c => ({ start: c.start, end: c.end }));
+                if (coughs.length) {
+                  const merged = [...deleteList, ...coughs].sort((a, b) => a.start - b.start);
+                  fs.writeFileSync('delete_segments.withcoughs.json', JSON.stringify(merged, null, 2));
+                  contentForRefine = 'delete_segments.withcoughs.json';
+                  console.log(`🤧 ML 咳嗽偵測：併入 ${coughs.length} 段（conf ≥ ${minConf}）`);
+                }
+              }
+            } catch (coughErr) {
+              console.warn('⚠️ 咳嗽偵測略過：', coughErr.message);
+            }
+
             const refineScript = path.join(__dirname, 'refine_segments.js');
-            execSync(`node "${refineScript}" "${subsForRefine}" delete_segments.json audio_rms.json silences.json delete_segments.refined.json`, { stdio: 'inherit' });
+            execSync(`node "${refineScript}" "${subsForRefine}" ${contentForRefine} audio_rms.json silences.json delete_segments.refined.json`, { stdio: 'inherit' });
             if (fs.existsSync('delete_segments.refined.json')) {
               cutSourceName = 'delete_segments.refined.json';
               console.log('✨ 已套用停頓壓平 + 切點吸附（落刀用 refined）');

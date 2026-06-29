@@ -71,6 +71,11 @@
     "valley_margin_db": 6.0,
     "_note": "切點吸附：刀點往最近靜音波谷移。window=搜尋窗±秒；max_intrude=最多吃進有聲幾秒；valley_margin_db=要比當下安靜幾 dB 才移（煞車）"
   },
+  "cough_ml": {
+    "enabled": true,
+    "min_confidence": 0.5,
+    "_note": "ML 咳嗽/清喉偵測（detect_coughs_ml.py, AudioSet AST 模型）。conf ≥ min_confidence 自動併入刪除。咳嗽聲學太像語音、ffmpeg 啟發式分不開，故用訓練好的音訊事件模型。實測門檻 0.5 在 092814 抓到 6 個清喉、語音零誤報。需 torch+transformers（已裝），首次跑下載模型 ~350MB，結果快取在 cough_ml.json"
+  },
   "_baseline_f1": 0.9683,
   "_best_f1": 0.9683
 }
