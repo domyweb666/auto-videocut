@@ -51,6 +51,75 @@ function runVerify(outputFile, inputFile, deleteSegmentsPath, tag = '') {
 const PORT = process.argv[2] || 8900;
 const SCRIPT_DIR = __dirname;
 
+// ── 苦工層精修 orchestration（停頓壓平/切點吸附/咳嗽/音訊分句）共用工具 ──
+// 與 review_server.js(8899) 同一套；8900 是日常剪輯介面，務必同步。
+// 慢步驟（RMS 序列 / 音訊靜音 / 咳嗽 ML）非阻塞、結果快取；refine 本身快、同步。
+// 設計分流：原始 delete_segments=內容訊號；refined=苦工(落刀/SRT/verify)。任何步驟失敗皆降級用原始切點，不擋出片。
+function prepareArtifacts(workDir, subsPath, audioPath, analysisDir, cb) {
+  const art = {
+    rms: path.join(analysisDir, 'audio_rms.json'),
+    sil: path.join(analysisDir, 'silences.json'),
+    cough: path.join(analysisDir, 'cough_ml.json'),
+    ok: false,
+  };
+  try { fs.mkdirSync(analysisDir, { recursive: true }); } catch (_) {}
+  if (!audioPath || !fs.existsSync(audioPath) || !fs.existsSync(subsPath)) { cb(art); return; }
+  art.ok = true;
+  let cfg = {};
+  try { cfg = JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) {}
+  const coughEnabled = (cfg.cough_ml || {}).enabled !== false;
+  const steps = [];
+  if (!fs.existsSync(art.rms))
+    steps.push(['python', [path.join(SCRIPT_DIR, 'extract_audio_features.py'), audioPath, subsPath, path.join(analysisDir, 'audio_features.json'), '--dump-series', art.rms]]);
+  if (!fs.existsSync(art.sil))
+    steps.push(['node', [path.join(SCRIPT_DIR, 'detect_silences.js'), audioPath, art.sil]]);
+  if (coughEnabled && !fs.existsSync(art.cough))
+    steps.push(['python', [path.join(SCRIPT_DIR, 'detect_coughs_ml.py'), audioPath, art.cough, '--thr', '0.2']]);
+  const { execFile } = require('child_process');
+  let i = 0;
+  const next = () => {
+    if (i >= steps.length) { cb(art); return; }
+    const [c, a] = steps[i++];
+    execFile(c, a, { maxBuffer: 50 * 1024 * 1024 }, (err) => {
+      if (err) console.warn('[8900 精修] 步驟失敗(略過):', (err.message || '').split('\n')[0]);
+      next();
+    });
+  };
+  next();
+}
+
+// 用 art（rms/silences/cough）把「內容刪除段」精修成 refined 檔。同步、快。回傳路徑或 null（降級）。
+function buildRefined(subsPath, contentSegments, art, workDir, outBase) {
+  try {
+    if (!art.ok) return null;
+    let cfg = {};
+    try { cfg = JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) {}
+    const minConf = (cfg.cough_ml || {}).min_confidence ?? 0.55;
+    const coughPad = (cfg.cough_ml || {}).pad_sec ?? 0.08; // 外擴，避免切點吸附把咳嗽邊緣留下
+    let content = (contentSegments || []).map(s => ({ start: s.start, end: s.end }));
+    if (art.cough && fs.existsSync(art.cough)) {
+      try {
+        const coughs = JSON.parse(fs.readFileSync(art.cough, 'utf8'))
+          .filter(c => (c.confidence ?? 0) >= minConf)
+          .map(c => ({ start: Math.max(0, c.start - coughPad), end: c.end + coughPad }));
+        if (coughs.length) {
+          content = [...content, ...coughs].sort((a, b) => a.start - b.start);
+          console.log(`🤧 [8900] ML 咳嗽併入 ${coughs.length} 段（conf ≥ ${minConf}）`);
+        }
+      } catch (_) {}
+    }
+    const { execFileSync } = require('child_process');
+    const contentFile = path.join(workDir, outBase.replace(/\.refined\.json$/, '.content.json'));
+    fs.writeFileSync(contentFile, JSON.stringify(content, null, 2));
+    const refined = path.join(workDir, outBase);
+    execFileSync('node', [path.join(SCRIPT_DIR, 'refine_segments.js'), subsPath, contentFile, art.rms, art.sil, refined], { stdio: 'pipe' });
+    return fs.existsSync(refined) ? refined : null;
+  } catch (e) {
+    console.warn('[8900 精修] refine 失敗，用原始切點:', (e.message || '').split('\n')[0]);
+    return null;
+  }
+}
+
 const REVIEW_MIME = {
   '.html': 'text/html; charset=utf-8',
   '.json': 'application/json',
@@ -1928,11 +1997,23 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, message: '剪輯已開始' }));
 
+        // ── 苦工層精修 orchestration（停頓壓平/切點吸附/咳嗽/音訊分句）→ 完成後才落刀 ──
+        // 非阻塞：慢步驟(RMS/靜音/咳嗽ML)用 execFile 串接，伺服器與進度輪詢不凍結；失敗降級用原始切點。
+        cutState.step = '準備中（靜音/咳嗽偵測）';
+        const _analysisDir = path.join(cutState.workDir, '2_分析');
+        const _audioPath = path.join(cutState.workDir, '1_轉錄', 'audio.mp3');
+        prepareArtifacts(cutState.workDir, cutState.subtitlesPath, _audioPath, _analysisDir, (art) => {
+        let cutDeleteFile = deleteFile;
+        const _refinedA = buildRefined(cutState.subtitlesPath, segments, art, cutState.workDir, 'delete_segments.refined.json');
+        if (_refinedA) { cutDeleteFile = _refinedA; cutState.log.push('✨ 已套用停頓壓平/切點吸附/咳嗽（落刀用 refined）'); }
+        const cutDeleteFileUnix = cutDeleteFile.replace(/\\/g, '/');
+        cutState.step = '剪輯中';
+
         // 非同步剪輯（Windows 用 Git Bash，避免 WSL bash）
         const bashPath = process.platform === 'win32'
           ? 'C:\\Program Files\\Git\\bin\\bash.exe'
           : 'bash';
-        const child = spawn(bashPath, [scriptPath, inputPathUnix, deleteFileUnix, outputFileUnix], {
+        const child = spawn(bashPath, [scriptPath, inputPathUnix, cutDeleteFileUnix, outputFileUnix], {
           cwd: cutState.workDir,
           env,
         });
@@ -1972,7 +2053,8 @@ const server = http.createServer((req, res) => {
           cutState.progress = 90;
 
           // ── 匯出後自動驗證（verify_export，advisory：不影響已完成的匯出）──
-          const verify = runVerify(outputFile, cutState.videoPath, deleteFile);
+          // 用實際落刀的 cutDeleteFile（refined），verify 才對得上輸出
+          const verify = runVerify(outputFile, cutState.videoPath, cutDeleteFile);
           cutState.verify = verify;
           if (verify) {
             const fails = verify.checks.filter(c => c.level === 'fail');
@@ -1990,7 +2072,7 @@ const server = http.createServer((req, res) => {
               efs('node', [
                 path.join(SCRIPT_DIR, 'generate_cut_srt.js'),
                 cutState.subtitlesPath,
-                deleteFile,
+                cutDeleteFile,
                 srtOutput
               ], { cwd: cutState.workDir });
               cutState.log.push('✅ SRT 字幕已生成');
@@ -2030,9 +2112,13 @@ const server = http.createServer((req, res) => {
 
             const deleteFileB = path.join(cutState.workDir, 'delete_segments_B.json');
             fs.writeFileSync(deleteFileB, JSON.stringify(segmentsB, null, 2));
+            // B 版同樣套精修（art 已備好，refine 快、同步），A/B 才是同條件對比
+            let cutDeleteFileB = deleteFileB;
+            const _refinedB = buildRefined(cutState.subtitlesPath, segmentsB, art, cutState.workDir, 'delete_segments_B.refined.json');
+            if (_refinedB) cutDeleteFileB = _refinedB;
 
             const outputFileB = outputFile.replace(/\.(mp4|mkv|mov)$/i, (m) => '_B' + m);
-            const deleteFileBUnix = deleteFileB.replace(/\\/g, '/');
+            const deleteFileBUnix = cutDeleteFileB.replace(/\\/g, '/');
             const outputFileBUnix = outputFileB.replace(/\\/g, '/');
 
             const childB = spawn(bashPath, [scriptPath, inputPathUnix, deleteFileBUnix, outputFileBUnix], {
@@ -2071,6 +2157,7 @@ const server = http.createServer((req, res) => {
             cutState.running = false;
           }
         });
+        }); // ── end prepareArtifacts orchestration callback ──
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));

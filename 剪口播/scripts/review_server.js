@@ -180,14 +180,15 @@ const server = http.createServer((req, res) => {
               try { cfg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'training_config.json'), 'utf8')); } catch (_) {}
               const coughCfg = cfg.cough_ml || {};
               if (coughCfg.enabled !== false) {
-                const minConf = coughCfg.min_confidence ?? 0.5;
+                const minConf = coughCfg.min_confidence ?? 0.55;
+                const coughPad = coughCfg.pad_sec ?? 0.08; // 外擴，避免切點吸附把咳嗽邊緣留下
                 if (!fs.existsSync('cough_ml.json')) {
                   const coughScript = path.join(__dirname, 'detect_coughs_ml.py');
                   execSync(`python "${coughScript}" "${audioForRefine}" cough_ml.json --thr 0.2`, { stdio: 'inherit' });
                 }
                 const coughs = JSON.parse(fs.readFileSync('cough_ml.json', 'utf8'))
                   .filter(c => (c.confidence ?? 0) >= minConf)
-                  .map(c => ({ start: c.start, end: c.end }));
+                  .map(c => ({ start: Math.max(0, c.start - coughPad), end: c.end + coughPad }));
                 if (coughs.length) {
                   const merged = [...deleteList, ...coughs].sort((a, b) => a.start - b.start);
                   fs.writeFileSync('delete_segments.withcoughs.json', JSON.stringify(merged, null, 2));

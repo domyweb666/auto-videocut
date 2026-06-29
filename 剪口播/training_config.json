@@ -73,7 +73,8 @@
   },
   "cough_ml": {
     "enabled": true,
-    "min_confidence": 0.5,
+    "min_confidence": 0.55,
+    "pad_sec": 0.08,
     "_note": "ML 咳嗽/清喉偵測（detect_coughs_ml.py, AudioSet AST 模型）。conf ≥ min_confidence 自動併入刪除。咳嗽聲學太像語音、ffmpeg 啟發式分不開，故用訓練好的音訊事件模型。實測門檻 0.5 在 092814 抓到 6 個清喉、語音零誤報。需 torch+transformers（已裝），首次跑下載模型 ~350MB，結果快取在 cough_ml.json"
   },
   "_baseline_f1": 0.9683,
