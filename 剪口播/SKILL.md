@@ -147,11 +147,20 @@ cd ..
 
 ### 步驟 4: 分析（腳本 + AI）
 
-#### 4.1 生成易讀格式
+#### 4.0 偵測音訊靜音（修分句根因，分析前必跑）
+
+> Google STT zh-TW 字時間戳幾乎零間隔，真實停頓被吸進字時長，靠 `isGap` 分句會分出
+> 個位數的巨型 run-on 句 → 重複/殘句偵測全失效。先用音訊實測靜音切句界。
+> `auto_select_rules.js` 會**自動探用同層 silences.json**，分句與重複偵測才正確。
 
 ```bash
 cd 2_分析
+node "$SKILL_DIR/scripts/detect_silences.js" ../1_轉錄/audio.mp3 silences.json
+```
 
+#### 4.1 生成易讀格式
+
+```bash
 node -e "
 const data = require('../1_轉錄/subtitles_words.json');
 let output = [];
@@ -173,14 +182,21 @@ require('fs').writeFileSync('readable.txt', output.join('\\n'));
 
 #### 4.3 生成句子列表（關鍵步驟）
 
-**必須先分句，再分析**。按靜音切分成句子列表：
+**必須先分句，再分析**。按靜音切分句子 —— 優先用 4.0 的**音訊實測靜音**（`silences.json`），
+沒有才退回 STT 的 `isGap`（在 Google STT 上幾乎無效，會分出巨型 run-on）：
 
 ```bash
 node -e "
 const data = require('../1_轉錄/subtitles_words.json');
+const fs = require('fs');
+// 音訊實測靜音 ≥0.5s 當句界（修分句根因）
+let sil = [];
+try { sil = JSON.parse(fs.readFileSync('silences.json','utf8')).filter(s => (s.end-s.start) >= 0.5); } catch (_) {}
+const real = data.map((w,i)=>({w,i})).filter(x=>!x.w.isGap);
+const breakAfter = new Set();
+for (const s of sil) { let hit=-1; for (const {w,i} of real){ if (w.start <= s.start+0.05) hit=i; else break; } if (hit>=0) breakAfter.add(hit); }
 let sentences = [];
 let curr = { text: '', startIdx: -1, endIdx: -1 };
-
 data.forEach((w, i) => {
   const isLongGap = w.isGap && (w.end - w.start) >= 0.5;
   if (isLongGap) {
@@ -190,6 +206,7 @@ data.forEach((w, i) => {
     if (curr.startIdx === -1) curr.startIdx = i;
     curr.text += w.text;
     curr.endIdx = i;
+    if (breakAfter.has(i) && curr.text.length > 0) { sentences.push({...curr}); curr = { text:'', startIdx:-1, endIdx:-1 }; }
   }
 });
 if (curr.text.length > 0) sentences.push(curr);

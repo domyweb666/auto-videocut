@@ -41,12 +41,26 @@ const words = JSON.parse(fs.readFileSync(wordsFile, 'utf8'));
 // ── 音訊實測靜音（修分句根因）──
 // Google STT zh-TW 字時間戳幾乎零間隔，isGap 看不到停頓，整篇只分出個位數巨型 run-on
 // 句，重複/殘句/放棄句首這些「比相鄰句」的規則因此抓不到。改吃音訊實測靜音切句界。
+//
+// 自動探查 silences.json：未明確傳入時，找「輸出/字幕檔同層」與「相鄰 2_分析」。
+// 只找這幾處（不找 cwd），避免 measure/F1 在 SCRIPT_DIR 跑時誤用到別支的 silences。
+function resolveSilencesFile() {
+  if (silencesFile) return fs.existsSync(silencesFile) ? silencesFile : null;
+  const cands = [
+    path.join(path.dirname(outputFile), 'silences.json'),
+    path.join(path.dirname(wordsFile), 'silences.json'),
+    path.join(path.dirname(wordsFile), '..', '2_分析', 'silences.json'),
+  ];
+  return cands.find(c => fs.existsSync(c)) || null;
+}
 let audioSilences = [];
-if (silencesFile && fs.existsSync(silencesFile)) {
+const silSrc = resolveSilencesFile();
+if (silSrc) {
   try {
-    let raw = JSON.parse(fs.readFileSync(silencesFile, 'utf8'));
+    let raw = JSON.parse(fs.readFileSync(silSrc, 'utf8'));
     if (!Array.isArray(raw)) raw = raw.silences || [];
     audioSilences = raw.filter(s => Number.isFinite(s.start) && Number.isFinite(s.end) && s.end > s.start);
+    if (audioSilences.length) console.error(`🔇 分句用音訊靜音: ${path.basename(path.dirname(silSrc))}/silences.json（${audioSilences.length} 段）`);
   } catch (_) { /* 用 STT gap fallback */ }
 }
 
