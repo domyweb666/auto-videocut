@@ -313,16 +313,23 @@ if [ "$OUT_EXT_LC" = "mp4" ] || [ "$OUT_EXT_LC" = "mov" ] || [ "$OUT_EXT_LC" = "
 fi
 
 if [ "$USE_SINGLE_PASS" = "1" ]; then
-  echo "🎛️ 單趟濾鏡切割（${TOTAL_SEGS} 段，select/aselect 一次重編碼，避免多段 concat 音訊破裂）"
-  # 由 segments.json（保留片段）生成 filter_complex 腳本
+  echo "🎛️ 單趟濾鏡切割（${TOTAL_SEGS} 段，trim/atrim+concat 一次重編碼，避免多段 concat 音訊破裂）"
+  # 由 segments.json（保留片段）生成 filter_complex 腳本。
+  # 用 trim/atrim+concat（每個 clause 簡單），不用 select 的巨型 between() 表達式——
+  # 後者段數一多會撐爆 ffmpeg 運算式解析器（Cannot allocate memory）。
   node -e "
 const fs=require('fs');
 const segs=JSON.parse(fs.readFileSync('$TMP_DIR/segments.json','utf8'));
-const sel=segs.map(s=>'between(t,'+s.start.toFixed(3)+','+s.end.toFixed(3)+')').join('+');
 let scale=(process.argv[1]||'').replace(/^-vf[ ]+/,'');
-const v=\"[0:v]select='\"+sel+\"',setpts=N/FRAME_RATE/TB\"+(scale?','+scale:'')+'[v]';
-const a=\"[0:a]aselect='\"+sel+\"',asetpts=N/SR/TB[a]\";
-fs.writeFileSync('$TMP_DIR/filt.txt', v+';'+a);
+const parts=[]; const labels=[];
+segs.forEach((s,i)=>{
+  parts.push('[0:v]trim='+s.start.toFixed(3)+':'+s.end.toFixed(3)+',setpts=PTS-STARTPTS[v'+i+']');
+  parts.push('[0:a]atrim='+s.start.toFixed(3)+':'+s.end.toFixed(3)+',asetpts=PTS-STARTPTS[a'+i+']');
+  labels.push('[v'+i+'][a'+i+']');
+});
+parts.push(labels.join('')+'concat=n='+segs.length+':v=1:a=1[vc][a]');
+parts.push('[vc]'+(scale?scale:'null')+'[v]');
+fs.writeFileSync('$TMP_DIR/filt.txt', parts.join(';'));
 " "$SCALE_FILTER"
   if [ "$CUT_LOSSLESS" = "1" ]; then
     ffmpeg -y -v error -stats -i "file:$INPUT" -filter_complex_script "$TMP_DIR/filt.txt" \
