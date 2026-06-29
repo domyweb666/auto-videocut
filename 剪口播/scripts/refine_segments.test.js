@@ -17,15 +17,17 @@ function approx(a, b, e = 0.011) { return Math.abs(a - b) <= e; }
 function totalLen(segs) { return segs.reduce((s, x) => s + (x.end - x.start), 0); }
 function hasSeg(segs, a, b) { return segs.some(s => approx(s.start, a) && approx(s.end, b)); }
 
-function run(words, deletes, rms, cfg) {
+function run(words, deletes, rms, cfg, silences) {
   fs.writeFileSync(p('words.json'), JSON.stringify(words));
   fs.writeFileSync(p('del.json'), JSON.stringify(deletes));
   if (rms) fs.writeFileSync(p('rms.json'), JSON.stringify(rms));
+  if (silences) fs.writeFileSync(p('sil.json'), JSON.stringify(silences));
   fs.writeFileSync(p('cfg.json'), JSON.stringify(cfg));
   execFileSync('node', [
     path.join(__dirname, 'refine_segments.js'),
     p('words.json'), p('del.json'),
     rms ? p('rms.json') : p('nope.json'),
+    silences ? p('sil.json') : p('nope.json'),
     p('out.json'), p('cfg.json'),
   ], { stdio: 'pipe' });
   return JSON.parse(fs.readFileSync(p('out.json'), 'utf8'));
@@ -145,6 +147,33 @@ console.log('\n[測試 7] 無 RMS：吸附略過，壓平仍運作');
   const cfg = { pause_flatten: { enabled: true, floor_sec: 0.2, target_sec: 0.25, keep_side: 'tail' }, cut_snap: { enabled: true } };
   const out = run(words, [], null, cfg);  // rms=null → 餵不存在的路徑
   ok(hasSeg(out, 0.5, 0.85), '無 RMS 時壓平照常，吸附安靜略過');
+}
+
+// ── 測試 8：音訊靜音來源（真實情境：STT 零間隔，靜音只在 silences.json）──
+console.log('\n[測試 8] 音訊靜音來源：字全連續(無 isGap)，壓平仍運作');
+{
+  // 模擬 Google STT：字時間戳全連續，完全沒有 isGap
+  const words = [
+    { text: 'a', start: 0.0, end: 0.5, isGap: false },
+    { text: 'b', start: 0.5, end: 1.3, isGap: false },   // 此「字」其實含 0.6s 停頓
+    { text: 'c', start: 1.3, end: 1.8, isGap: false },
+  ];
+  // 音訊實測：在 0.7-1.3 有 0.6s 靜音（被吸進 b 的時長裡）
+  const silences = [{ start: 0.7, end: 1.3, dur: 0.6 }];
+  const cfg = { pause_flatten: { enabled: true, floor_sec: 0.2, target_sec: 0.25, keep_side: 'tail' }, cut_snap: { enabled: false } };
+  const out = run(words, [], null, cfg, silences);
+  ok(out.length === 1, 'isGap 全無，仍從 silences.json 抓到並壓平');
+  ok(hasSeg(out, 0.7, 1.05), 'tail：刪 [0.7,1.05]，留 [1.05,1.3]=0.25s');
+}
+
+// ── 測試 9：protect_ranges（時間範圍挖坑）──
+console.log('\n[測試 9] protect_ranges：時間範圍內的停頓不壓');
+{
+  const words = [{ text: 'a', start: 0.0, end: 2.0, isGap: false }];
+  const silences = [{ start: 0.5, end: 1.3, dur: 0.8 }];
+  const cfg = { pause_flatten: { enabled: true, floor_sec: 0.2, target_sec: 0.25, keep_side: 'tail', protect_ranges: [[0.4, 1.4]] }, cut_snap: { enabled: false } };
+  const out = run(words, [], null, cfg, silences);
+  ok(out.length === 0, '停頓落在保護範圍內，不壓');
 }
 
 // ── 總結（先印，確保結果一定看得到）──

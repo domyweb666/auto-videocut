@@ -159,14 +159,19 @@ const server = http.createServer((req, res) => {
         try {
           const subsForRefine = path.resolve('..', '1_轉錄', 'subtitles_words.json');
           const audioForRefine = path.resolve('..', '1_轉錄', 'audio.mp3');
-          if (fs.existsSync(subsForRefine)) {
-            // 確保有 RMS 序列（沒有就抽一次，audio_rms.json 可快取重用）
-            if (!fs.existsSync('audio_rms.json') && fs.existsSync(audioForRefine)) {
+          if (fs.existsSync(subsForRefine) && fs.existsSync(audioForRefine)) {
+            // 確保有 RMS 序列（切點吸附用；audio_rms.json 可快取重用）
+            if (!fs.existsSync('audio_rms.json')) {
               const featScript = path.join(__dirname, 'extract_audio_features.py');
               execSync(`python "${featScript}" "${audioForRefine}" "${subsForRefine}" audio_features.json --dump-series audio_rms.json`, { stdio: 'inherit' });
             }
+            // 從音訊實測靜音（停頓壓平用；不靠 STT gap）
+            if (!fs.existsSync('silences.json')) {
+              const silScript = path.join(__dirname, 'detect_silences.js');
+              execSync(`node "${silScript}" "${audioForRefine}" silences.json`, { stdio: 'inherit' });
+            }
             const refineScript = path.join(__dirname, 'refine_segments.js');
-            execSync(`node "${refineScript}" "${subsForRefine}" delete_segments.json audio_rms.json delete_segments.refined.json`, { stdio: 'inherit' });
+            execSync(`node "${refineScript}" "${subsForRefine}" delete_segments.json audio_rms.json silences.json delete_segments.refined.json`, { stdio: 'inherit' });
             if (fs.existsSync('delete_segments.refined.json')) {
               cutSourceName = 'delete_segments.refined.json';
               console.log('✨ 已套用停頓壓平 + 切點吸附（落刀用 refined）');

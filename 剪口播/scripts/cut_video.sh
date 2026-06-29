@@ -295,6 +295,50 @@ if [ -z "$TOTAL_SEGS" ] || [ "$TOTAL_SEGS" -eq 0 ]; then
   exit 1
 fi
 
+# ── 單趟濾鏡 vs 多段提取＋concat 的選擇 ──
+# 多段 concat 會在每個 AAC 接點累積 encoder priming 靜音，段數一多（停頓壓平會產生數十段）
+# 整段音訊破裂（實測 63 段 → 77s 靜音）。段數超過門檻改用 select/aselect 單趟重編碼（無 concat）。
+# 可用 CUT_SINGLE_PASS=1 強制開、=0 強制關。
+SINGLE_PASS_THRESHOLD="${CUT_SINGLE_PASS_THRESHOLD:-12}"
+USE_SINGLE_PASS=0
+if [ "$CUT_LOSSLESS" != "1" ] && [ "$TOTAL_SEGS" -gt "$SINGLE_PASS_THRESHOLD" ]; then USE_SINGLE_PASS=1; fi
+[ "$CUT_SINGLE_PASS" = "1" ] && USE_SINGLE_PASS=1
+[ "$CUT_SINGLE_PASS" = "0" ] && USE_SINGLE_PASS=0
+
+# faststart flags（兩條路徑共用）
+OUT_EXT_LC=$(echo "${OUTPUT##*.}" | tr '[:upper:]' '[:lower:]')
+MOVFLAGS_ARGS=""
+if [ "$OUT_EXT_LC" = "mp4" ] || [ "$OUT_EXT_LC" = "mov" ] || [ "$OUT_EXT_LC" = "m4v" ]; then
+  MOVFLAGS_ARGS="-movflags +faststart"
+fi
+
+if [ "$USE_SINGLE_PASS" = "1" ]; then
+  echo "🎛️ 單趟濾鏡切割（${TOTAL_SEGS} 段，select/aselect 一次重編碼，避免多段 concat 音訊破裂）"
+  # 由 segments.json（保留片段）生成 filter_complex 腳本
+  node -e "
+const fs=require('fs');
+const segs=JSON.parse(fs.readFileSync('$TMP_DIR/segments.json','utf8'));
+const sel=segs.map(s=>'between(t,'+s.start.toFixed(3)+','+s.end.toFixed(3)+')').join('+');
+let scale=(process.argv[1]||'').replace(/^-vf[ ]+/,'');
+const v=\"[0:v]select='\"+sel+\"',setpts=N/FRAME_RATE/TB\"+(scale?','+scale:'')+'[v]';
+const a=\"[0:a]aselect='\"+sel+\"',asetpts=N/SR/TB[a]\";
+fs.writeFileSync('$TMP_DIR/filt.txt', v+';'+a);
+" "$SCALE_FILTER"
+  if [ "$CUT_LOSSLESS" = "1" ]; then
+    ffmpeg -y -v error -stats -i "file:$INPUT" -filter_complex_script "$TMP_DIR/filt.txt" \
+      -map "[v]" -map "[a]" -c:v $ENCODER $ENCODER_ARGS -pix_fmt $PIX_FMT $FPS_ARGS $AUDIO_ARGS $MOVFLAGS_ARGS "file:$OUTPUT"
+  else
+    ffmpeg -y -v error -stats -i "file:$INPUT" -filter_complex_script "$TMP_DIR/filt.txt" \
+      -map "[v]" -map "[a]" -c:v $ENCODER $ENCODER_ARGS -b:v ${BITRATE_K}k -maxrate ${MAXRATE_K}k -bufsize ${BUFSIZE_K}k \
+      -pix_fmt $PIX_FMT $FPS_ARGS $AUDIO_ARGS $MOVFLAGS_ARGS "file:$OUTPUT"
+  fi
+  if [ $? -ne 0 ]; then echo "❌ 單趟切割失敗"; exit 1; fi
+  echo ""
+  echo "✅ 已保存: $OUTPUT"
+  NEW_DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "file:$OUTPUT")
+  echo "📹 新时长: ${NEW_DURATION}s"
+else
+
 echo "✂️ 提取 $TOTAL_SEGS 个片段（并行度 $PARALLEL）..."
 if [ "$CUT_LOSSLESS" = "1" ]; then
   echo "   编码: $ENCODER $ENCODER_ARGS -pix_fmt $PIX_FMT (CRF-based, audio=copy)"
@@ -422,6 +466,8 @@ else
   echo "❌ 拼接失败"
   exit 1
 fi
+
+fi  # ── end: 單趟濾鏡 / 多段 concat 二擇一 ──
 
 # ── GIF 匯出（240P, 15fps）──
 if [ "$CUT_EXPORT_GIF" = "1" ]; then

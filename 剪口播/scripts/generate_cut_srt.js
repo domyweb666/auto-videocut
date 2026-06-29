@@ -37,24 +37,37 @@ function getDeletedTimeBefore(time) {
   return deleted;
 }
 
-function isDeleted(start, end) {
+// 一個字被刪除的比例（重疊時長 / 字時長）。
+// 用比例而非「任何重疊」判斷：Google STT 會把停頓吸進字的 end 裡，
+// 停頓壓平的 partial delete 落在字尾的靜音上，但字本身有講出來——
+// 不能因為字尾的靜音被刪就把整個字（含字幕文字）丟掉。
+function deletedFraction(start, end) {
+  const dur = end - start;
+  if (dur <= 0) return 0;
+  let overlap = 0;
   for (const seg of deleteSegments) {
-    if (start < seg.end && end > seg.start) return true;
+    const lo = Math.max(start, seg.start);
+    const hi = Math.min(end, seg.end);
+    if (hi > lo) overlap += hi - lo;
   }
-  return false;
+  return overlap / dur;
 }
 
 // ── 篩選保留的文字並重映射時間 ──
+// start/end 各自用「該時間點之前被刪的累積量」映射，
+// 字內若有被刪的停頓，end 會被自然拉近，字幕不會多停留。
 const keptWords = [];
 for (const w of words) {
   if (w.isGap) continue;
-  if (isDeleted(w.start, w.end)) continue;
+  if (deletedFraction(w.start, w.end) > 0.5) continue;   // 主體被刪才丟
 
-  const offset = getDeletedTimeBefore(w.start);
+  const newStart = w.start - getDeletedTimeBefore(w.start);
+  let newEnd = w.end - getDeletedTimeBefore(w.end);
+  if (newEnd <= newStart) newEnd = newStart + 0.05;       // 防呆
   keptWords.push({
     text: w.text,
-    start: Math.round((w.start - offset) * 1000) / 1000,
-    end: Math.round((w.end - offset) * 1000) / 1000
+    start: Math.round(newStart * 1000) / 1000,
+    end: Math.round(newEnd * 1000) / 1000
   });
 }
 
