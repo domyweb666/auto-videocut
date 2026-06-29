@@ -29,19 +29,50 @@ const {
 
 const wordsFile = process.argv[2];
 const outputFile = process.argv[3] || 'auto_selected.json';
+const silencesFile = process.argv[4]; // 選用：音訊實測靜音（修分句根因用）
 
 if (!wordsFile) {
-  console.error('用法: node auto_select_rules.js <subtitles_words.json> [output.json]');
+  console.error('用法: node auto_select_rules.js <subtitles_words.json> [output.json] [silences.json]');
   process.exit(1);
 }
 
 const words = JSON.parse(fs.readFileSync(wordsFile, 'utf8'));
+
+// ── 音訊實測靜音（修分句根因）──
+// Google STT zh-TW 字時間戳幾乎零間隔，isGap 看不到停頓，整篇只分出個位數巨型 run-on
+// 句，重複/殘句/放棄句首這些「比相鄰句」的規則因此抓不到。改吃音訊實測靜音切句界。
+let audioSilences = [];
+if (silencesFile && fs.existsSync(silencesFile)) {
+  try {
+    let raw = JSON.parse(fs.readFileSync(silencesFile, 'utf8'));
+    if (!Array.isArray(raw)) raw = raw.silences || [];
+    audioSilences = raw.filter(s => Number.isFinite(s.start) && Number.isFinite(s.end) && s.end > s.start);
+  } catch (_) { /* 用 STT gap fallback */ }
+}
 
 // ── 讀取 training_config.json（可被訓練自動更新） ──
 const config = loadTrainingConfig(__dirname);
 
 const SILENCE_THRESHOLD = config.silence?.threshold ?? 1.2;
 const SENTENCE_GAP = config.silence?.sentence_gap ?? 0.5;
+// 音訊靜音 ≥ 此長度視為句界（修分句根因；STT gap 失效時靠這個）
+const AUDIO_SENTENCE_GAP = config.silence?.audio_sentence_gap ?? 0.5;
+
+// 計算「哪些 word index 後面接著一段真實停頓」→ 句界。
+// 音訊靜音被吸進字尾，故找「靜音起點落在哪個字的時間內」，在那個字後斷句。
+const audioBreakAfter = new Set();
+if (audioSilences.length) {
+  const realIdx = words.map((w, i) => ({ w, i })).filter(x => !x.w.isGap);
+  for (const s of audioSilences) {
+    if ((s.end - s.start) < AUDIO_SENTENCE_GAP) continue;
+    // 找最後一個 start <= 靜音起點的非 gap 字（靜音在它的字尾）
+    let hit = -1;
+    for (const { w, i } of realIdx) {
+      if (w.start <= s.start + 0.05) hit = i; else break;
+    }
+    if (hit >= 0) audioBreakAfter.add(hit);
+  }
+}
 const REPEAT_PREFIX_LEN = config.repeat?.prefix_len ?? 5;
 const REPEAT_MIN_SIM    = config.repeat?.min_similarity ?? 0.0; // 0 = no sim guard (backward compat)
 
@@ -83,6 +114,11 @@ function buildSentences() {
       curr.text += w.text;
       curr.endIdx = i;
       curr.wordIndices.push(i);
+      // 音訊實測停頓在此字後 → 斷句（修 STT 無 gap 導致的巨型 run-on）
+      if (audioBreakAfter.has(i) && curr.text.length > 0) {
+        sentences.push({ ...curr });
+        curr = { text: '', startIdx: -1, endIdx: -1, wordIndices: [] };
+      }
     }
   });
   if (curr.text.length > 0) sentences.push(curr);
