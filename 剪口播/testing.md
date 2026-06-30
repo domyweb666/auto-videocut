@@ -6,24 +6,11 @@
 
 ## 測試三層
 
-### L1 — 煙霧測試（所有修改必跑）
+### L1 — 煙霧測試（F1）⚠️ 已退役（2026-06-30）
 
-```bash
-cd "C:\Users\fcharlie\.claude\skills\videocut-skills\剪口播\scripts"
-node ai_evaluate_training.js --sample 8 --use-pair-mode
-```
+F1 / 訓練層已退役，**不再是改碼門檻**。改碼門檻改用 L2（輸出 diff）+ L4（成品驗證），見規則 `rules/01-test-before-modify.md`。
 
-**通過門檻**：合併 F1 ≥ 96%（基線 96.83%）
-**耗時**：約 30–60 秒
-**用途**：快速確認 AI 判斷能力沒有退化
-
-記錄格式（寫入 commit message 或告知使用者）：
-```
-修改前 F1: 96.83%
-修改後 F1: 96.85%  ✅ 通過
-```
-
-若 F1 下降 > 0.5%（< 96.33%）：停下，告知使用者，不繼續合入。
+`ai_evaluate_training.js` 腳本與訓練資料保留未刪，但不再要求每次修改前後跑。換 BytePlus 引擎後舊 F1 基線（96.83%）已半失效。
 
 ---
 

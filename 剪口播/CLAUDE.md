@@ -10,7 +10,7 @@
 
 快速摘要：
 1. **重大變更前先 git 備份** — `git add -A && git commit -m "backup before <change>"`
-2. **修改前先跑 L1 煙霧測試** — `node scripts/ai_evaluate_training.js --sample 8`（F1 ≥ 96%）
+2. **改碼門檻：L2 回歸（輸出 diff=0）+ L4 成品驗證** — F1/訓練層已於 2026-06-30 退役，不再跑 L1 F1 煙霧測試。詳見 `重構計畫_介面三格化.md`
 3. **新規則寫入 `E:\自動剪輯\rules\NN-主題.md`**，不改主 CLAUDE.md
 
 ---
