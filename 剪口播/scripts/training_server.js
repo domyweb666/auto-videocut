@@ -842,8 +842,10 @@ const server = http.createServer((req, res) => {
         const outputFilePosix = shellOutputFile.replace(/\\/g, '/');
         const inputPathPosix  = ctx.videoPath.replace(/\\/g, '/');
 
+        // Windows 用 Git Bash 全路徑，避免 PATH 上的 bash 解析成 WSL bash（吃不了 C:/ 路徑會直接失敗）
+        const bashBin = process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash';
         execSync(
-          `bash "${scriptPathPosix}" "${inputPathPosix}" "${deletePathPosix}" "${outputFilePosix}"`,
+          `"${bashBin}" "${scriptPathPosix}" "${inputPathPosix}" "${deletePathPosix}" "${outputFilePosix}"`,
           { stdio: 'inherit', cwd: ctx.workDir, env }
         );
 
