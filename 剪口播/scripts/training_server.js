@@ -18,6 +18,7 @@ const path = require('path');
 const { exec, execSync, spawn } = require('child_process');
 const buildReviewHtml = require('./generate_review');
 const { parseAutoSelected } = buildReviewHtml;
+const buildReviewDoc = require('./generate_review_doc'); // 純白文稿版審核頁（取代深色版，舊版保留備援）
 const { getAvailableEncoders } = require('./encoder_utils');
 
 // ── 匯出後驗證：呼叫 verify_export.js，回傳解析後結果（永不 throw，驗證問題不阻斷匯出）──
@@ -599,11 +600,8 @@ const server = http.createServer((req, res) => {
         autoReasons = parsed.autoReasons;
       }
       const enc = encodeURIComponent(videoName);
-      const html = buildReviewHtml(words, autoSelected, autoReasons, {
-        videoSrc: `/review-asset/${enc}/video`,
+      const html = buildReviewDoc(words, autoSelected, autoReasons, {
         cutApiPath: `/api/cut/${enc}`,
-        encodersApiPath: '/api/encoders',
-        diffReportApiPath: `/api/diff-report/${enc}`,
       });
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);

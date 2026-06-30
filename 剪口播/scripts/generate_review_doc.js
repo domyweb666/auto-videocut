@@ -1,18 +1,14 @@
 #!/usr/bin/env node
 /**
- * 純白文稿式審核頁（無影片無聲音）→ review.html
+ * 純白文稿式審核頁（無影片無聲音）
  * 像在改一份逐字稿：點字切刪、拖曳整段、紅底線標疑似聽錯、N 鍵跳疑點、一鍵匯出。
- * 沿用既有匯出契約：POST /api/cut { deleteList:[{start,end}], exportOptions:{} }
+ * 沿用既有匯出契約：POST <cutApiPath> { deleteList:[{start,end}], exportOptions:{} }
  *
- * 用法: node generate_review_doc.js <subtitles_words.json> [auto_selected.json]
+ * 模組用：const buildReviewDoc = require('./generate_review_doc');
+ *         const html = buildReviewDoc(words, autoSelectedArr, autoReasons, { cutApiPath });
+ * CLI 用：node generate_review_doc.js <subtitles_words.json> [auto_selected.json]
  */
 const fs = require('fs');
-
-const subtitlesFile = process.argv[2] || 'subtitles_words.json';
-const autoFile = process.argv[3] || 'auto_selected.json';
-if (!fs.existsSync(subtitlesFile)) { console.error('❌ 找不到', subtitlesFile); process.exit(1); }
-
-const words = JSON.parse(fs.readFileSync(subtitlesFile, 'utf8'));
 
 function parseAuto(raw) {
   const set = [], reasons = {};
@@ -27,14 +23,14 @@ function parseAuto(raw) {
   }
   return { set, reasons };
 }
-let auto = { set: [], reasons: {} };
-if (fs.existsSync(autoFile)) { try { auto = parseAuto(JSON.parse(fs.readFileSync(autoFile, 'utf8'))); } catch (_) {} }
 
-const DATA = JSON.stringify(words);
-const AUTO = JSON.stringify(auto.set);
-const REASONS = JSON.stringify(auto.reasons);
-
-const html = `<!DOCTYPE html>
+function buildReviewDoc(words, autoSet, autoReasons, opts) {
+  opts = opts || {};
+  const cutApiPath = opts.cutApiPath || '/api/cut';
+  const DATA = JSON.stringify(words);
+  const AUTO = JSON.stringify(autoSet || []);
+  const REASONS = JSON.stringify(autoReasons || {});
+  return `<!DOCTYPE html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>審核定稿</title>
 <style>
@@ -57,8 +53,6 @@ const html = `<!DOCTYPE html>
   .word.aikeep{box-shadow:inset 0 -3px 0 #EF9F27;}
   .word.suspect{box-shadow:inset 0 -3px 0 #E24B4A;}
   .word.ring{outline:2px solid #185FA5;outline-offset:2px;}
-  .gap{color:#cdcbc2;cursor:pointer;font-size:12px;}
-  .gap.del{color:#E24B4A;}
   .hint{max-width:640px;margin:12px auto 48px;font-size:12px;color:#9a988f;padding:0 12px;}
   #ov{display:none;position:fixed;inset:0;background:rgba(255,255,255,.82);align-items:center;justify-content:center;font-size:15px;color:#444;}
 </style></head><body>
@@ -94,9 +88,22 @@ var riskSpots=[],riskPos=-1;
 function buildRiskSpots(){riskSpots=[];var run=false;for(var i=0;i<words.length;i++){var w=words[i],r=w&&!w.isGap&&(w._suspect||autoSelected.has(i));if(r&&!run){riskSpots.push(i);run=true;}else if(!r)run=false;}var c=document.getElementById('riskCount');if(c)c.textContent=riskSpots.length?('0/'+riskSpots.length):'（無）';}
 function nextRisk(){if(!riskSpots.length)return;riskPos=(riskPos+1)%riskSpots.length;var el=wordEl[riskSpots[riskPos]];if(el){el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.add('ring');setTimeout(function(){el.classList.remove('ring');},1500);}document.getElementById('riskCount').textContent=(riskPos+1)+'/'+riskSpots.length;}
 document.addEventListener('keydown',function(e){if((e.key==='n'||e.key==='N')&&!/INPUT|TEXTAREA/.test((document.activeElement||{}).tagName||'')){e.preventDefault();nextRisk();}});
-function doExport(){var dl=segs().map(function(g){return{start:g.s,end:g.e};});if(!confirm('確認匯出？將刪減 '+dl.length+' 段'))return;var ov=document.getElementById('ov');ov.style.display='flex';fetch('/api/cut',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deleteList:dl,exportOptions:{}})}).then(function(r){return r.json();}).then(function(d){ov.style.display='none';if(d.success)alert('完成！\\n輸出：'+d.output+'\\n原 '+fmt(d.originalDuration)+' → 新 '+fmt(d.newDuration));else alert('失敗：'+(d.error||'未知'));}).catch(function(e){ov.style.display='none';alert('錯誤：'+e.message);});}
+function doExport(){var dl=segs().map(function(g){return{start:g.s,end:g.e};});if(!confirm('確認匯出？將刪減 '+dl.length+' 段'))return;var ov=document.getElementById('ov');ov.style.display='flex';fetch('${cutApiPath}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deleteList:dl,exportOptions:{}})}).then(function(r){return r.json();}).then(function(d){ov.style.display='none';if(d.success)alert('完成！\\n輸出：'+d.output+'\\n原 '+fmt(d.originalDuration)+' → 新 '+fmt(d.newDuration));else alert('失敗：'+(d.error||'未知'));}).catch(function(e){ov.style.display='none';alert('錯誤：'+e.message);});}
 render();
 </script></body></html>`;
+}
 
-fs.writeFileSync('review.html', html);
-console.error('✅ 已生成 review.html（純白文稿版，' + words.length + ' 元素，AI標記 ' + auto.set.length + '）');
+module.exports = buildReviewDoc;
+module.exports.buildReviewDoc = buildReviewDoc;
+module.exports.parseAuto = parseAuto;
+
+if (require.main === module) {
+  const subtitlesFile = process.argv[2] || 'subtitles_words.json';
+  const autoFile = process.argv[3] || 'auto_selected.json';
+  if (!fs.existsSync(subtitlesFile)) { console.error('❌ 找不到', subtitlesFile); process.exit(1); }
+  const words = JSON.parse(fs.readFileSync(subtitlesFile, 'utf8'));
+  let auto = { set: [], reasons: {} };
+  if (fs.existsSync(autoFile)) { try { auto = parseAuto(JSON.parse(fs.readFileSync(autoFile, 'utf8'))); } catch (_) {} }
+  fs.writeFileSync('review.html', buildReviewDoc(words, auto.set, auto.reasons, { cutApiPath: '/api/cut' }));
+  console.error('✅ 已生成 review.html（純白文稿版，' + words.length + ' 元素，AI標記 ' + auto.set.length + '）');
+}
