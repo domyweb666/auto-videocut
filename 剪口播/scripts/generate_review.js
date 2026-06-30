@@ -206,6 +206,7 @@ return `<!DOCTYPE html>
     .w.selecting { background: rgba(33,150,243,0.35); color: #90caf9; }
     /* 疑似聽錯（辨識 vs 講稿同音不同字）：黃色底線，與 ai/del 背景並存 */
     .w.suspect { box-shadow: inset 0 -3px 0 rgba(255,213,79,0.95); cursor: help; }
+    .w.ring { outline: 2px solid #2196F3; outline-offset: 2px; }
 
     /* Silence block */
     .sil {
@@ -500,6 +501,10 @@ return `<!DOCTYPE html>
   </div>
 
   <div class="right-panel">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+      <button id="nextRiskBtn" onclick="nextRisk()" style="background:#2a2a2a;color:#ffd54f;border:1px solid #5a4a1a;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:13px;font-weight:bold;">&#9888; 跳到下一疑點 <span id="riskCounter" style="color:#888;font-weight:normal;"></span></button>
+      <span style="font-size:12px;color:#888;">橘＝AI建議刪、黃底＝疑似聽錯；按此或 N 鍵逐一檢查，不用從頭讀</span>
+    </div>
     <div class="script" id="script"></div>
   </div>
 </div>
@@ -1334,10 +1339,34 @@ return `<!DOCTYPE html>
     if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
     else if (e.code === 'ArrowLeft') player.currentTime = Math.max(0, player.currentTime - (e.shiftKey ? 5 : 1));
     else if (e.code === 'ArrowRight') player.currentTime = player.currentTime + (e.shiftKey ? 5 : 1);
+    else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); nextRisk(); }
   });
 
   render();
   loadWaveform();
+
+  // ── 跳到下一疑點（AI建議刪 + 疑似聽錯，相鄰合併成一處）──
+  let riskSpots = [], riskPos = -1;
+  function buildRiskSpots() {
+    riskSpots = []; let inRun = false;
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      const risk = w && !w.isGap && (w._suspect || autoSelected.has(i));
+      if (risk && !inRun) { riskSpots.push(i); inRun = true; }
+      else if (!risk) inRun = false;
+    }
+    const c = document.getElementById('riskCounter');
+    if (c) c.textContent = riskSpots.length ? ('0 / ' + riskSpots.length) : '（無）';
+  }
+  function nextRisk() {
+    if (!riskSpots.length) return;
+    riskPos = (riskPos + 1) % riskSpots.length;
+    const i = riskSpots[riskPos], el = wordEl[i];
+    if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.add('ring'); setTimeout(() => el.classList.remove('ring'), 1500); }
+    if (words[i] && typeof words[i].start === 'number') player.currentTime = words[i].start;
+    const c = document.getElementById('riskCounter'); if (c) c.textContent = (riskPos + 1) + ' / ' + riskSpots.length;
+  }
+  buildRiskSpots();
 </script>
 </body>
 </html>`;
