@@ -672,12 +672,13 @@ const server = http.createServer((req, res) => {
   // GET /api/native-browse — 跳出 Windows 原生選檔視窗，回傳選到的影片路徑
   if (req.method === 'GET' && req.url === '/api/native-browse') {
     const { execFile } = require('child_process');
-    // 指定初始目錄到本機的 cut_work（挑片的地方），避免對話框預設去枚舉「最近/網路位置」
-    // 而卡十幾二十秒才畫出來（斷線的網路磁碟是經典元兇）。找不到就退回 cwd。
+    // 指定初始目錄到本機的 cut_work（挑片的地方），讓對話框直接開在本機快速路徑，
+    // 避免預設去枚舉「最近/網路位置」而卡十幾二十秒。找不到就退回 cwd。
+    // 註：不設 AutoUpgradeEnabled=$false，保留現代 Explorer 風格對話框（速度靠 InitialDirectory）。
     let initDir = path.join(process.cwd(), 'cut_work');
     if (!fs.existsSync(initDir)) initDir = process.cwd();
     const initDirPs = initDir.replace(/'/g, "''"); // PS 單引號字串內的單引號要 double
-    const ps = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='Select video'; $f.InitialDirectory='" + initDirPs + "'; $f.RestoreDirectory=$true; $f.AutoUpgradeEnabled=$false; $f.Filter='Video|*.mp4;*.mov;*.mkv;*.avi;*.flv;*.webm;*.m4v|All files|*.*'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write($f.FileName) }";
+    const ps = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='Select video'; $f.InitialDirectory='" + initDirPs + "'; $f.RestoreDirectory=$true; $f.Filter='Video|*.mp4;*.mov;*.mkv;*.avi;*.flv;*.webm;*.m4v|All files|*.*'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write($f.FileName) }";
     execFile('powershell', ['-STA', '-NoProfile', '-Command', ps], { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ path: (stdout || '').trim() }));
