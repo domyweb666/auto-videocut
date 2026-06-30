@@ -303,7 +303,7 @@ function startCutProcess(videoPath, referenceText) {
   fs.mkdirSync(transcribeDir, { recursive: true });
   fs.mkdirSync(analysisDir, { recursive: true });
 
-  // 前台貼的參考文稿 → 存成 reference.txt，transcribe_pipeline 會自動偵測並啟用 gpt-4o 文檔校正
+  // 前台貼的參考文稿 → 存成 reference.txt，後面 flag_against_reference.js 用它標「疑似聽錯」高亮
   if (referenceText && referenceText.trim()) {
     fs.writeFileSync(path.join(transcribeDir, 'reference.txt'), referenceText.trim(), 'utf8');
   }

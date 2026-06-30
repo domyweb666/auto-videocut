@@ -124,18 +124,19 @@ cd "$BASE_DIR"
 cd 1_轉錄
 SKILL_DIR="$HOME/.claude/skills/videocut-skills/剪口播"
 
-# 提取音訊（檔名有冒號需加 file: 前綴）
-ffmpeg -i "file:$VIDEO_PATH" -vn -acodec libmp3lame -y audio.mp3
+# 提取音訊（-ac 1 單聲道必加！轉錄器設定為單聲道，立體聲來源會被誤讀成兩倍長 → 時間軸拉伸、轉錄全錯）
+ffmpeg -i "file:$VIDEO_PATH" -vn -ac 1 -ar 16000 -acodec libmp3lame -q:a 2 -y audio.mp3
 
-# Google Cloud STT 轉錄（繁體中文 zh-TW，原生，含字級時間戳）
-PYTHONIOENCODING=utf-8 python "$SKILL_DIR/scripts/google_transcribe.py" audio.mp3 google_result.json
-# 輸出: google_result.json
+# 主用：BytePlus Seed Speech 轉錄（zh-TW，一次出文字 + 字級時間戳，直接產 subtitles_words.json）
+PYTHONIOENCODING=utf-8 python "$SKILL_DIR/scripts/byteplus_transcribe.py" audio.mp3 subtitles_words.json
+# 輸出: subtitles_words.json（用 BytePlus 已是字級，可直接跳到步驟 4，免步驟 3）
 
-# （備用：若 Google STT 不可用，改用 Whisper + OpenCC）
+# （備用：BytePlus 不可用時改 Google STT 或 Whisper，兩者皆產 *_result.json，需走步驟 3 generate_subtitles.js）
+# PYTHONIOENCODING=utf-8 python "$SKILL_DIR/scripts/google_transcribe.py" audio.mp3 google_result.json
 # "$SKILL_DIR/scripts/whisper_transcribe.sh" audio.mp3
 ```
 
-### 步驟 3: 生成字幕
+### 步驟 3: 生成字幕（僅備援轉錄器需要；BytePlus 已直接產 subtitles_words.json，跳過此步）
 
 ```bash
 node "$SKILL_DIR/scripts/generate_subtitles.js"
