@@ -249,16 +249,12 @@ function startCutProcess(videoPath, referenceText) {
       }
       cutState.progress = 10;
 
-      // Step 2+3: 轉錄+對齊一條龍 (gpt-4o 底稿 → 可選文檔校正 → 本地 Whisper 字級時間戳對齊) (10-65%)
-      cutState.step = '語音轉錄+校正';
+      // Step 2+3: BytePlus Seed Speech 一次出文字+字級時間碼 (10-65%)
+      cutState.step = '語音轉錄';
       cutState.progress = 12;
-      cutState.log.push('🎙️ gpt-4o 轉錄 + 本地時間戳對齊...');
+      cutState.log.push('🎙️ BytePlus Seed Speech 轉錄...');
       if (!fs.existsSync(cutState.subtitlesPath)) {
-        // 同目錄放 reference.txt（講稿/大綱，不必逐字）→ 自動啟用 gpt-4o 文檔校正
-        const refDoc = path.join(transcribeDir, 'reference.txt');
-        const pipeArgs = [path.join(SCRIPT_DIR, 'transcribe_pipeline.py'), 'audio.mp3', cutState.subtitlesPath];
-        if (fs.existsSync(refDoc)) { pipeArgs.push(refDoc); cutState.log.push('📄 偵測到 reference.txt，啟用文檔校正'); }
-        await runCmd('python', pipeArgs, {
+        await runCmd('python', [path.join(SCRIPT_DIR, 'byteplus_transcribe.py'), 'audio.mp3', cutState.subtitlesPath], {
           cwd: transcribeDir,
           env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
           timeout: 900000

@@ -75,15 +75,29 @@ if (isGoogleSTT) {
   }
 } else if (isVolcengine) {
   // 火山引擎格式：utterances[].words[].text / start_time / end_time（毫秒）
+  // 新版 Seed Speech（bigmodel）：字級 words[] 不含標點，標點只在整句 utterance.text。
+  // → 把整句的標點對位貼回對應字尾，並套 OpenCC 轉繁體（與舊 pipeline 帶標點字流一致）
+  const PUNCT = /[，。！？、；：,.!?;:…「」『』（）()]/;
   for (const utterance of result.utterances) {
-    if (utterance.words) {
-      for (const word of utterance.words) {
-        allWords.push({
-          text: word.text,
-          start: word.start_time / 1000,
-          end: word.end_time / 1000
-        });
+    if (!utterance.words) continue;
+    const ut = utterance.text || '';
+    let pos = 0;
+    for (const word of utterance.words) {
+      const raw = (word.text || '').trim();
+      if (!raw) continue;
+      let trailing = '';
+      const idx = ut.indexOf(raw, pos);
+      if (idx >= 0) {
+        pos = idx + raw.length;
+        while (pos < ut.length && PUNCT.test(ut[pos])) { trailing += ut[pos]; pos++; }
       }
+      const text = toTrad(raw + trailing);
+      if (!text) continue;
+      allWords.push({
+        text,
+        start: word.start_time / 1000,
+        end: word.end_time / 1000
+      });
     }
   }
 } else {
