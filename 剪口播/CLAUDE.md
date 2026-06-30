@@ -53,7 +53,7 @@
    輸出: auto_selected.json（含 reasons）+ 口誤分析.md
 
 3. 審核 UI
-   generate_review.js + review_server.js（port 8899）
+   generate_review_doc.js + training_server.js（port 8900，路由 /review/<name>）
    輸入: subtitles_words.json + auto_selected.json + 原片
    輸出: review.html（使用者在瀏覽器確認/修改）
 
@@ -77,8 +77,7 @@
 | `ai_cut_pairs.js` | 核心 AI 分析：讀 few-shot 候選對，判斷刪/留 |
 | `ai_evaluate_training.js` | 訓練評估（--sample N --use-pair-mode），產出 F1 |
 | `compare_transcriptions.js` | 對照兩份轉錄結果，計算 per-category P/R/F1 |
-| `review_server.js` | 審核 UI 服務器（port 8899），支援 Range 請求 |
-| `training_server.js` | 訓練看板服務器（port 8900） |
+| `training_server.js` | 唯一服務器（port 8900）：剪輯頁 + 審核頁（/review/<name>）+ 訓練。支援 Range 請求 |
 | `cut_video.sh` | ffmpeg 幀級精確剪輯，自動偵測原片參數 |
 | `srt_reverse_align.js` | 反向 SRT 對齊：從字幕推算 deleteIndices |
 | `apply_feedback.js` | 將使用者修正寫回 training_config.json |
@@ -109,7 +108,7 @@
 
 ## 常見問題
 
-**Q: review_server.js 為何不能用 python -m http.server 替代？**
+**Q: 審核頁（training_server.js, 8900）為何不能用 python -m http.server 替代？**
 A: 影片播放依賴 HTTP Range 請求（206 Partial Content），python 簡易服務器不支援。→ ADR-006
 
 **Q: auto_selected.json 讀到 object 還是 array？**

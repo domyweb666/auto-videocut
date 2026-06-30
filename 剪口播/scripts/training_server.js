@@ -153,7 +153,7 @@ const PORT = process.argv[2] || 8900;
 const SCRIPT_DIR = __dirname;
 
 // ── 苦工層精修 orchestration（停頓壓平/切點吸附/咳嗽/音訊分句）共用工具 ──
-// 與 review_server.js(8899) 同一套；8900 是日常剪輯介面，務必同步。
+// 8900 是唯一服務器（剪輯 + 審核 + 訓練）；舊的 8899 review_server 已退役移除。
 // 慢步驟（RMS 序列 / 音訊靜音 / 咳嗽 ML）非阻塞、結果快取；refine 本身快、同步。
 // 設計分流：原始 delete_segments=內容訊號；refined=苦工(落刀/SRT/verify)。任何步驟失敗皆降級用原始切點，不擋出片。
 function prepareArtifacts(workDir, subsPath, audioPath, analysisDir, cb) {
@@ -810,6 +810,36 @@ const server = http.createServer((req, res) => {
         fs.writeFileSync(deleteSegmentsPath, JSON.stringify(deleteList, null, 2));
         console.log(`📝 [${videoName}] 保存 ${deleteList.length} 個刪除片段`);
 
+        // ── 套用苦工層精修（停頓壓平/切點吸附/咳嗽）→ 與初始自動剪同一套，讓「審核後匯出」也吃到 pause_flatten ──
+        // 重點：pause_flatten 只信「音訊實測靜音」(silences.json)，缺檔就現場用 detect_silences.js 補產；
+        // 絕不退回 STT gap 亂壓（STT 字間隔看不到真實停頓，會誤砍一大段）。任何一步失敗 → 降級用原始切點，不擋出片。
+        const _subsPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
+        const _audioPath = path.join(ctx.workDir, '1_轉錄', 'audio.mp3');
+        const _analysisDir = path.join(ctx.workDir, '2_分析');
+        const _art = {
+          rms: path.join(_analysisDir, 'audio_rms.json'),
+          sil: path.join(_analysisDir, 'silences.json'),
+          cough: path.join(_analysisDir, 'cough_ml.json'),
+          ok: fs.existsSync(_audioPath) && fs.existsSync(_subsPath),
+        };
+        let cutDeleteFile = deleteSegmentsPath;
+        if (_art.ok) {
+          try {
+            fs.mkdirSync(_analysisDir, { recursive: true });
+            if (!fs.existsSync(_art.sil))
+              require('child_process').execFileSync('node', [path.join(SCRIPT_DIR, 'detect_silences.js'), _audioPath, _art.sil], { stdio: 'pipe', maxBuffer: 50 * 1024 * 1024 });
+          } catch (e) { console.warn(`[${videoName}] detect_silences 失敗，匯出不套停頓壓平:`, (e.message || '').split('\n')[0]); }
+          // 只有拿到「非空的音訊實測靜音」才套精修；否則維持原始切點（不讓 refine 內部退回 STT gap）
+          let hasAudioSil = false;
+          try { const _s = JSON.parse(fs.readFileSync(_art.sil, 'utf8')); hasAudioSil = (Array.isArray(_s) ? _s : (_s.silences || [])).length > 0; } catch (_) {}
+          if (hasAudioSil) {
+            const _refined = buildRefined(_subsPath, deleteList, _art, ctx.workDir, 'delete_segments.refined.json');
+            if (_refined) { cutDeleteFile = _refined; console.log(`✨ [${videoName}] 已套用停頓壓平/切點吸附/咳嗽（匯出用 refined）`); }
+          } else {
+            console.log(`ℹ️ [${videoName}] 無音訊實測靜音，匯出維持原始切點（不套停頓壓平）`);
+          }
+        }
+
         const container = (exportOptions.container || 'mp4').toLowerCase();
         const mainExt = exportOptions.audioOnly ? 'mp3' : container;
         const baseName = path.basename(ctx.videoPath).replace(/\.[^/.]+$/, '');
@@ -838,7 +868,7 @@ const server = http.createServer((req, res) => {
 
         const scriptPath = path.join(SCRIPT_DIR, 'cut_video.sh');
         const scriptPathPosix = scriptPath.replace(/\\/g, '/');
-        const deletePathPosix = deleteSegmentsPath.replace(/\\/g, '/');
+        const deletePathPosix = cutDeleteFile.replace(/\\/g, '/'); // refined（含停頓壓平）或降級回原始切點
         const outputFilePosix = shellOutputFile.replace(/\\/g, '/');
         const inputPathPosix  = ctx.videoPath.replace(/\\/g, '/');
 
@@ -859,7 +889,7 @@ const server = http.createServer((req, res) => {
             const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
             srtFile = outputFile.replace(/\.[^/.]+$/, '.srt');
             if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath)) {
-              execSync(`node "${srtScript}" "${subtitlesPath}" "${deleteSegmentsPath}" "${srtFile}"`, { stdio: 'inherit' });
+              execSync(`node "${srtScript}" "${subtitlesPath}" "${cutDeleteFile}" "${srtFile}"`, { stdio: 'inherit' });
             }
           } catch (srtErr) {
             console.error(`⚠️ [${videoName}] SRT 失敗:`, srtErr.message);
@@ -873,7 +903,8 @@ const server = http.createServer((req, res) => {
         const savedPercent = ((deletedDuration / originalDuration) * 100).toFixed(1);
 
         // ── 匯出後自動驗證（verify_export，advisory：驗證失敗不阻斷匯出）──
-        const verify = runVerify(outputFile, ctx.videoPath, deleteSegmentsPath, `[${videoName}] `);
+        // 用實際落刀的 cutDeleteFile（refined），verify 的時長對帳才對得上輸出
+        const verify = runVerify(outputFile, ctx.videoPath, cutDeleteFile, `[${videoName}] `);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({

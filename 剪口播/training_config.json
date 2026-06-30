@@ -56,7 +56,7 @@
   "pause_flatten": {
     "enabled": true,
     "floor_sec": 0.20,
-    "target_sec": 0.25,
+    "target_sec": 0.3,
     "keep_side": "tail",
     "noise_db": -30,
     "min_dur": 0.20,
