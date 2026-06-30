@@ -261,6 +261,20 @@ function startCutProcess(videoPath, referenceText) {
         });
       }
 
+      // Step 3.1: 套用常犯辨識錯字修正表（回饋迴路，不用講稿也生效）
+      const corrTable = path.join(SCRIPT_DIR, '..', '用户习惯', '錯字修正表.json');
+      if (fs.existsSync(corrTable)) {
+        try {
+          await runCmd('node', [path.join(SCRIPT_DIR, 'apply_corrections.js'), cutState.subtitlesPath, corrTable], {
+            cwd: transcribeDir,
+            env: { ...process.env },
+            timeout: 60000
+          });
+        } catch (e) {
+          cutState.log.push('⚠️ 套用錯字表失敗: ' + e.message);
+        }
+      }
+
       // Step 3.2: 有講稿就標出疑似聽錯（辨識 vs 講稿同音字）→ 審核介面黃底高亮，防「說 a 變 b 沒人發現」
       const refDoc = path.join(transcribeDir, 'reference.txt');
       if (fs.existsSync(refDoc)) {
