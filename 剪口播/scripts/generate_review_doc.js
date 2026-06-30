@@ -52,8 +52,9 @@ const html = `<!DOCTYPE html>
   #doc .para:last-child{margin-bottom:0;}
   .word{cursor:pointer;border-radius:3px;padding:1px 1px;}
   .word:hover{background:#f1efe8;}
-  .word.ai{background:#FAEEDA;color:#854F0B;}
-  .word.del{text-decoration:line-through;color:#b4b2a9;background:transparent;}
+  .word.aidel{color:#BA7517;text-decoration:line-through;text-decoration-thickness:2px;}
+  .word.del{color:#A32D2D;text-decoration:line-through;text-decoration-thickness:2px;}
+  .word.aikeep{box-shadow:inset 0 -3px 0 #EF9F27;}
   .word.suspect{box-shadow:inset 0 -3px 0 #E24B4A;}
   .word.ring{outline:2px solid #185FA5;outline-offset:2px;}
   .gap{color:#cdcbc2;cursor:pointer;font-size:12px;}
@@ -69,8 +70,8 @@ const html = `<!DOCTYPE html>
   <button class="btn-export" onclick="doExport()">匯出</button>
 </div>
 <div class="legend">
-  <span><span class="chip" style="background:#FAEEDA"></span>AI建議刪</span>
-  <span><span style="text-decoration:line-through;color:#b4b2a9">刪</span> 確認刪</span>
+  <span><span style="text-decoration:line-through;color:#BA7517">刪字</span> AI建議刪</span>
+  <span><span style="text-decoration:line-through;color:#A32D2D">刪字</span> 你刪除</span>
   <span><span class="chip" style="box-shadow:inset 0 -4px 0 #E24B4A"></span>疑似聽錯</span>
 </div>
 <div id="doc"></div>
@@ -79,7 +80,7 @@ const html = `<!DOCTYPE html>
 <script>
 var words=${DATA},autoSelected=new Set(${AUTO}),autoReasons=${REASONS};
 var selected=new Set(autoSelected),doc=document.getElementById('doc'),wordEl=[];
-function cls(i){var w=words[i];if(w.isGap)return 'gap'+(selected.has(i)?' del':'');var c='word';if(selected.has(i))c+=' del';else if(autoSelected.has(i))c+=' ai';if(w._suspect)c+=' suspect';return c;}
+function cls(i){var w=words[i];if(w.isGap)return '';var c='word',sel=selected.has(i),ai=autoSelected.has(i);if(sel&&ai)c+=' aidel';else if(sel)c+=' del';else if(ai)c+=' aikeep';if(w._suspect)c+=' suspect';return c;}
 function render(){doc.innerHTML='';wordEl=[];var para=document.createElement('p');para.className='para';var plen=0;function flush(){if(para.childNodes.length)doc.appendChild(para);para=document.createElement('p');para.className='para';plen=0;}for(var i=0;i<words.length;i++){var w=words[i];if(w.isGap){wordEl[i]=null;continue;}var el=document.createElement('span');el.className=cls(i);el.dataset.idx=i;el.textContent=w.text;var tip=autoReasons[i]||'';if(w._suspect)tip=(tip?tip+' | ':'')+'\\u26a0 \\u7591\\u4f3c\\u807d\\u932f\\uff0c\\u8b1b\\u7a3f\\u662f\\u300c'+(w._refHint||'?')+'\\u300d';if(tip)el.title=tip;para.appendChild(el);wordEl[i]=el;plen+=(w.text||'').length;if(/[\\u3002\\uff01\\uff1f][\\u300d\\u300f"']?$/.test(w.text)&&plen>=50)flush();}flush();updateStats();}
 var dragActive=false,dragStart=0,dragMode='add';
 doc.addEventListener('mousedown',function(e){var t=e.target.closest('[data-idx]');if(!t)return;e.preventDefault();var i=+t.dataset.idx;dragActive=true;dragStart=i;dragMode=selected.has(i)?'remove':'add';apply(i,i);});
