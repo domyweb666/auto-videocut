@@ -1460,17 +1460,10 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ── 首頁（選擇介面） ──
+  // ── 首頁：直接給剪輯影片頁（不再用雙卡片選擇頁；訓練頁仍可從 /train 進） ──
   if (req.url === '/' || req.url === '/index.html') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(PORTAL_HTML);
-    return;
-  }
-
-  // ── 訓練介面 ──
-  if (req.url === '/train' || req.url === '/train.html') {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(DASHBOARD_HTML);
+    res.end(CUT_DOC_HTML);
     return;
   }
 
@@ -4406,90 +4399,7 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-// ── Portal HTML ──
-const PORTAL_HTML = `<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Auto VideoCut</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-      background: #111;
-      color: #e0e0e0;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .portal {
-      display: flex;
-      gap: 40px;
-      padding: 40px;
-    }
-    .card {
-      width: 320px;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 16px;
-      padding: 40px 32px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.25s;
-      text-decoration: none;
-      color: inherit;
-    }
-    .card:hover {
-      border-color: #9C27B0;
-      transform: translateY(-4px);
-      box-shadow: 0 8px 32px rgba(156,39,176,0.2);
-    }
-    .card .icon { font-size: 56px; margin-bottom: 20px; }
-    .card h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
-    .card .desc { font-size: 14px; color: #888; line-height: 1.6; }
-    .card .tag {
-      display: inline-block;
-      margin-top: 16px;
-      padding: 4px 14px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    .card.cut .tag { background: #1b5e20; color: #81c784; }
-    .card.train .tag { background: #4a148c; color: #ce93d8; }
-    .title-section {
-      position: absolute;
-      top: 40px;
-      text-align: center;
-      width: 100%;
-    }
-    .title-section h1 { font-size: 28px; font-weight: 700; }
-    .title-section p { font-size: 14px; color: #666; margin-top: 6px; }
-  </style>
-</head>
-<body>
-  <div class="title-section">
-    <h1>Auto VideoCut</h1>
-    <p>AI \u53E3\u64AD\u81EA\u52D5\u526A\u8F2F\u7CFB\u7D71</p>
-  </div>
-  <div class="portal">
-    <a class="card cut" href="/cut">
-      <div class="icon">\u{2702}\u{FE0F}</div>
-      <h2>\u526A\u8F2F\u5F71\u7247</h2>
-      <div class="desc">\u4E0A\u50B3\u539F\u59CB\u5F71\u7247\uFF0CAI \u81EA\u52D5\u6A19\u8A18\u91CD\u8907\u3001\u975C\u97F3\u3001\u5361\u9813<br>\u5BE9\u6838\u5F8C\u4E00\u9375\u526A\u8F2F\u8F38\u51FA</div>
-      <span class="tag">\u65E5\u5E38\u4F7F\u7528</span>
-    </a>
-    <a class="card train" href="/train">
-      <div class="icon">\u{1F9E0}</div>
-      <h2>\u8A13\u7DF4\u898F\u5247</h2>
-      <div class="desc">\u63D0\u4F9B\u539F\u59CB + \u5DF2\u526A\u5F71\u7247\uFF0C\u8B93 AI \u5B78\u7FD2\u4F60\u7684\u526A\u8F2F\u98A8\u683C<br>\u81EA\u52D5\u512A\u5316\u898F\u5247\u53C3\u6578</div>
-      <span class="tag">\u8A13\u7DF4\u6642\u7528</span>
-    </a>
-  </div>
-</body>
-</html>`;
+// ── Portal HTML 已移除：首頁直接給剪輯頁（CUT_DOC_HTML），不再有雙卡片選擇頁與 /train 入口 ──
 
 // ── Cut HTML ──
 const CUT_HTML = `<!DOCTYPE html>
@@ -7001,8 +6911,7 @@ server.listen(PORT, () => {
 \u{1F4CD} \u5730\u5740: http://localhost:${PORT}
 \u{1F4C2} \u5DE5\u4F5C\u76EE\u9304: ${process.cwd()}
 
-\u{2702}\u{FE0F}  \u526A\u8F2F\u5F71\u7247: http://localhost:${PORT}/cut
-\u{1F9E0} \u8A13\u7DF4\u898F\u5247: http://localhost:${PORT}/train
+\u{2702}\u{FE0F}  \u526A\u8F2F\u5F71\u7247: http://localhost:${PORT}/
   `);
 });
 
