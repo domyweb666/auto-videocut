@@ -19,6 +19,30 @@ const { exec, execSync, spawn } = require('child_process');
 const buildReviewHtml = require('./generate_review');
 const { parseAutoSelected } = buildReviewHtml;
 const buildReviewDoc = require('./generate_review_doc'); // 純白文稿版審核頁（取代深色版，舊版保留備援）
+const convertAiToIndices = require('./convert_ai_to_indices'); // 句級 sentences.json → 字級 {indices,reasons}
+
+// 把 AI 句級結果（sentences.json）轉成審核頁吃的字級 auto_selected.json 並寫檔。
+// 8900 流程的 AI 判斷寫在句級 sentences.json，但審核頁 / 匯出讀字級 auto_selected.json，
+// 缺這一步會導致「AI 跑了但審核頁零標記」。回傳 {indices, reasons}，失敗回 null。
+function writeAutoSelectedFromSentences(workDir) {
+  try {
+    const sentPath = path.join(workDir, '1_轉錄', 'sentences.json');
+    const subsPath = path.join(workDir, '1_轉錄', 'subtitles_words.json');
+    if (!fs.existsSync(sentPath) || !fs.existsSync(subsPath)) return null;
+    const phrases = JSON.parse(fs.readFileSync(sentPath, 'utf8'));
+    if (!Array.isArray(phrases) || !phrases.some(s => s && s.aiDelete)) return null; // AI 沒標任何刪除 → 不寫
+    const words = JSON.parse(fs.readFileSync(subsPath, 'utf8'));
+    const { indices, reasons } = convertAiToIndices(phrases, words);
+    const analysisDir = path.join(workDir, '2_分析');
+    fs.mkdirSync(analysisDir, { recursive: true });
+    fs.writeFileSync(path.join(analysisDir, 'auto_selected.json'),
+                     JSON.stringify({ indices, reasons }, null, 2), 'utf8');
+    return { indices, reasons };
+  } catch (e) {
+    console.error('⚠️ writeAutoSelectedFromSentences 失敗:', e.message);
+    return null;
+  }
+}
 
 // 純白簡潔版剪輯頁（取代舊深色 CUT_HTML；無影片預覽，丟檔→處理→審核）
 const CUT_DOC_HTML = `<!DOCTYPE html>
@@ -521,6 +545,14 @@ function startCutProcess(videoPath, referenceText) {
         cutState.log.push('💡 可在頁面上點擊「重新 AI 分析」按鈕重試');
       }
 
+      // 句級 sentences.json → 字級 2_分析/auto_selected.json（審核頁與匯出實際讀這個）
+      const autoRes = writeAutoSelectedFromSentences(workDir);
+      if (autoRes) {
+        cutState.log.push(`🏷️ 已產出刪除標記 ${autoRes.indices.length} 字 / ${Object.keys(autoRes.reasons).length} 段（auto_selected.json）`);
+      } else {
+        cutState.log.push('⚠️ 未產出 auto_selected.json（AI 無刪除標記或缺檔），審核頁將無預選');
+      }
+
       cutState.step = '完成';
       cutState.progress = 100;
       cutState.log.push('✅ 處理完成，請審核刪除標記');
@@ -640,7 +672,12 @@ const server = http.createServer((req, res) => {
   // GET /api/native-browse — 跳出 Windows 原生選檔視窗，回傳選到的影片路徑
   if (req.method === 'GET' && req.url === '/api/native-browse') {
     const { execFile } = require('child_process');
-    const ps = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='Select video'; $f.Filter='Video|*.mp4;*.mov;*.mkv;*.avi;*.flv;*.webm;*.m4v|All files|*.*'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write($f.FileName) }";
+    // 指定初始目錄到本機的 cut_work（挑片的地方），避免對話框預設去枚舉「最近/網路位置」
+    // 而卡十幾二十秒才畫出來（斷線的網路磁碟是經典元兇）。找不到就退回 cwd。
+    let initDir = path.join(process.cwd(), 'cut_work');
+    if (!fs.existsSync(initDir)) initDir = process.cwd();
+    const initDirPs = initDir.replace(/'/g, "''"); // PS 單引號字串內的單引號要 double
+    const ps = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='Select video'; $f.InitialDirectory='" + initDirPs + "'; $f.RestoreDirectory=$true; $f.AutoUpgradeEnabled=$false; $f.Filter='Video|*.mp4;*.mov;*.mkv;*.avi;*.flv;*.webm;*.m4v|All files|*.*'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write($f.FileName) }";
     execFile('powershell', ['-STA', '-NoProfile', '-Command', ps], { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ path: (stdout || '').trim() }));
@@ -679,6 +716,10 @@ const server = http.createServer((req, res) => {
         return;
       }
       const words = JSON.parse(fs.readFileSync(subsPath, 'utf8'));
+      // auto_selected.json 不存在 → 從句級 sentences.json 即時補產（修「AI 跑了但審核頁零標記」）
+      if (!fs.existsSync(autoPath)) {
+        writeAutoSelectedFromSentences(ctx.workDir);
+      }
       let autoSelected = [], autoReasons = {};
       if (fs.existsSync(autoPath)) {
         const raw = JSON.parse(fs.readFileSync(autoPath, 'utf8'));
