@@ -11,6 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "opencc-js": "^1.0.5"
+    "opencc-js": "^1.0.5",
+    "pinyin-pro": "^3.28.1"
   }
 }

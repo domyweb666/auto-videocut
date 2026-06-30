@@ -176,6 +176,7 @@ return `<!DOCTYPE html>
     .legend-dot.del { background: #f44336; }
     .legend-dot.cur { background: #2196F3; }
     .legend-dot.sil { background: #333; border: 1px solid #555; }
+    .legend-dot.suspect { background: #ffd54f; }
 
     /* ── Right panel: script view ── */
     .right-panel {
@@ -203,6 +204,8 @@ return `<!DOCTYPE html>
     .w.ai  { background: rgba(255,152,0,0.25); color: #ffcc80; }
     .w.del { background: rgba(244,67,54,0.3); color: #ef9a9a; text-decoration: line-through; }
     .w.selecting { background: rgba(33,150,243,0.35); color: #90caf9; }
+    /* 疑似聽錯（辨識 vs 講稿同音不同字）：黃色底線，與 ai/del 背景並存 */
+    .w.suspect { box-shadow: inset 0 -3px 0 rgba(255,213,79,0.95); cursor: help; }
 
     /* Silence block */
     .sil {
@@ -485,6 +488,7 @@ return `<!DOCTYPE html>
       <div class="legend-item"><div class="legend-dot del"></div><span>確認刪除</span></div>
       <div class="legend-item"><div class="legend-dot cur"></div><span>當前播放</span></div>
       <div class="legend-item"><div class="legend-dot sil"></div><span>靜音段</span></div>
+      <div class="legend-item"><div class="legend-dot suspect"></div><span>疑似聽錯</span></div>
     </div>
     <div class="help">
       <b>選取：</b>直接拖曳文字即可批量標記刪除<br>
@@ -563,9 +567,9 @@ return `<!DOCTYPE html>
   }
 
   function getWordClass(i) {
-    if (selected.has(i)) return 'w del';
-    if (autoSelected.has(i)) return 'w ai';
-    return 'w';
+    let c = selected.has(i) ? 'w del' : autoSelected.has(i) ? 'w ai' : 'w';
+    if (words[i] && words[i]._suspect) c += ' suspect';
+    return c;
   }
 
   function getSilClass(indices) {
@@ -631,7 +635,9 @@ return `<!DOCTYPE html>
         span.className = getWordClass(i);
         span.dataset.idx = i;
         span.textContent = words[i].text;
-        if (autoReasons[i]) span.title = autoReasons[i];
+        let tip = autoReasons[i] || '';
+        if (words[i]._suspect) tip = (tip ? tip + ' | ' : '') + '⚠ 疑似聽錯，講稿是「' + (words[i]._refHint || '?') + '」';
+        if (tip) span.title = tip;
 
         // Mousedown: start drag
         span.addEventListener('mousedown', (e) => {

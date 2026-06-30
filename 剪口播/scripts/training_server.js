@@ -260,6 +260,21 @@ function startCutProcess(videoPath, referenceText) {
           timeout: 900000
         });
       }
+
+      // Step 3.2: 有講稿就標出疑似聽錯（辨識 vs 講稿同音字）→ 審核介面黃底高亮，防「說 a 變 b 沒人發現」
+      const refDoc = path.join(transcribeDir, 'reference.txt');
+      if (fs.existsSync(refDoc)) {
+        cutState.log.push('🔎 比對講稿，標記疑似聽錯...');
+        try {
+          await runCmd('node', [path.join(SCRIPT_DIR, 'flag_against_reference.js'), cutState.subtitlesPath, refDoc], {
+            cwd: transcribeDir,
+            env: { ...process.env },
+            timeout: 120000
+          });
+        } catch (e) {
+          cutState.log.push('⚠️ 講稿比對失敗（略過高亮）: ' + e.message);
+        }
+      }
       cutState.progress = 63;
 
       // Step 3.5: 抽聲學特徵（重複句「留講得圓滿那句」用，非無腦留後句）— 失敗不阻斷，退回留後句
