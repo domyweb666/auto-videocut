@@ -561,6 +561,17 @@ const server = http.createServer((req, res) => {
   // 批次審核相關路由（獨立區塊，便於後續維護）
   // ────────────────────────────────────────────────
 
+  // GET /api/native-browse — 跳出 Windows 原生選檔視窗，回傳選到的影片路徑
+  if (req.method === 'GET' && req.url === '/api/native-browse') {
+    const { execFile } = require('child_process');
+    const ps = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='Select video'; $f.Filter='Video|*.mp4;*.mov;*.mkv;*.avi;*.flv;*.webm;*.m4v|All files|*.*'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write($f.FileName) }";
+    execFile('powershell', ['-STA', '-NoProfile', '-Command', ps], { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ path: (stdout || '').trim() }));
+    });
+    return;
+  }
+
   // GET /api/encoders — 編碼器偵測（給 review.html 的匯出面板用）
   if (req.method === 'GET' && req.url === '/api/encoders') {
     try {
@@ -4954,7 +4965,7 @@ const CUT_HTML = `<!DOCTYPE html>
       <label id="inputLabel">\u5F71\u7247\u8DEF\u5F91</label>
       <div style="display:flex; gap:6px;">
         <input type="text" id="videoInput" placeholder="\u8CBC\u4E0A\u5F71\u7247\u8DEF\u5F91\u6216\u9EDE\u300C\u700F\u89BD\u300D\u9078\u53D6" style="flex:1">
-        <button onclick="fbOpen()" style="background:#444; color:#e0e0e0; border:1px solid #555; border-radius:6px; padding:8px 12px; cursor:pointer; font-size:13px; white-space:nowrap;">\u{1F4C2} \u700F\u89BD</button>
+        <button onclick="fetch('/api/native-browse').then(function(r){return r.json()}).then(function(d){if(d.path)document.getElementById('videoInput').value=d.path}).catch(function(e){alert('browse failed: '+e.message)})" style="background:#444; color:#e0e0e0; border:1px solid #555; border-radius:6px; padding:8px 12px; cursor:pointer; font-size:13px; white-space:nowrap;">\u{1F4C2} \u700F\u89BD</button>
         <button id="batchToggle" class="batch-toggle" onclick="toggleBatchMode()" title="\u6279\u91CF\u6A21\u5F0F">\u2630 \u6279\u91CF</button>
       </div>
       <!-- \u6279\u91CF\u6A21\u5F0F\uFF1A\u52A0\u5165\u6309\u9215 -->
