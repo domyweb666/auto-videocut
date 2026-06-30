@@ -19,6 +19,82 @@ const { exec, execSync, spawn } = require('child_process');
 const buildReviewHtml = require('./generate_review');
 const { parseAutoSelected } = buildReviewHtml;
 const buildReviewDoc = require('./generate_review_doc'); // 純白文稿版審核頁（取代深色版，舊版保留備援）
+
+// 純白簡潔版剪輯頁（取代舊深色 CUT_HTML；無影片預覽，丟檔→處理→審核）
+const CUT_DOC_HTML = `<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>剪輯影片</title>
+<style>
+  body{margin:0;background:#f3f2ee;color:#2c2c2a;font-family:-apple-system,"Segoe UI","Microsoft JhengHei",sans-serif;}
+  .wrap{max-width:560px;margin:48px auto;padding:0 16px;}
+  h1{font-size:20px;font-weight:600;margin:0 0 4px;}
+  .sub{font-size:13px;color:#888;margin:0 0 22px;}
+  .card{background:#fff;border:1px solid #e3e1d9;border-radius:12px;padding:24px 26px;}
+  label{display:block;font-size:13px;color:#5f5e5a;margin:0 0 6px;}
+  .row{display:flex;gap:8px;margin-bottom:18px;}
+  input[type=text],textarea{width:100%;box-sizing:border-box;background:#fff;border:1px solid #d3d1c7;border-radius:8px;padding:10px 12px;font-size:14px;color:#2c2c2a;font-family:inherit;}
+  textarea{resize:vertical;min-height:84px;margin-bottom:18px;}
+  button{border-radius:8px;font-size:14px;padding:10px 16px;cursor:pointer;border:1px solid #d3d1c7;background:#fff;color:#444441;}
+  button:hover{background:#f1efe8;}
+  .btn-go{width:100%;background:#2c2c2a;color:#fff;border:none;font-weight:600;padding:12px;}
+  .btn-go:disabled{opacity:.5;cursor:not-allowed;}
+  #progress{margin-top:22px;display:none;}
+  .pbar{height:8px;background:#eee;border-radius:4px;overflow:hidden;}
+  .pfill{height:100%;background:#2c2c2a;width:0%;transition:width .3s;}
+  .pstep{font-size:13px;color:#5f5e5a;margin:10px 0 0;}
+  .plog{font-size:12px;color:#9a988f;margin-top:6px;white-space:pre-wrap;max-height:120px;overflow:auto;line-height:1.6;}
+  #done{display:none;margin-top:22px;text-align:center;}
+  .btn-review{background:#185FA5;color:#fff;border:none;padding:12px 28px;font-weight:600;font-size:15px;}
+  .err{color:#A32D2D;font-size:13px;margin-top:14px;white-space:pre-wrap;}
+</style></head><body>
+<div class="wrap">
+  <h1>剪輯影片</h1>
+  <p class="sub">丟影片、貼講稿（選填），按開始。中間機器全包，跑完去審核。</p>
+  <div class="card">
+    <label>影片路徑</label>
+    <div class="row">
+      <input type="text" id="videoInput" placeholder="貼上影片路徑，或點瀏覽">
+      <button onclick="browse()" style="white-space:nowrap;">瀏覽</button>
+    </div>
+    <label>參考文稿（選填，講稿/大綱即可）— 有貼的話，審核時會標出疑似聽錯的字</label>
+    <textarea id="refInput" placeholder="貼上這支影片的講稿或大綱；留空則直接辨識"></textarea>
+    <button class="btn-go" id="goBtn" onclick="start()">開始處理</button>
+    <div id="progress">
+      <div class="pbar"><div class="pfill" id="pfill"></div></div>
+      <p class="pstep" id="pstep">準備中…</p>
+      <div class="plog" id="plog"></div>
+    </div>
+    <div id="done"><button class="btn-review" onclick="openReview()">前往審核 →</button></div>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+<script>
+var baseName='';
+function browse(){fetch('/api/native-browse').then(function(r){return r.json()}).then(function(d){if(d.path)document.getElementById('videoInput').value=d.path}).catch(function(e){alert('browse failed: '+e.message)});}
+function fail(m){document.getElementById('err').textContent='✗ '+m;document.getElementById('goBtn').disabled=false;}
+function start(){
+  var vp=document.getElementById('videoInput').value.trim();
+  if(!vp){alert('請先選影片');return;}
+  baseName=vp.split(/[\\\\/]/).pop().replace(/\\.[^.]+$/,'');
+  document.getElementById('err').textContent='';
+  document.getElementById('done').style.display='none';
+  document.getElementById('goBtn').disabled=true;
+  document.getElementById('progress').style.display='block';
+  fetch('/api/process-video',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({videoPath:vp,referenceText:document.getElementById('refInput').value})})
+    .then(function(r){return r.json()}).then(function(d){if(d.error){fail(d.error);return;}poll();}).catch(function(e){fail(e.message)});
+}
+function poll(){
+  fetch('/api/cut-status').then(function(r){return r.json()}).then(function(s){
+    document.getElementById('pfill').style.width=(s.progress||0)+'%';
+    document.getElementById('pstep').textContent=(s.step||'')+' '+(s.progress||0)+'%';
+    if(s.log&&s.log.length)document.getElementById('plog').textContent=s.log.slice(-4).join('\\n');
+    if(s.error){fail(s.error);return;}
+    if(s.running===false){document.getElementById('pstep').textContent='完成 100%';document.getElementById('pfill').style.width='100%';document.getElementById('done').style.display='block';document.getElementById('goBtn').disabled=false;return;}
+    setTimeout(poll,1000);
+  }).catch(function(){setTimeout(poll,1500);});
+}
+function openReview(){if(baseName)window.open('/review/'+encodeURIComponent(baseName),'_blank');}
+</script></body></html>`;
 const { getAvailableEncoders } = require('./encoder_utils');
 
 // ── 匯出後驗證：呼叫 verify_export.js，回傳解析後結果（永不 throw，驗證問題不阻斷匯出）──
@@ -1422,7 +1498,7 @@ const server = http.createServer((req, res) => {
   // ── 剪輯介面 ──
   if (req.url === '/cut' || req.url === '/cut.html') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(CUT_HTML);
+    res.end(CUT_DOC_HTML);
     return;
   }
 
