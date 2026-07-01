@@ -593,6 +593,15 @@ function startCutProcess(videoPath, referenceText) {
         cutState.log.push('⚠️ 未產出 auto_selected.json（AI 無刪除標記或缺檔），審核頁將無預選');
       }
 
+      // 背景備妥苦工件（靜音/RMS/咳嗽 ML）→ 審核完匯出時 buildRefined 就吃得到；咳嗽偵測較慢故不阻塞「完成」。
+      // idempotent：prepareArtifacts 會跳過已存在的檔。缺了也只是匯出時降級不套咳嗽/吸附，不影響審核。
+      cutState.log.push('🔧 背景偵測靜音/咳嗽（匯出時會用到，不影響現在審核）...');
+      try {
+        prepareArtifacts(workDir, cutState.subtitlesPath, path.join(transcribeDir, 'audio.mp3'), analysisDir, (art) => {
+          if (art && art.ok) console.log(`🔧 [${baseName}] 苦工件就緒（silences/rms/cough）`);
+        });
+      } catch (_) {}
+
       cutState.step = '完成';
       cutState.progress = 100;
       cutState.log.push('✅ 處理完成，請審核刪除標記');
