@@ -64,6 +64,17 @@ def transcribe(audio_path, request_id, key, lang="zh-CN", ddc=True):
     # enable_ddc（語義順滑）：True=BytePlus 自動刪口水/重複字（文字乾淨，但字級時間碼一起消失）；
     # False=逐字原稿（含贅字+時間碼，給剪輯層按時間碼下刀用）。雙轉模式靠這個開關拿「原稿 vs 順滑版」。
     fmt = os.path.splitext(audio_path)[1].lstrip(".").lower() or "mp3"
+    # 上傳前先驗大小：整檔 base64 塞單一 JSON body（+33%），過大會在漫長上傳後才收到難懂的
+    # submit 失敗。這裡提前擋下並給明確指引。上限可用 BYTEPLUS_MAX_AUDIO_MB 覆寫。
+    size_mb = os.path.getsize(audio_path) / 1024 / 1024
+    max_mb = float(os.environ.get("BYTEPLUS_MAX_AUDIO_MB", "100"))
+    print(f"（音檔 {size_mb:.1f}MB，base64 後約 {size_mb * 4 / 3:.1f}MB）", flush=True)
+    if size_mb > max_mb:
+        sys.exit(
+            f"❌ 音檔 {size_mb:.1f}MB 超過上限 {max_mb:.0f}MB（base64 單一請求會失敗）。\n"
+            f"   請先分段（如 ffmpeg -f segment）或壓低碼率（-b:a 48k 單聲道對 ASR 足夠），\n"
+            f"   或確認 API 額度後以環境變數 BYTEPLUS_MAX_AUDIO_MB 調高上限。"
+        )
     with open(audio_path, "rb") as f:
         data = base64.b64encode(f.read()).decode()
     body = {
@@ -103,8 +114,10 @@ def transcribe(audio_path, request_id, key, lang="zh-CN", ddc=True):
 
 def main():
     # 解析 --ddc on|off（預設 off：主流程要逐字原稿給剪輯層；雙轉的順滑版才用 --ddc on）
+    # --lang 可換語言（預設 zh-CN；BytePlus 目前以簡中辨識，繁化交給 generate_subtitles 的 OpenCC）
     argv = [a for a in sys.argv[1:]]
     ddc = False
+    lang = "zh-CN"
     out = []
     i = 0
     while i < len(argv):
@@ -115,9 +128,15 @@ def main():
         if a.startswith("--ddc="):
             ddc = a.split("=", 1)[1].lower() in ("on", "true", "1")
             i += 1; continue
+        if a == "--lang":
+            if i + 1 < len(argv): lang = argv[i + 1]
+            i += 2; continue
+        if a.startswith("--lang="):
+            lang = a.split("=", 1)[1]
+            i += 1; continue
         out.append(a); i += 1
     if len(out) < 2:
-        print("用法: python byteplus_transcribe.py <audio.mp3> <out_subtitles.json> [--ddc on|off]")
+        print("用法: python byteplus_transcribe.py <audio.mp3> <out_subtitles.json> [--ddc on|off] [--lang zh-CN]")
         sys.exit(1)
     audio_path = out[0]
     out_subs = out[1]
@@ -127,8 +146,8 @@ def main():
     key = get_key()
     rid = str(uuid.uuid4())
 
-    print(f"（enable_ddc={ddc}）", flush=True)
-    resp = transcribe(audio_path, rid, key, ddc=ddc)
+    print(f"（enable_ddc={ddc}, language={lang}）", flush=True)
+    resp = transcribe(audio_path, rid, key, lang=lang, ddc=ddc)
     result = resp.get("result", {})
     if not result.get("utterances"):
         sys.exit("❌ 回應沒有 utterances，無法產生字級字幕")
