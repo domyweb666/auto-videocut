@@ -88,7 +88,7 @@ const CUT_DOC_HTML = `<!DOCTYPE html>
       <p class="pstep" id="pstep">準備中…</p>
       <div class="plog" id="plog"></div>
     </div>
-    <div id="done"><button class="btn-review" onclick="openReview()">前往審核 →</button></div>
+    <div id="done"><button id="rerunBtn" onclick="rerunAI()" style="margin-right:8px;">🔄 重新 AI 分析</button><button class="btn-review" onclick="openReview()">前往審核 →</button></div>
     <div class="err" id="err"></div>
   </div>
 </div>
@@ -116,6 +116,15 @@ function poll(){
     if(s.running===false){document.getElementById('pstep').textContent='完成 100%';document.getElementById('pfill').style.width='100%';document.getElementById('done').style.display='block';document.getElementById('goBtn').disabled=false;return;}
     setTimeout(poll,1000);
   }).catch(function(){setTimeout(poll,1500);});
+}
+function rerunAI(){
+  if(!confirm('重新完整跑一次 AI 分析？會覆蓋目前這支的 AI 刪除標記（重新從頭判斷）。字幕與音檔不會重轉。'))return;
+  document.getElementById('done').style.display='none';
+  document.getElementById('err').textContent='';
+  document.getElementById('goBtn').disabled=true;
+  document.getElementById('progress').style.display='block';
+  document.getElementById('pstep').textContent='重新 AI 分析中…';
+  fetch('/api/rerun-ai',{method:'POST'}).then(function(r){return r.json()}).then(function(d){if(d&&d.error){fail(d.error);return;}poll();}).catch(function(e){fail(e.message)});
 }
 function openReview(){if(baseName)window.open('/review/'+encodeURIComponent(baseName),'_blank');}
 </script></body></html>`;
@@ -2037,6 +2046,13 @@ const server = http.createServer((req, res) => {
             cutState.log.push('⚠️ sentences.json 解析失敗: ' + parseErr.message);
           }
         }
+        // 重跑後刷新字級 auto_selected.json（否則審核頁仍讀到重跑前的舊標記）
+        try {
+          const _autoPath = path.join(cutState.workDir, '2_分析', 'auto_selected.json');
+          if (fs.existsSync(_autoPath)) fs.unlinkSync(_autoPath);
+          const _r = writeAutoSelectedFromSentences(cutState.workDir);
+          cutState.log.push(_r ? `🏷️ 已刷新刪除標記 ${_r.indices.length} 字 / ${Object.keys(_r.reasons).length} 段` : 'ℹ️ 重跑後無 AI 刪除標記');
+        } catch (_) {}
         cutState.progress = 100;
         cutState.step = '完成';
         cutState.running = false;
