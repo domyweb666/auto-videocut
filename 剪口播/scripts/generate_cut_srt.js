@@ -73,39 +73,32 @@ for (const w of words) {
 
 console.error(`📝 保留字數: ${keptWords.length}/${words.filter(w => !w.isGap).length}`);
 
-// ── 分句：按間隔 ≥0.3s 切分 ──
-const cues = [];
-let currentCue = { text: '', start: 0, end: 0 };
+// ── 分句：跟文稿一樣「照標點斷」——優先句末（。！？），長句才在逗號斷；不硬切固定字數、不斷在意群中間 ──
+const SENT_END = /[。！？!?…]["」』）)]?$/;    // 句末標點
+const CLAUSE_END = /[，、；：,;:]["」』）)]?$/;  // 子句標點
+const SOFT_MAX = 18;   // 累積到這長度且遇逗號才斷（螢幕可讀）
+const HARD_MAX = 34;   // 極長且無標點時，在字邊界強制斷（罕見）
+const BIG_GAP = 0.8;   // 明顯停頓也視為斷點
 
+const cues = [];
+let cur = null;
 for (let i = 0; i < keptWords.length; i++) {
   const w = keptWords[i];
-
-  if (currentCue.text === '') {
-    // 開始新句
-    currentCue.start = w.start;
-    currentCue.end = w.end;
-    currentCue.text = w.text;
-  } else {
-    const gap = w.start - currentCue.end;
-
-    // 分句條件：間隔 ≥0.3s 或 單句超過 20 字
-    if (gap >= 0.3 || currentCue.text.length >= 20) {
-      cues.push({ ...currentCue });
-      currentCue = { text: w.text, start: w.start, end: w.end };
-    } else {
-      currentCue.text += w.text;
-      currentCue.end = w.end;
-    }
+  if (cur && (w.start - cur.end) >= BIG_GAP) { cues.push(cur); cur = null; } // 大停頓先斷
+  if (!cur) cur = { text: w.text, start: w.start, end: w.end };
+  else { cur.text += w.text; cur.end = w.end; }
+  const t = w.text, len = cur.text.length;
+  if ((SENT_END.test(t) && len >= 4) || (CLAUSE_END.test(t) && len >= SOFT_MAX) || len >= HARD_MAX) {
+    cues.push(cur); cur = null;
   }
 }
-if (currentCue.text) cues.push(currentCue);
+if (cur) cues.push(cur);
 
-// ── 合併太短的句（<0.5s 或 <2字）──
+// ── 合併太短的殘句（<0.5s 或 <2字）到前一句，但不讓前句超過 HARD_MAX ──
 const mergedCues = [];
 for (const cue of cues) {
-  if (mergedCues.length > 0 && (cue.end - cue.start < 0.5 || cue.text.length < 2)) {
-    // 合併到前一句
-    const prev = mergedCues[mergedCues.length - 1];
+  const prev = mergedCues[mergedCues.length - 1];
+  if (prev && (cue.end - cue.start < 0.5 || cue.text.length < 2) && (prev.text.length + cue.text.length) <= HARD_MAX) {
     prev.text += cue.text;
     prev.end = cue.end;
   } else {
