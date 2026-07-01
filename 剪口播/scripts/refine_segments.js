@@ -23,6 +23,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { MERGE_GAP } = require(path.join(__dirname, 'merge_delete_segments.js'));
 
 // ── 參數 ──
 const wordsFile = process.argv[2];
@@ -152,8 +153,8 @@ function targetFor(len) {
 }
 
 if (PF_ENABLED) {
-  if (PF_TARGET <= 0.2 + EPS) {
-    console.error(`⚠️ pause_flatten.target_sec=${PF_TARGET} <= MERGE_GAP(0.2)，留的靜音可能被 cut_video.sh 合併吃掉。建議 >0.2`);
+  if (PF_TARGET <= MERGE_GAP + EPS) {
+    console.error(`⚠️ pause_flatten.target_sec=${PF_TARGET} <= MERGE_GAP(${MERGE_GAP})，留的靜音可能被 cut_video.sh 合併吃掉。建議 >${MERGE_GAP}`);
   }
   if (Number.isFinite(PF_LONG_PAUSE) && PF_LONG_TARGET < PF_TARGET - EPS) {
     console.error(`⚠️ pause_flatten.long_target_sec=${PF_LONG_TARGET} < target_sec=${PF_TARGET}，轉場反而留得比氣口短，多半設反了。`);

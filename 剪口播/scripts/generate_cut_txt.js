@@ -9,6 +9,8 @@
  */
 
 const fs = require('fs');
+const path = require('path');
+const { mergeDeleteSegments } = require(path.join(__dirname, 'merge_delete_segments.js'));
 
 const wordsFile = process.argv[2];
 const deleteFile = process.argv[3];
@@ -20,7 +22,9 @@ if (!wordsFile || !deleteFile) {
 }
 
 const words = JSON.parse(fs.readFileSync(wordsFile, 'utf8'));
-const deleteSegments = JSON.parse(fs.readFileSync(deleteFile, 'utf8')).sort((a, b) => a.start - b.start);
+// 與 generate_cut_srt.js 同標準：吃 MERGE_GAP 合併後的最終刪除清單，
+// 被吞掉的短保留區裡的字不進文稿（那些字在成品裡已被剪掉）
+const deleteSegments = mergeDeleteSegments(JSON.parse(fs.readFileSync(deleteFile, 'utf8')));
 
 // 一個字被刪的比例（與 generate_cut_srt.js 同標準：主體被刪才丟，字尾靜音被壓不算）
 function deletedFraction(start, end) {

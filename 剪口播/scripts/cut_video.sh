@@ -28,6 +28,16 @@ if [ ! -f "$DELETE_JSON" ]; then
   exit 1
 fi
 
+# ── MERGE_GAP 合併：單一事實來源 merge_delete_segments.js ──
+# 落地「合併後的最終刪除清單」，本腳本與 SRT/TXT/verify 全部以這份為準，
+# 不再各自複製合併規則（否則字幕會因被吞的短保留區而時間漂移）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FINAL_JSON="${DELETE_JSON%.json}.final.json"
+if ! node "$SCRIPT_DIR/merge_delete_segments.js" "$DELETE_JSON" "$FINAL_JSON" || [ ! -f "$FINAL_JSON" ]; then
+  echo "❌ 產生最終刪除清單失敗: $FINAL_JSON"
+  exit 1
+fi
+
 # 获取视频信息
 DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "file:$INPUT")
 BITRATE=$(ffprobe -v error -show_entries stream=bit_rate -select_streams v:0 -of csv=p=0 "file:$INPUT")
@@ -240,22 +250,11 @@ if [ -n "$FADE_DUR" ] && [ "$FADE_DUR" != "0" ]; then
 fi
 
 # 用 node 计算保留片段，生成提取脚本和 concat 列表
+# 注意：讀的是 FINAL_JSON（merge_delete_segments.js 已排序＋合併），此處不再自己合併
 TOTAL_SEGS=$(node -e "
 const fs = require('fs');
-const deleteSegs = JSON.parse(fs.readFileSync('$DELETE_JSON', 'utf8'));
+const mergedSegs = JSON.parse(fs.readFileSync('$FINAL_JSON', 'utf8'));
 const duration = $DURATION;
-
-deleteSegs.sort((a, b) => a.start - b.start);
-
-const MERGE_GAP = 0.2;
-const mergedSegs = [];
-for (const seg of deleteSegs) {
-  if (mergedSegs.length === 0 || seg.start > mergedSegs[mergedSegs.length - 1].end + MERGE_GAP) {
-    mergedSegs.push({ ...seg });
-  } else {
-    mergedSegs[mergedSegs.length - 1].end = Math.max(mergedSegs[mergedSegs.length - 1].end, seg.end);
-  }
-}
 
 const keepSegs = [];
 let cursor = 0;

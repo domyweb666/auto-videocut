@@ -10,6 +10,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { mergeDeleteSegments } = require(path.join(__dirname, 'merge_delete_segments.js'));
 
 const wordsFile = process.argv[2];
 const deleteFile = process.argv[3];
@@ -21,8 +22,10 @@ if (!wordsFile || !deleteFile) {
 }
 
 const words = JSON.parse(fs.readFileSync(wordsFile, 'utf8'));
-const deleteSegments = JSON.parse(fs.readFileSync(deleteFile, 'utf8'))
-  .sort((a, b) => a.start - b.start);
+// MERGE_GAP 合併後的最終刪除清單——必須與 cut_video.sh 實際落刀一致：
+// 兩刪除段間 ≤0.2s 的短保留區會被一併剪掉，不合併的話那些字仍留在字幕裡，
+// 且其後每條字幕的時間全部漂移
+const deleteSegments = mergeDeleteSegments(JSON.parse(fs.readFileSync(deleteFile, 'utf8')));
 
 // ── 時間映射函數（複用 generate_subtitles.js 邏輯）──
 function getDeletedTimeBefore(time) {

@@ -22,7 +22,9 @@
  */
 
 const fs = require('fs');
+const path = require('path');
 const { spawnSync } = require('child_process');
+const { mergeDeleteSegments } = require(path.join(__dirname, 'merge_delete_segments.js'));
 
 // ── 參數 ──
 const TOL_DURATION = 0.5;   // 時長對帳容忍秒數
@@ -30,7 +32,6 @@ const AV_DRIFT_TOL = 0.30;  // 音畫漂移容忍秒數
 const SILENCE_NOISE = '-30dB';
 const SILENCE_MIN = 1.5;    // 殘留長靜音門檻（秒），對齊 delivery_qa.detect_long_pauses
 const EDGE_SKIP = 1.2;      // 頭尾各排除秒數（開頭/結尾靜音通常是刻意留白）
-const MERGE_GAP = 0.2;      // 必須與 cut_video.sh 的 MERGE_GAP 一致
 
 // ── CLI 解析 ──
 function parseArgs(argv) {
@@ -112,16 +113,9 @@ function detectSilence(file, totalDur) {
   });
 }
 
-// 與 cut_video.sh 一致：合併刪除段後計總刪除時長
+// 合併刪除段後計總刪除時長——合併規則統一走 merge_delete_segments.js（與 cut_video.sh 同源）
 function mergedDeletedTime(segs) {
-  const sorted = [...segs].filter(s => Number.isFinite(s.start) && Number.isFinite(s.end))
-    .sort((a, b) => a.start - b.start);
-  const merged = [];
-  for (const seg of sorted) {
-    const last = merged[merged.length - 1];
-    if (!last || seg.start > last.end + MERGE_GAP) merged.push({ ...seg });
-    else last.end = Math.max(last.end, seg.end);
-  }
+  const merged = mergeDeleteSegments(segs);
   const total = merged.reduce((s, x) => s + (x.end - x.start), 0);
   return { total, mergedCount: merged.length };
 }
