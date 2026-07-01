@@ -15,7 +15,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { exec, execSync, spawn } = require('child_process');
+const { exec, execFileSync, spawn } = require('child_process');
 const buildReviewHtml = require('./generate_review');
 const { parseAutoSelected } = buildReviewHtml;
 const buildReviewDoc = require('./generate_review_doc'); // 純白文稿版審核頁（取代深色版，舊版保留備援）
@@ -224,12 +224,13 @@ function runVerify(outputFile, inputFile, deleteSegmentsPath, tag = '') {
     if (!fs.existsSync(verifyScript)) return null;
     let stdout;
     try {
-      stdout = execSync(
-        `node "${verifyScript}" --output "${outputFile}" --input "${inputFile}" --delete "${deleteSegmentsPath}" --json`,
+      stdout = execFileSync(
+        'node',
+        [verifyScript, '--output', outputFile, '--input', inputFile, '--delete', deleteSegmentsPath, '--json'],
         { encoding: 'utf8' }
       );
     } catch (e) {
-      // verify_export 在有 FAIL 時退出碼 2，execSync 會 throw，但 stdout 仍含完整 JSON
+      // verify_export 在有 FAIL 時退出碼 2，execFileSync 會 throw，但 stdout 仍含完整 JSON
       stdout = e.stdout;
     }
     const result = JSON.parse(stdout);
@@ -373,6 +374,9 @@ const REVIEW_MIME = {
  * 先看 cutState（最近一次處理的影片），再從 batchState.items 找。
  */
 function findVideoForName(videoName) {
+  // 安全（audit P2#8）：videoName 只能是單純檔名，含路徑分隔符或 .. 一律拒絕，
+  // 否則 fallback 的 path.join 會被 ../ 穿越到 cut_work 之外。
+  if (!videoName || /[\\/]/.test(videoName) || videoName.includes('..')) return null;
   if (cutState.videoPath) {
     const bn = path.basename(cutState.videoPath).replace(/\.[^/.]+$/, '');
     if (bn === videoName) {
@@ -810,12 +814,47 @@ let trainingState = {
   results: null
 };
 
-const server = http.createServer((req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+// ── 安全防護（audit P2#8）：/api/video、/api/waveform 的 path 參數白名單 ──
+// 靜態根目錄 + 動態放行「已註冊的影片/成品」（batch 原片可能在任意磁碟位置，
+// 例如 E:\個人知識管理PKM\，靜態白名單蓋不到）。cwd 本身不可放行（.env 就在旁邊）。
+const MEDIA_ROOTS = [
+  path.resolve(process.cwd(), 'cut_work'),
+  path.resolve(process.cwd(), 'output'),
+  path.resolve('E:\\自動剪輯'),
+];
+function isMediaPathAllowed(p) {
+  if (!p) return false;
+  let full;
+  try { full = path.resolve(p); } catch (_) { return false; }
+  const norm = s => String(s).toLowerCase(); // Windows 路徑不分大小寫
+  const f = norm(full);
+  if (MEDIA_ROOTS.some(r => { const rr = norm(r); return f === rr || f.startsWith(rr + path.sep); })) return true;
+  // 動態白名單：目前狀態裡登記過的原片與匯出成品（精確比對整個檔案路徑）
+  const known = [];
+  if (cutState) {
+    if (cutState.videoPath) known.push(cutState.videoPath);
+    if (cutState.outputPath) known.push(cutState.outputPath);
+    if (cutState.outputPathB) known.push(cutState.outputPathB);
+  }
+  for (const item of (batchState && batchState.items) || []) {
+    if (item.videoPath) known.push(item.videoPath);
+  }
+  if (exportState && exportState.result && exportState.result.output) known.push(exportState.result.output);
+  return known.some(k => { try { return norm(path.resolve(k)) === f; } catch (_) { return false; } });
+}
 
-  if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
+const server = http.createServer((req, res) => {
+  // 安全（audit P2#8）：不送 CORS header（同源頁面不需要，送 * 等於把 API 開放給任何網頁）。
+  // Host 檢查擋 DNS rebinding：惡意網頁把自己網域 rebind 到 127.0.0.1 就能繞過同源限制，
+  // 但它的 Host header 不會是 localhost。
+  const reqHost = String(req.headers.host || '').replace(/:\d+$/, '').toLowerCase();
+  if (reqHost !== 'localhost' && reqHost !== '127.0.0.1' && reqHost !== '[::1]') {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
+    return;
+  }
+
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   // ────────────────────────────────────────────────
   // 批次審核相關路由（獨立區塊，便於後續維護）
@@ -1042,7 +1081,7 @@ const server = http.createServer((req, res) => {
         // 不靠 stdout 的「预计输出时长」——那行 pipe 下 block-buffered，會到結束才 flush。
         let expDur = 0;
         try {
-          const origDur = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${ctx.videoPath}"`).toString().trim()) || 0;
+          const origDur = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + ctx.videoPath], { encoding: 'utf8' }).trim()) || 0;
           let delSum = 0;
           try { const _dl = JSON.parse(fs.readFileSync(cutDeleteFile, 'utf8')); const _arr = Array.isArray(_dl) ? _dl : (_dl.segments || _dl.deleteList || []); for (const s of _arr) delSum += Math.max(0, (s.end - s.start)); } catch (_) {}
           expDur = Math.max(0, origDur - delSum);
@@ -1083,7 +1122,7 @@ const server = http.createServer((req, res) => {
                 const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
                 srtFile = outputFile.replace(/\.[^/.]+$/, '.srt');
                 if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath))
-                  execSync(`node "${srtScript}" "${subtitlesPath}" "${cutDeleteFile}" "${srtFile}"`, { stdio: 'pipe' });
+                  execFileSync('node', [srtScript, subtitlesPath, cutDeleteFile, srtFile], { stdio: 'pipe' });
               } catch (srtErr) { console.error(`⚠️ [${videoName}] SRT 失敗:`, srtErr.message); srtFile = null; }
             }
             // 純文字文稿 TXT（依標點分段，跟審核頁文稿一致；音檔匯出也產，文稿一樣有用）
@@ -1093,10 +1132,10 @@ const server = http.createServer((req, res) => {
               const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
               txtFile = outputFile.replace(/\.[^/.]+$/, '.txt');
               if (fs.existsSync(txtScript) && fs.existsSync(subtitlesPath))
-                execSync(`node "${txtScript}" "${subtitlesPath}" "${cutDeleteFile}" "${txtFile}"`, { stdio: 'pipe' });
+                execFileSync('node', [txtScript, subtitlesPath, cutDeleteFile, txtFile], { stdio: 'pipe' });
             } catch (txtErr) { console.error(`⚠️ [${videoName}] TXT 失敗:`, txtErr.message); txtFile = null; }
-            const originalDuration = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${ctx.videoPath}"`).toString().trim());
-            const newDuration = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${outputFile}"`).toString().trim());
+            const originalDuration = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + ctx.videoPath], { encoding: 'utf8' }).trim());
+            const newDuration = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + outputFile], { encoding: 'utf8' }).trim());
             const deletedDuration = originalDuration - newDuration;
             const verify = runVerify(outputFile, ctx.videoPath, cutDeleteFile, `[${videoName}] `);
             exportState.result = {
@@ -2057,7 +2096,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && req.url.startsWith('/api/waveform?')) {
     const wfParams = new URL(req.url, 'http://localhost');
     const wfPath = wfParams.searchParams.get('path');
-    if (!wfPath || !fs.existsSync(wfPath)) {
+    if (!wfPath || !isMediaPathAllowed(wfPath) || !fs.existsSync(wfPath)) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'file not found' }));
       return;
@@ -2091,7 +2130,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && req.url.startsWith('/api/video?')) {
     const urlParams = new URL(req.url, 'http://localhost');
     const filePath = urlParams.searchParams.get('path');
-    if (!filePath || !fs.existsSync(filePath)) {
+    if (!filePath || !isMediaPathAllowed(filePath) || !fs.existsSync(filePath)) {
       res.writeHead(404); res.end('Not Found'); return;
     }
     const stat = fs.statSync(filePath);
@@ -7187,7 +7226,7 @@ const CUT_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-server.listen(PORT, () => {
+server.listen(PORT, '127.0.0.1', () => {
   console.log(`
 \u{1F3AF} Auto VideoCut \u5DF2\u555F\u52D5
 \u{1F4CD} \u5730\u5740: http://localhost:${PORT}
