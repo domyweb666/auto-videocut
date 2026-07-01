@@ -61,6 +61,7 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
   <span style="flex:1"></span>
   <span class="stat">原 <span id="statOrig">0:00</span> &rarr; 剪後 <b id="statAfter">0:00</b></span>
   <button class="btn-risk" onclick="nextRisk()">下一疑點 <span id="riskCount"></span></button>
+  <button class="btn-risk" onclick="rerunAI()">🔄 重新 AI</button>
   <button class="btn-export" onclick="doExport()">匯出</button>
 </div>
 <div class="legend">
@@ -88,6 +89,20 @@ var riskSpots=[],riskPos=-1;
 function buildRiskSpots(){riskSpots=[];var run=false;for(var i=0;i<words.length;i++){var w=words[i],r=w&&!w.isGap&&(w._suspect||autoSelected.has(i));if(r&&!run){riskSpots.push(i);run=true;}else if(!r)run=false;}var c=document.getElementById('riskCount');if(c)c.textContent=riskSpots.length?('0/'+riskSpots.length):'（無）';}
 function nextRisk(){if(!riskSpots.length)return;riskPos=(riskPos+1)%riskSpots.length;var el=wordEl[riskSpots[riskPos]];if(el){el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.add('ring');setTimeout(function(){el.classList.remove('ring');},1500);}document.getElementById('riskCount').textContent=(riskPos+1)+'/'+riskSpots.length;}
 document.addEventListener('keydown',function(e){if((e.key==='n'||e.key==='N')&&!/INPUT|TEXTAREA/.test((document.activeElement||{}).tagName||'')){e.preventDefault();nextRisk();}});
+function rerunAI(){
+  var cp='${cutApiPath}';var rp=cp.indexOf('/api/cut/')===0?cp.replace('/api/cut/','/api/rerun-ai/'):'/api/rerun-ai';
+  if(!confirm('重新完整跑一次 AI 分析？會覆蓋目前的 AI 刪除標記、重新從頭判斷（不重轉字幕，很快）。完成後頁面會重載顯示新結果。'))return;
+  var ov=document.getElementById('ov');ov.textContent='重新 AI 分析中…';ov.style.display='flex';
+  fetch(rp,{method:'POST'}).then(function(r){return r.json();}).then(function(d){
+    if(d&&d.error){ov.style.display='none';alert('失敗：'+d.error);return;}poll();
+  }).catch(function(e){ov.style.display='none';alert('錯誤：'+e.message);});
+  function poll(){fetch('/api/cut-status').then(function(r){return r.json();}).then(function(s){
+    if(s&&s.step)ov.textContent='重新 AI 分析中… '+s.step+' '+(s.progress||0)+'%';
+    if(s&&s.error){ov.style.display='none';alert('失敗：'+s.error);return;}
+    if(s&&s.running===false){ov.textContent='完成，重載中…';location.reload();return;}
+    setTimeout(poll,1500);
+  }).catch(function(){setTimeout(poll,2000);});}
+}
 function doExport(){var dl=segs().map(function(g){return{start:g.s,end:g.e};});if(!confirm('確認匯出？將刪減 '+dl.length+' 段'))return;var ov=document.getElementById('ov');ov.style.display='flex';fetch('${cutApiPath}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deleteList:dl,exportOptions:{}})}).then(function(r){return r.json();}).then(function(d){ov.style.display='none';if(d.success)alert('完成！\\n輸出：'+d.output+'\\n原 '+fmt(d.originalDuration)+' → 新 '+fmt(d.newDuration));else alert('失敗：'+(d.error||'未知'));}).catch(function(e){ov.style.display='none';alert('錯誤：'+e.message);});}
 render();
 </script></body></html>`;

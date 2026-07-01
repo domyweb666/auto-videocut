@@ -1931,8 +1931,23 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ── API: 重新執行 AI 分析 ──
-  if (req.method === 'POST' && req.url === '/api/rerun-ai') {
+  // ── API: 重新執行 AI 分析（/api/rerun-ai 用目前 cutState；/api/rerun-ai/<name> 針對指定影片重建 cutState，供審核頁重跑）──
+  if (req.method === 'POST' && (req.url === '/api/rerun-ai' || req.url.startsWith('/api/rerun-ai/'))) {
+    if (req.url.startsWith('/api/rerun-ai/')) {
+      if (cutState.running) { res.writeHead(409, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: '正在處理中' })); return; }
+      const nm = decodeURIComponent(req.url.replace('/api/rerun-ai/', '').split('?')[0]);
+      const ctx = nm && findVideoForName(nm);
+      if (!ctx) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: '找不到影片：' + nm })); return; }
+      const _td = path.join(ctx.workDir, '1_轉錄');
+      cutState = {
+        running: false, step: '', progress: 0, startTime: Date.now(),
+        videoPath: ctx.videoPath, workDir: ctx.workDir,
+        subtitlesPath: path.join(_td, 'subtitles_words.json'),
+        sentencesPath: path.join(_td, 'sentences.json'),
+        autoSelectedPath: path.join(ctx.workDir, '2_分析', 'auto_selected.json'),
+        outputPath: null, outputPathB: null, log: [], error: null,
+      };
+    }
     if (!cutState.subtitlesPath || !fs.existsSync(cutState.subtitlesPath)) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: '無字幕檔案，請先處理影片' }));
