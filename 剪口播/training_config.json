@@ -57,12 +57,14 @@
     "enabled": true,
     "floor_sec": 0.20,
     "target_sec": 0.3,
+    "long_pause_sec": 1.2,
+    "long_target_sec": 0.6,
     "keep_side": "tail",
     "noise_db": -30,
     "min_dur": 0.20,
     "protect_ranges": [],
     "protect_idx": [],
-    "_note": "句間停頓壓平：把過長停頓壓到 target_sec。靜音來源＝音訊實測(detect_silences.js, noise_db/min_dur 給 ffmpeg silencedetect)，非 STT gap（Google STT 字時間戳零間隔，isGap 看不到真實停頓）。target 0.25 是業界手感起點，務必拿一支剪映滿意成品量平均值校準。protect_ranges=[[start,end],...] 要留長的停頓時間範圍（味道：挖坑）。約束：target_sec 須 > cut_video.sh 的 MERGE_GAP(0.2)"
+    "_note": "句間停頓壓平，依原始保留停頓長度分兩段（大原則：剪短但留一口氣，不要剪到零）。① 保留長度 < long_pause_sec 的是『氣口』→ 壓到 target_sec(0.3s ≈ 30fps 6-9 格)；② ≥ long_pause_sec(1.2s) 的是『段落/主題轉場』→ 只壓到 long_target_sec(0.6s)，留較多呼吸（轉場留白）。floor_sec 以下不動（正常呼吸）。靜音來源＝音訊實測(detect_silences.js, noise_db/min_dur 給 ffmpeg silencedetect)，非 STT gap（Google STT 字時間戳零間隔，isGap 看不到真實停頓）。節奏偏快→target 收到 0.25；偏沉穩→long_target 放寬到 0.8~1.0。戲劇性刻意停頓不靠自動判斷（分不出死空氣），用 protect_ranges=[[start,end],...] 手動挖坑保留。約束：target_sec/long_target_sec 皆須 > cut_video.sh 的 MERGE_GAP(0.2)，且 long_target_sec ≥ target_sec。未設 long_pause_sec 時退回單一 target 舊行為。口誤/重講/贅字/卡詞的整段刪除屬內容判斷層，不歸本層。"
   },
   "cut_snap": {
     "enabled": true,

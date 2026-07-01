@@ -176,6 +176,36 @@ console.log('\n[測試 9] protect_ranges：時間範圍內的停頓不壓');
   ok(out.length === 0, '停頓落在保護範圍內，不壓');
 }
 
+// ── 測試 10：兩段壓平（氣口 vs 轉場）──
+console.log('\n[測試 10] 轉場分段：長停頓留 0.6s，短停頓留 0.3s');
+{
+  const words = [
+    { text: 'a', start: 0.0, end: 0.5, isGap: false },
+    { text: '', start: 0.5, end: 2.0, isGap: true },   // 1.5s ≥ long_pause → 轉場
+    { text: 'b', start: 2.0, end: 2.5, isGap: false },
+    { text: '', start: 2.5, end: 3.3, isGap: true },   // 0.8s < long_pause → 氣口
+    { text: 'c', start: 3.3, end: 3.8, isGap: false },
+  ];
+  const cfg = { pause_flatten: { enabled: true, floor_sec: 0.2, target_sec: 0.3, long_pause_sec: 1.2, long_target_sec: 0.6, keep_side: 'tail' }, cut_snap: { enabled: false } };
+  const out = run(words, [], null, cfg);
+  ok(out.length === 2, '產生兩段（一轉場一氣口）');
+  ok(hasSeg(out, 0.5, 1.4), '轉場：刪 [0.5,1.4]，留 [1.4,2.0]=0.6s');
+  ok(hasSeg(out, 2.5, 3.0), '氣口：刪 [2.5,3.0]，留 [3.0,3.3]=0.3s');
+}
+
+// ── 測試 11：未設 long_pause_sec → 退回單一 target（向下相容）──
+console.log('\n[測試 11] 無 long_pause_sec：長停頓也只壓到 target');
+{
+  const words = [
+    { text: 'a', start: 0.0, end: 0.5, isGap: false },
+    { text: '', start: 0.5, end: 2.0, isGap: true },   // 1.5s，但沒有轉場設定
+    { text: 'b', start: 2.0, end: 2.5, isGap: false },
+  ];
+  const out = run(words, [], null, baseCfg);           // baseCfg 無 long_pause_sec，target 0.25
+  ok(out.length === 1, '仍是單段');
+  ok(hasSeg(out, 0.5, 1.75), '退回舊行為：壓到 target 0.25s（刪 [0.5,1.75]）');
+}
+
 // ── 總結（先印，確保結果一定看得到）──
 console.log(`\n── 結果：${pass} 通過 / ${fail} 失敗 ──`);
 

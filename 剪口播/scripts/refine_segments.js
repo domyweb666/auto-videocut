@@ -56,6 +56,10 @@ const PF = config.pause_flatten || {};
 const PF_ENABLED = PF.enabled !== false;
 const PF_FLOOR = PF.floor_sec ?? 0.20;
 const PF_TARGET = PF.target_sec ?? 0.25;
+// 轉場留白：原始保留停頓 ≥ PF_LONG_PAUSE 視為段落/主題切換，只壓到 PF_LONG_TARGET（比氣口留更多呼吸）。
+// 未設定時 PF_LONG_TARGET 退回 PF_TARGET（＝舊的單一 target 行為，向下相容）。
+const PF_LONG_PAUSE = PF.long_pause_sec ?? Infinity;
+const PF_LONG_TARGET = PF.long_target_sec ?? PF_TARGET;
 const PF_KEEP_SIDE = PF.keep_side || 'tail';
 const PF_PROTECT_IDX = new Set(PF.protect_idx || []);
 const PF_PROTECT_RANGES = (PF.protect_ranges || []).filter(r => Array.isArray(r) && r.length === 2);
@@ -138,11 +142,21 @@ function isProtectedInterval(sil) {
 // ══════════════════════════════════════════════════════
 let baseSegs = mergeSegs(deleteSegs);
 const pauseAdds = [];
-let flattenedCount = 0;
+let flattenedCount = 0;      // 氣口（壓到 target_sec）
+let longFlattenedCount = 0;  // 轉場（壓到 long_target_sec）
+
+// 依原始保留停頓長度分兩段：短的是氣口壓到 target，長的是段落/轉場只壓到 long_target。
+// 分流鐵律「廢話剪光、氣口留短、轉場留白」的「氣口 vs 轉場」就在這裡分。
+function targetFor(len) {
+  return len >= PF_LONG_PAUSE - EPS ? PF_LONG_TARGET : PF_TARGET;
+}
 
 if (PF_ENABLED) {
   if (PF_TARGET <= 0.2 + EPS) {
     console.error(`⚠️ pause_flatten.target_sec=${PF_TARGET} <= MERGE_GAP(0.2)，留的靜音可能被 cut_video.sh 合併吃掉。建議 >0.2`);
+  }
+  if (Number.isFinite(PF_LONG_PAUSE) && PF_LONG_TARGET < PF_TARGET - EPS) {
+    console.error(`⚠️ pause_flatten.long_target_sec=${PF_LONG_TARGET} < target_sec=${PF_TARGET}，轉場反而留得比氣口短，多半設反了。`);
   }
   for (const sil of silenceIntervals) {
     if (isProtectedInterval(sil)) continue;                 // 味道：挖坑，不壓
@@ -150,18 +164,20 @@ if (PF_ENABLED) {
     for (const seg of kept) {
       const len = seg.end - seg.start;
       if (len < PF_FLOOR - EPS) continue;                   // 太短：正常呼吸
-      if (len <= PF_TARGET + EPS) continue;                 // 已夠短
-      const cut = len - PF_TARGET;
+      const tgt = targetFor(len);                           // 氣口 vs 轉場，挑對應保留量
+      if (len <= tgt + EPS) continue;                       // 已夠短
+      const cut = len - tgt;
       if (PF_KEEP_SIDE === 'head') {
-        pauseAdds.push({ start: seg.start + PF_TARGET, end: seg.end });
+        pauseAdds.push({ start: seg.start + tgt, end: seg.end });
       } else if (PF_KEEP_SIDE === 'mid') {
         const half = cut / 2;
         pauseAdds.push({ start: seg.start, end: seg.start + half });
         pauseAdds.push({ start: seg.end - half, end: seg.end });
       } else {
-        pauseAdds.push({ start: seg.start, end: seg.end - PF_TARGET }); // tail（預設）
+        pauseAdds.push({ start: seg.start, end: seg.end - tgt }); // tail（預設）
       }
-      flattenedCount++;
+      if (tgt === PF_LONG_TARGET && PF_LONG_TARGET !== PF_TARGET) longFlattenedCount++;
+      else flattenedCount++;
     }
   }
 }
@@ -235,7 +251,8 @@ const avgMove = snapMovedMs.length
 
 console.error('📊 精修結果:');
 console.error(`   靜音來源: ${silenceSource}（${silenceIntervals.length} 段）`);
-console.error(`   停頓壓平: ${flattenedCount} 處（壓到 ${PF_TARGET}s）`);
+console.error(`   停頓壓平: 氣口 ${flattenedCount} 處（壓到 ${PF_TARGET}s）` +
+  (Number.isFinite(PF_LONG_PAUSE) ? `、轉場 ${longFlattenedCount} 處（≥${PF_LONG_PAUSE}s，留 ${PF_LONG_TARGET}s）` : ''));
 console.error(`   切點吸附: ${snappedCount} 個邊界（平均移動 ${avgMove}ms）`);
 console.error(`   刪除總長: ${origTotal.toFixed(2)}s → ${refinedTotal.toFixed(2)}s`);
 console.error(`   區段數: ${baseSegs.length} → ${refined.length}`);
