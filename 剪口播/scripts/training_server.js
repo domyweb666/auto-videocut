@@ -44,6 +44,32 @@ function writeAutoSelectedFromSentences(workDir) {
   }
 }
 
+// 估算匯出時 pause_flatten 會扣掉的靜音秒數（給審核頁「剪後」顯示真正的匯出長度）。
+// 缺 silences.json 就現場用 detect_silences 補產（匯出時本來也要）。pause_flatten 關閉或無音檔 → 回 0。
+function estimateSilenceRemovalSec(workDir) {
+  try {
+    let cfg = {};
+    try { cfg = JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) {}
+    const PF = cfg.pause_flatten || {};
+    if (PF.enabled === false) return 0;
+    const target = PF.target_sec ?? 0.3, floor = PF.floor_sec ?? 0.2;
+    const silPath = path.join(workDir, '2_分析', 'silences.json');
+    const audioPath = path.join(workDir, '1_轉錄', 'audio.mp3');
+    if (!fs.existsSync(silPath) && fs.existsSync(audioPath)) {
+      try {
+        fs.mkdirSync(path.join(workDir, '2_分析'), { recursive: true });
+        require('child_process').execFileSync('node', [path.join(SCRIPT_DIR, 'detect_silences.js'), audioPath, silPath], { stdio: 'pipe', maxBuffer: 50 * 1024 * 1024 });
+      } catch (_) {}
+    }
+    if (!fs.existsSync(silPath)) return 0;
+    let raw = JSON.parse(fs.readFileSync(silPath, 'utf8'));
+    raw = Array.isArray(raw) ? raw : (raw.silences || []);
+    let removed = 0;
+    for (const s of raw) { const len = s.end - s.start; if (len >= floor && len > target) removed += (len - target); }
+    return removed;
+  } catch (_) { return 0; }
+}
+
 // 純白簡潔版剪輯頁（取代舊深色 CUT_HTML；無影片預覽，丟檔→處理→審核）
 const CUT_DOC_HTML = `<!DOCTYPE html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -742,6 +768,7 @@ const server = http.createServer((req, res) => {
       const enc = encodeURIComponent(videoName);
       const html = buildReviewDoc(words, autoSelected, autoReasons, {
         cutApiPath: `/api/cut/${enc}`,
+        silenceRemovalSec: estimateSilenceRemovalSec(ctx.workDir),
       });
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);

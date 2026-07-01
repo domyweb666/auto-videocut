@@ -27,6 +27,7 @@ function parseAuto(raw) {
 function buildReviewDoc(words, autoSet, autoReasons, opts) {
   opts = opts || {};
   const cutApiPath = opts.cutApiPath || '/api/cut';
+  const silRemove = Number(opts.silenceRemovalSec) || 0; // 匯出時靜音壓平會扣掉的秒數（估）
   const DATA = JSON.stringify(words);
   const AUTO = JSON.stringify(autoSet || []);
   const REASONS = JSON.stringify(autoReasons || {});
@@ -59,7 +60,7 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
 <div class="bar">
   <span class="title">審核定稿</span>
   <span style="flex:1"></span>
-  <span class="stat">原 <span id="statOrig">0:00</span> &rarr; 剪後 <b id="statAfter">0:00</b></span>
+  <span class="stat">原 <span id="statOrig">0:00</span> &rarr; 剪後 <b id="statAfter">0:00</b><span id="silHint" style="color:#9a988f;font-size:12px;margin-left:6px;"></span></span>
   <button class="btn-risk" onclick="nextRisk()">下一疑點 <span id="riskCount"></span></button>
   <button class="btn-risk" onclick="rerunAI()">🔄 重新 AI</button>
   <button class="btn-export" onclick="doExport()">匯出</button>
@@ -74,6 +75,7 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
 <div id="ov">匯出中，請稍候…</div>
 <script>
 var words=${DATA},autoSelected=new Set(${AUTO}),autoReasons=${REASONS};
+var SIL_REMOVE=${silRemove};
 var selected=new Set(autoSelected),doc=document.getElementById('doc'),wordEl=[];
 function cls(i){var w=words[i];if(w.isGap)return '';var c='word',sel=selected.has(i),ai=autoSelected.has(i);if(sel&&ai)c+=' aidel';else if(sel)c+=' del';else if(ai)c+=' aikeep';if(w._suspect)c+=' suspect';return c;}
 function render(){doc.innerHTML='';wordEl=[];var para=document.createElement('p');para.className='para';var plen=0;function flush(){if(para.childNodes.length)doc.appendChild(para);para=document.createElement('p');para.className='para';plen=0;}for(var i=0;i<words.length;i++){var w=words[i];if(w.isGap){wordEl[i]=null;continue;}var el=document.createElement('span');el.className=cls(i);el.dataset.idx=i;el.textContent=w.text;var tip=autoReasons[i]||'';if(w._suspect)tip=(tip?tip+' | ':'')+'\\u26a0 \\u7591\\u4f3c\\u807d\\u932f\\uff0c\\u8b1b\\u7a3f\\u662f\\u300c'+(w._refHint||'?')+'\\u300d';if(tip)el.title=tip;para.appendChild(el);wordEl[i]=el;var t=w.text||'';plen+=t.length;if(/[\\u3002\\uff01\\uff1f][\\u300d\\u300f"']?$/.test(t)){if(plen>=16)flush();}else if(plen>=48&&/[\\uff0c\\u3001\\uff1b]$/.test(t))flush();}flush();updateStats();}
@@ -84,7 +86,7 @@ document.addEventListener('mouseup',function(){if(dragActive){dragActive=false;u
 function apply(a,b){var lo=Math.min(a,b),hi=Math.max(a,b);for(var j=lo;j<=hi;j++){if(!words[j])continue;if(dragMode==='add')selected.add(j);else selected.delete(j);if(wordEl[j])wordEl[j].className=cls(j);}}
 function segs(){var arr=Array.from(selected).sort(function(a,b){return a-b}).map(function(i){return{s:words[i].start,e:words[i].end}});var m=[];arr.forEach(function(g){if(!m.length||g.s-m[m.length-1].e>=0.05)m.push({s:g.s,e:g.e});else m[m.length-1].e=g.e;});return m;}
 function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2);}
-function updateStats(){var total=words.length?words[words.length-1].end:0;var del=segs().reduce(function(a,g){return a+(g.e-g.s)},0);document.getElementById('statOrig').textContent=fmt(total);document.getElementById('statAfter').textContent=fmt(total-del);buildRiskSpots();}
+function updateStats(){var total=words.length?words[words.length-1].end:0;var del=segs().reduce(function(a,g){return a+(g.e-g.s)},0);var after=Math.max(0,total-del-SIL_REMOVE);document.getElementById('statOrig').textContent=fmt(total);document.getElementById('statAfter').textContent=(SIL_REMOVE>0?'\\u2248 ':'')+fmt(after);var sh=document.getElementById('silHint');if(sh)sh.textContent=SIL_REMOVE>0?('\\uff08\\u542b\\u58d3\\u975c\\u97f3 \\u2212'+fmt(SIL_REMOVE)+'\\uff09'):'';buildRiskSpots();}
 var riskSpots=[],riskPos=-1;
 function buildRiskSpots(){riskSpots=[];var run=false;for(var i=0;i<words.length;i++){var w=words[i],r=w&&!w.isGap&&(w._suspect||autoSelected.has(i));if(r&&!run){riskSpots.push(i);run=true;}else if(!r)run=false;}var c=document.getElementById('riskCount');if(c)c.textContent=riskSpots.length?('0/'+riskSpots.length):'（無）';}
 function nextRisk(){if(!riskSpots.length)return;riskPos=(riskPos+1)%riskSpots.length;var el=wordEl[riskSpots[riskPos]];if(el){el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.add('ring');setTimeout(function(){el.classList.remove('ring');},1500);}document.getElementById('riskCount').textContent=(riskPos+1)+'/'+riskSpots.length;}
