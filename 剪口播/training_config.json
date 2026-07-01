@@ -75,9 +75,13 @@
   },
   "cough_ml": {
     "enabled": true,
-    "min_confidence": 0.55,
+    "min_confidence": 0.45,
     "pad_sec": 0.08,
-    "_note": "ML 咳嗽/清喉偵測（detect_coughs_ml.py, AudioSet AST 模型）。conf ≥ min_confidence 自動併入刪除。咳嗽聲學太像語音、ffmpeg 啟發式分不開，故用訓練好的音訊事件模型。實測門檻 0.5 在 092814 抓到 6 個清喉、語音零誤報。需 torch+transformers（已裝），首次跑下載模型 ~350MB，結果快取在 cough_ml.json"
+    "_note": "ML 咳嗽/清喉偵測（detect_coughs_ml.py, AudioSet AST 模型）。conf ≥ min_confidence 自動併入刪除。咳嗽聲學太像語音、ffmpeg 啟發式分不開，故用訓練好的音訊事件模型。2026-07-01 由 0.55→0.45：092814 有個清喉 conf=0.549 差 0.001 卡在門檻外殘留，降到 0.45 救回；低於 0.45 的（如 0.23/0.35）信心太低不自動剪，避免誤砍語音。需 torch+transformers（已裝），首次跑下載模型 ~350MB，結果快取在 cough_ml.json"
+  },
+  "retake": {
+    "enabled": true,
+    "_note": "重錄(false-start)偵測（detect_retakes.js）。吃校正前的 whisper_words.json（保留重複），抓立即重錄並刪前留後。乾淨稿(subtitles_words)已被 gpt-4o 依 reference.txt 合併重複，剪輯層看不到 → 影片會留重複語音、字幕卻沒有。設 enabled:false 可關。門檻在 detect_retakes.js（MINLEN/MAXGAP/PREFIX_RATIO），PREFIX_RATIO 是排比句 vs 重錄的關鍵守門。"
   },
   "_baseline_f1": 0.9683,
   "_best_f1": 0.9683

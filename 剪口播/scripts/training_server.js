@@ -256,6 +256,37 @@ function buildRefined(subsPath, contentSegments, art, workDir, outBase) {
   }
 }
 
+// 把「重錄(false-start)」時間段併進內容刪除清單。
+// 吃校正前的原始 whisper_words.json（保留重複；乾淨稿的 subtitles_words 看不到重複 take）。
+// 無 whisper_words.json → 回傳原清單（向下相容，不影響既有行為）。
+function mergeRetakes(deleteList, workDir, tag) {
+  try {
+    const cfg0 = (() => { try { return JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) { return {}; } })();
+    if ((cfg0.retake || {}).enabled === false) return deleteList;
+    const whisperPath = path.join(workDir, '1_轉錄', 'whisper_words.json');
+    if (!fs.existsSync(whisperPath)) return deleteList;
+    const { detectRetakes } = require('./detect_retakes.js');
+    const words = JSON.parse(fs.readFileSync(whisperPath, 'utf8'));
+    const arr = Array.isArray(words) ? words : (words.words || words.segments || []);
+    const retakes = detectRetakes(arr).map(r => ({ start: r.start, end: r.end }));
+    if (!retakes.length) return deleteList;
+    console.log(`🔁 ${tag || ''}重錄併入 ${retakes.length} 段（來源 whisper_words，校正前）`);
+    // 合併 + 排序（cut_video/refine 吃有序不重疊清單較穩）
+    const all = [...(deleteList || []).map(s => ({ start: s.start, end: s.end })), ...retakes]
+      .sort((a, b) => a.start - b.start);
+    const merged = [];
+    for (const s of all) {
+      const prev = merged[merged.length - 1];
+      if (prev && s.start <= prev.end + 0.02) prev.end = Math.max(prev.end, s.end);
+      else merged.push({ ...s });
+    }
+    return merged;
+  } catch (e) {
+    console.warn(`[重錄偵測] 失敗(略過):`, (e.message || '').split('\n')[0]);
+    return deleteList;
+  }
+}
+
 const REVIEW_MIME = {
   '.html': 'text/html; charset=utf-8',
   '.json': 'application/json',
@@ -854,6 +885,9 @@ const server = http.createServer((req, res) => {
           deleteList = parsed.deleteList || parsed.segments || [];
           exportOptions = parsed.exportOptions || {};
         }
+
+        // 併入「重錄(false-start)」——字幕/文稿走乾淨稿看不到重複，剪輯層必須另從校正前 whisper 補抓
+        deleteList = mergeRetakes(deleteList, ctx.workDir, `[${videoName}] `);
 
         // 將 delete_segments.json 寫進該影片的工作目錄
         const deleteSegmentsPath = path.join(ctx.workDir, 'delete_segments.json');
