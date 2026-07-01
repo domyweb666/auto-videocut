@@ -150,7 +150,7 @@ function pollExport(){fetch('/api/export-status').then(function(r){return r.json
   if(s.step)document.getElementById('ovStep').textContent=s.step;setBar(s.progress||0);
   if(s.error){expFail(s.error);return;}
   if(s.running===false){setBar(100);
-    if(s.result){var r=s.result;document.getElementById('ovStep').textContent='匯出完成 \\u2705';var dn=document.getElementById('ovDone');dn.style.display='block';dn.innerHTML='輸出：<code style="word-break:break-all">'+r.output+'</code><br>原 '+fmt(parseFloat(r.originalDuration))+' \\u2192 新 '+fmt(parseFloat(r.newDuration))+(r.srt?'<br>已附字幕 .srt':'')+'<div style="margin-top:14px;text-align:right"><button class="btn-export" onclick="closeOv()">完成</button></div>';}
+    if(s.result){var r=s.result;document.getElementById('ovStep').textContent='匯出完成 \\u2705';var dn=document.getElementById('ovDone');dn.style.display='block';dn.innerHTML='輸出：<code style="word-break:break-all">'+r.output+'</code><br>原 '+fmt(parseFloat(r.originalDuration))+' \\u2192 新 '+fmt(parseFloat(r.newDuration))+(r.srt?'<br>已附字幕 .srt':'')+(r.txt?'<br>已附文稿 .txt':'')+'<div style="margin-top:14px;text-align:right"><button class="btn-export" onclick="closeOv()">完成</button></div>';}
     return;}
   setTimeout(pollExport,1000);
 }).catch(function(){setTimeout(pollExport,1500);});}

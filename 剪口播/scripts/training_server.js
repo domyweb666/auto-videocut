@@ -980,12 +980,21 @@ const server = http.createServer((req, res) => {
                   execSync(`node "${srtScript}" "${subtitlesPath}" "${cutDeleteFile}" "${srtFile}"`, { stdio: 'pipe' });
               } catch (srtErr) { console.error(`⚠️ [${videoName}] SRT 失敗:`, srtErr.message); srtFile = null; }
             }
+            // 純文字文稿 TXT（依標點分段，跟審核頁文稿一致；音檔匯出也產，文稿一樣有用）
+            let txtFile = null;
+            try {
+              const txtScript = path.join(SCRIPT_DIR, 'generate_cut_txt.js');
+              const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
+              txtFile = outputFile.replace(/\.[^/.]+$/, '.txt');
+              if (fs.existsSync(txtScript) && fs.existsSync(subtitlesPath))
+                execSync(`node "${txtScript}" "${subtitlesPath}" "${cutDeleteFile}" "${txtFile}"`, { stdio: 'pipe' });
+            } catch (txtErr) { console.error(`⚠️ [${videoName}] TXT 失敗:`, txtErr.message); txtFile = null; }
             const originalDuration = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${ctx.videoPath}"`).toString().trim());
             const newDuration = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${outputFile}"`).toString().trim());
             const deletedDuration = originalDuration - newDuration;
             const verify = runVerify(outputFile, ctx.videoPath, cutDeleteFile, `[${videoName}] `);
             exportState.result = {
-              output: outputFile, srt: srtFile,
+              output: outputFile, srt: srtFile, txt: txtFile,
               originalDuration: originalDuration.toFixed(2), newDuration: newDuration.toFixed(2),
               deletedDuration: deletedDuration.toFixed(2),
               savedPercent: ((deletedDuration / originalDuration) * 100).toFixed(1),
