@@ -351,11 +351,13 @@ function startCutProcess(videoPath, referenceText) {
       cutState.progress = 10;
 
       // Step 2+3: BytePlus Seed Speech 一次出文字+字級時間碼 (10-65%)
+      // --ddc off：要逐字原稿（含口水詞+時間碼），刪除全交給後面可審核的 pipeline 階段。
+      // DDC(語義順滑)只刪口水詞、不刪重複句，實測 5 分鐘僅刪 1 個「嗯」，開了反而讓贅字失去時間碼、剪不掉。
       cutState.step = '語音轉錄';
       cutState.progress = 12;
-      cutState.log.push('🎙️ BytePlus Seed Speech 轉錄...');
+      cutState.log.push('🎙️ BytePlus Seed Speech 轉錄（逐字，DDC off）...');
       if (!fs.existsSync(cutState.subtitlesPath)) {
-        await runCmd('python', [path.join(SCRIPT_DIR, 'byteplus_transcribe.py'), 'audio.mp3', cutState.subtitlesPath], {
+        await runCmd('python', [path.join(SCRIPT_DIR, 'byteplus_transcribe.py'), 'audio.mp3', cutState.subtitlesPath, '--ddc', 'off'], {
           cwd: transcribeDir,
           env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
           timeout: 900000

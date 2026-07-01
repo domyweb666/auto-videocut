@@ -60,7 +60,9 @@ def headers(key, request_id, with_seq):
     return h
 
 
-def transcribe(audio_path, request_id, key, lang="zh-CN"):
+def transcribe(audio_path, request_id, key, lang="zh-CN", ddc=True):
+    # enable_ddc（語義順滑）：True=BytePlus 自動刪口水/重複字（文字乾淨，但字級時間碼一起消失）；
+    # False=逐字原稿（含贅字+時間碼，給剪輯層按時間碼下刀用）。雙轉模式靠這個開關拿「原稿 vs 順滑版」。
     fmt = os.path.splitext(audio_path)[1].lstrip(".").lower() or "mp3"
     with open(audio_path, "rb") as f:
         data = base64.b64encode(f.read()).decode()
@@ -71,7 +73,7 @@ def transcribe(audio_path, request_id, key, lang="zh-CN"):
             "model_name": "bigmodel",
             "enable_itn": True,
             "enable_punc": True,
-            "enable_ddc": True,
+            "enable_ddc": bool(ddc),
             "show_utterances": True,
             "vad_segment": True,
         },
@@ -100,18 +102,33 @@ def transcribe(audio_path, request_id, key, lang="zh-CN"):
 
 
 def main():
-    if len(sys.argv) < 3:
-        print("用法: python byteplus_transcribe.py <audio.mp3> <out_subtitles.json>")
+    # 解析 --ddc on|off（預設 off：主流程要逐字原稿給剪輯層；雙轉的順滑版才用 --ddc on）
+    argv = [a for a in sys.argv[1:]]
+    ddc = False
+    out = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--ddc":
+            ddc = (i + 1 < len(argv) and argv[i + 1].lower() in ("on", "true", "1"))
+            i += 2; continue
+        if a.startswith("--ddc="):
+            ddc = a.split("=", 1)[1].lower() in ("on", "true", "1")
+            i += 1; continue
+        out.append(a); i += 1
+    if len(out) < 2:
+        print("用法: python byteplus_transcribe.py <audio.mp3> <out_subtitles.json> [--ddc on|off]")
         sys.exit(1)
-    audio_path = sys.argv[1]
-    out_subs = sys.argv[2]
+    audio_path = out[0]
+    out_subs = out[1]
     work = os.path.dirname(os.path.abspath(out_subs))
 
     load_env()
     key = get_key()
     rid = str(uuid.uuid4())
 
-    resp = transcribe(audio_path, rid, key)
+    print(f"（enable_ddc={ddc}）", flush=True)
+    resp = transcribe(audio_path, rid, key, ddc=ddc)
     result = resp.get("result", {})
     if not result.get("utterances"):
         sys.exit("❌ 回應沒有 utterances，無法產生字級字幕")
