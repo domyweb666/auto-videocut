@@ -330,6 +330,9 @@ let cutState = {
   error: null
 };
 
+// 匯出進度狀態（審核頁匯出改成非同步，讓前端輪詢百分比）
+let exportState = { running: false, progress: 0, step: '', videoName: '', result: null, error: null };
+
 function startCutProcess(videoPath, referenceText) {
   const baseName = path.basename(videoPath).replace(/\.[^/.]+$/, '');
   const workDir = path.join(process.cwd(), 'cut_work', baseName);
@@ -881,8 +884,14 @@ const server = http.createServer((req, res) => {
         const container = (exportOptions.container || 'mp4').toLowerCase();
         const mainExt = exportOptions.audioOnly ? 'mp3' : container;
         const baseName = path.basename(ctx.videoPath).replace(/\.[^/.]+$/, '');
-        const shellOutputFile = path.join(ctx.workDir, `${baseName}_cut.${container}`);
-        const finalOutputFile = path.join(ctx.workDir, `${baseName}_cut.${mainExt}`);
+        // 輸出資料夾：使用者指定且存在則用之，否則預設影片工作目錄
+        let outDir = ctx.workDir;
+        if (exportOptions.outputDir && typeof exportOptions.outputDir === 'string') {
+          const od = exportOptions.outputDir.trim();
+          try { if (od && fs.existsSync(od) && fs.statSync(od).isDirectory()) outDir = od; } catch (_) {}
+        }
+        const shellOutputFile = path.join(outDir, `${baseName}_cut.${container}`);
+        const finalOutputFile = path.join(outDir, `${baseName}_cut.${mainExt}`);
 
         const env = {
           ...process.env,
@@ -895,72 +904,119 @@ const server = http.createServer((req, res) => {
           CUT_EXPORT_GIF: exportOptions.gif ? '1' : '0',
           CUT_LOSSLESS: exportOptions.lossless ? '1' : '0',  // 原畫質：影片 CRF17 近無損 + 音訊複製(真無損)
         };
-
-        console.log(`🎬 [${videoName}] 調用 cut_video.sh，匯出選項:`, {
-          codec: env.CUT_CODEC || 'h264(default)',
-          container,
-          bitrate: env.CUT_BITRATE_MODE,
-          audioOnly: env.CUT_AUDIO_ONLY === '1',
-          gif: env.CUT_EXPORT_GIF === '1',
-        });
+        console.log(`🎬 [${videoName}] 匯出 → ${outDir}`, { container, audioOnly: env.CUT_AUDIO_ONLY === '1', lossless: env.CUT_LOSSLESS === '1' });
 
         const scriptPath = path.join(SCRIPT_DIR, 'cut_video.sh');
-        const scriptPathPosix = scriptPath.replace(/\\/g, '/');
-        const deletePathPosix = cutDeleteFile.replace(/\\/g, '/'); // refined（含停頓壓平）或降級回原始切點
-        const outputFilePosix = shellOutputFile.replace(/\\/g, '/');
-        const inputPathPosix  = ctx.videoPath.replace(/\\/g, '/');
-
         // Windows 用 Git Bash 全路徑，避免 PATH 上的 bash 解析成 WSL bash（吃不了 C:/ 路徑會直接失敗）
         const bashBin = process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash';
-        execSync(
-          `"${bashBin}" "${scriptPathPosix}" "${inputPathPosix}" "${deletePathPosix}" "${outputFilePosix}"`,
-          { stdio: 'inherit', cwd: ctx.workDir, env }
-        );
 
-        const outputFile = fs.existsSync(finalOutputFile) ? finalOutputFile : shellOutputFile;
-
-        // 自動產出 SRT 字幕（音訊匯出模式不產 SRT）
-        let srtFile = null;
-        if (!exportOptions.audioOnly) {
-          try {
-            const srtScript = path.join(SCRIPT_DIR, 'generate_cut_srt.js');
-            const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
-            srtFile = outputFile.replace(/\.[^/.]+$/, '.srt');
-            if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath)) {
-              execSync(`node "${srtScript}" "${subtitlesPath}" "${cutDeleteFile}" "${srtFile}"`, { stdio: 'inherit' });
-            }
-          } catch (srtErr) {
-            console.error(`⚠️ [${videoName}] SRT 失敗:`, srtErr.message);
-            srtFile = null;
-          }
-        }
-
-        const originalDuration = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${ctx.videoPath}"`).toString().trim());
-        const newDuration = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${outputFile}"`).toString().trim());
-        const deletedDuration = originalDuration - newDuration;
-        const savedPercent = ((deletedDuration / originalDuration) * 100).toFixed(1);
-
-        // ── 匯出後自動驗證（verify_export，advisory：驗證失敗不阻斷匯出）──
-        // 用實際落刀的 cutDeleteFile（refined），verify 的時長對帳才對得上輸出
-        const verify = runVerify(outputFile, ctx.videoPath, cutDeleteFile, `[${videoName}] `);
-
+        // ── 非同步落刀：串流 stdout 解析 PROGRESS=N/TOTAL → exportState.progress，前端輪詢 /api/export-status ──
+        exportState = { running: true, progress: 2, step: '準備', videoName, result: null, error: null };
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          success: true,
-          output: outputFile,
-          srt: srtFile,
-          originalDuration: originalDuration.toFixed(2),
-          newDuration: newDuration.toFixed(2),
-          deletedDuration: deletedDuration.toFixed(2),
-          savedPercent,
-          verify,
-          message: `[${videoName}] 剪輯完成`,
-        }));
+        res.end(JSON.stringify({ ok: true }));
+
+        const child = spawn(bashBin, [
+          scriptPath.replace(/\\/g, '/'),
+          ctx.videoPath.replace(/\\/g, '/'),
+          cutDeleteFile.replace(/\\/g, '/'),   // refined（含停頓壓平）或降級回原始切點
+          shellOutputFile.replace(/\\/g, '/'),
+        ], { cwd: outDir, env });
+        exportState.step = '剪輯中';
+        let cutErr = '';
+        // 開跑前就算好預估輸出長度（原片長 − refined 刪除總長），供單趟路徑用 ffmpeg time= 換算百分比。
+        // 不靠 stdout 的「预计输出时长」——那行 pipe 下 block-buffered，會到結束才 flush。
+        let expDur = 0;
+        try {
+          const origDur = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${ctx.videoPath}"`).toString().trim()) || 0;
+          let delSum = 0;
+          try { const _dl = JSON.parse(fs.readFileSync(cutDeleteFile, 'utf8')); const _arr = Array.isArray(_dl) ? _dl : (_dl.segments || _dl.deleteList || []); for (const s of _arr) delSum += Math.max(0, (s.end - s.start)); } catch (_) {}
+          expDur = Math.max(0, origDur - delSum);
+        } catch (_) {}
+        child.stdout.on('data', chunk => {
+          const text = chunk.toString();
+          process.stdout.write(text);
+          for (const ln of text.split(/[\r\n]+/)) {
+            const m = ln.match(/PROGRESS=(\d+)\/(\d+)/); // 多段平行路徑
+            if (m && +m[2] > 0) { exportState.progress = Math.min(92, 5 + Math.floor((+m[1] / +m[2]) * 85)); exportState.step = `剪輯片段 ${m[1]}/${m[2]}`; }
+          }
+        });
+        child.stderr.on('data', c => {
+          const text = c.toString();
+          cutErr += text; process.stderr.write(c);
+          // 單趟重編碼路徑：ffmpeg 進度(time=)寫在 stderr，用「预计输出时长」換算百分比
+          if (expDur > 0) {
+            const t = text.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/g);
+            if (t && t.length) {
+              const last = t[t.length - 1].match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/);
+              const sec = (+last[1]) * 3600 + (+last[2]) * 60 + parseFloat(last[3]);
+              exportState.progress = Math.min(92, 5 + Math.floor((sec / expDur) * 85));
+              exportState.step = '編碼中';
+            }
+          }
+        });
+        child.on('error', e => { exportState.error = 'cut_video.sh 啟動失敗：' + e.message; exportState.running = false; exportState.progress = 100; });
+        child.on('close', code => {
+          try {
+            if (code !== 0) { exportState.error = (cutErr.slice(-300) || ('exit ' + code)); exportState.running = false; exportState.progress = 100; return; }
+            const outputFile = fs.existsSync(finalOutputFile) ? finalOutputFile : shellOutputFile;
+            exportState.step = '產字幕/驗證'; exportState.progress = 94;
+            // 自動產出 SRT 字幕（音訊匯出模式不產 SRT）
+            let srtFile = null;
+            if (!exportOptions.audioOnly) {
+              try {
+                const srtScript = path.join(SCRIPT_DIR, 'generate_cut_srt.js');
+                const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
+                srtFile = outputFile.replace(/\.[^/.]+$/, '.srt');
+                if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath))
+                  execSync(`node "${srtScript}" "${subtitlesPath}" "${cutDeleteFile}" "${srtFile}"`, { stdio: 'pipe' });
+              } catch (srtErr) { console.error(`⚠️ [${videoName}] SRT 失敗:`, srtErr.message); srtFile = null; }
+            }
+            const originalDuration = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${ctx.videoPath}"`).toString().trim());
+            const newDuration = parseFloat(execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "file:${outputFile}"`).toString().trim());
+            const deletedDuration = originalDuration - newDuration;
+            const verify = runVerify(outputFile, ctx.videoPath, cutDeleteFile, `[${videoName}] `);
+            exportState.result = {
+              output: outputFile, srt: srtFile,
+              originalDuration: originalDuration.toFixed(2), newDuration: newDuration.toFixed(2),
+              deletedDuration: deletedDuration.toFixed(2),
+              savedPercent: ((deletedDuration / originalDuration) * 100).toFixed(1),
+              verify,
+            };
+            exportState.step = '完成'; exportState.progress = 100; exportState.running = false;
+            console.log(`✅ [${videoName}] 匯出完成 → ${outputFile}`);
+          } catch (e) {
+            exportState.error = e.message; exportState.running = false; exportState.progress = 100;
+          }
+        });
       } catch (err) {
         console.error('❌ /api/cut/<name> 失敗:', err.message);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: err.message }));
+        exportState = { running: false, progress: 100, step: '', videoName: '', result: null, error: err.message };
+        if (!res.headersSent) { // 若已回 {ok:true}（非同步落刀階段）就不再重複回應
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
       }
+    });
+    return;
+  }
+
+  // GET /api/export-status — 審核頁匯出進度輪詢
+  if (req.method === 'GET' && req.url === '/api/export-status') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(exportState));
+    return;
+  }
+
+  // GET /api/native-browse-folder — 跳出 Windows 原生選資料夾視窗，回傳選到的資料夾
+  if (req.method === 'GET' && req.url === '/api/native-browse-folder') {
+    const { execFile } = require('child_process');
+    let initDir = path.join(process.cwd(), 'output');
+    if (!fs.existsSync(initDir)) initDir = process.cwd();
+    const initDirPs = initDir.replace(/'/g, "''");
+    const ps = "Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description='選擇匯出資料夾'; $f.SelectedPath='" + initDirPs + "'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write($f.SelectedPath) }";
+    execFile('powershell', ['-STA', '-NoProfile', '-Command', ps], { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ path: (stdout || '').trim() }));
     });
     return;
   }

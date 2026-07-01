@@ -55,7 +55,19 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
   .word.suspect{box-shadow:inset 0 -3px 0 #E24B4A;}
   .word.ring{outline:2px solid #185FA5;outline-offset:2px;}
   .hint{max-width:640px;margin:12px auto 48px;font-size:12px;color:#9a988f;padding:0 12px;}
-  #ov{display:none;position:fixed;inset:0;background:rgba(255,255,255,.82);align-items:center;justify-content:center;font-size:15px;color:#444;}
+  #ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);align-items:center;justify-content:center;font-size:14px;color:#333;z-index:50;}
+  .ovbox{background:#fff;border-radius:14px;padding:22px 24px;width:420px;max-width:92vw;box-shadow:0 12px 40px rgba(0,0,0,.25);}
+  .ovbox h3{font-size:16px;margin-bottom:14px;}
+  .ovbox label{display:block;font-size:12px;color:#7a7770;margin:12px 0 4px;}
+  .ovbox input[type=text],.ovbox select{width:100%;padding:8px 10px;border:1px solid #d3d1c7;border-radius:8px;font-size:14px;box-sizing:border-box;}
+  .ovrow{display:flex;gap:8px;}.ovrow input{flex:1;}
+  .ovrow button,.ovbtns button{border:1px solid #d3d1c7;background:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;}
+  .ovchk{display:flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;color:#444;}
+  .ovbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;}
+  .ovbar{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin:14px 0 6px;}
+  .ovfill{height:100%;width:0;background:#185FA5;transition:width .3s;}
+  #ovPct{text-align:center;font-size:20px;font-weight:700;color:#185FA5;}
+  #ovDone{margin-top:14px;font-size:13px;line-height:1.7;color:#444;}
 </style></head><body>
 <div class="bar">
   <span class="title">審核定稿</span>
@@ -72,7 +84,23 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
 </div>
 <div id="doc"></div>
 <div class="hint">點字＝切換刪除，拖曳＝整段標記。紅底線＝疑似聽錯，滑過看講稿正確字。按「下一疑點」或 N 鍵逐一檢查 AI 動過、沒把握的地方。</div>
-<div id="ov">匯出中，請稍候…</div>
+<div id="ov"><div class="ovbox">
+  <div id="ovForm">
+    <h3>匯出設定</h3>
+    <label>輸出資料夾</label>
+    <div class="ovrow"><input type="text" id="expDir" placeholder="留空＝存到影片原資料夾"><button onclick="pickDir()">瀏覽</button></div>
+    <label>格式</label>
+    <select id="expFmt"><option value="mp4">MP4（H.264，通用）</option><option value="mov">MOV</option><option value="mkv">MKV</option><option value="mp3">只要音檔（MP3）</option></select>
+    <label class="ovchk"><input type="checkbox" id="expLossless"> 原畫質（近無損，檔案較大）</label>
+    <div class="ovbtns"><button onclick="closeOv()">取消</button><button class="btn-export" onclick="runExport()">開始匯出</button></div>
+  </div>
+  <div id="ovProg" style="display:none;">
+    <h3 id="ovStep">匯出中…</h3>
+    <div class="ovbar"><div class="ovfill" id="ovFill"></div></div>
+    <div id="ovPct">0%</div>
+    <div id="ovDone" style="display:none;"></div>
+  </div>
+</div></div>
 <script>
 var words=${DATA},autoSelected=new Set(${AUTO}),autoReasons=${REASONS};
 var SIL_REMOVE=${silRemove};
@@ -105,7 +133,27 @@ function rerunAI(){
     setTimeout(poll,1500);
   }).catch(function(){setTimeout(poll,2000);});}
 }
-function doExport(){var dl=segs().map(function(g){return{start:g.s,end:g.e};});if(!confirm('確認匯出？將刪減 '+dl.length+' 段'))return;var ov=document.getElementById('ov');ov.style.display='flex';fetch('${cutApiPath}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deleteList:dl,exportOptions:{}})}).then(function(r){return r.json();}).then(function(d){ov.style.display='none';if(d.success)alert('完成！\\n輸出：'+d.output+'\\n原 '+fmt(d.originalDuration)+' → 新 '+fmt(d.newDuration));else alert('失敗：'+(d.error||'未知'));}).catch(function(e){ov.style.display='none';alert('錯誤：'+e.message);});}
+function doExport(){document.getElementById('ovForm').style.display='block';document.getElementById('ovProg').style.display='none';document.getElementById('ov').style.display='flex';}
+function closeOv(){document.getElementById('ov').style.display='none';}
+function pickDir(){fetch('/api/native-browse-folder').then(function(r){return r.json();}).then(function(d){if(d.path)document.getElementById('expDir').value=d.path;}).catch(function(e){alert('選資料夾失敗：'+e.message);});}
+function setBar(p){document.getElementById('ovFill').style.width=p+'%';document.getElementById('ovPct').textContent=p+'%';}
+function expFail(m){document.getElementById('ovStep').textContent='匯出失敗';var dn=document.getElementById('ovDone');dn.style.display='block';dn.innerHTML='\\u274c '+m+'<div style="margin-top:12px;text-align:right"><button onclick="closeOv()">關閉</button></div>';}
+function runExport(){
+  var dl=segs().map(function(g){return{start:g.s,end:g.e};});
+  var fm=document.getElementById('expFmt').value;var audioOnly=(fm==='mp3');
+  var opt={outputDir:document.getElementById('expDir').value.trim(),container:audioOnly?'mp4':fm,audioOnly:audioOnly,lossless:document.getElementById('expLossless').checked};
+  document.getElementById('ovForm').style.display='none';document.getElementById('ovProg').style.display='block';
+  document.getElementById('ovDone').style.display='none';document.getElementById('ovStep').textContent='匯出中…';setBar(0);
+  fetch('${cutApiPath}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deleteList:dl,exportOptions:opt})}).then(function(r){return r.json();}).then(function(d){if(d&&d.error){expFail(d.error);return;}pollExport();}).catch(function(e){expFail(e.message);});
+}
+function pollExport(){fetch('/api/export-status').then(function(r){return r.json();}).then(function(s){
+  if(s.step)document.getElementById('ovStep').textContent=s.step;setBar(s.progress||0);
+  if(s.error){expFail(s.error);return;}
+  if(s.running===false){setBar(100);
+    if(s.result){var r=s.result;document.getElementById('ovStep').textContent='匯出完成 \\u2705';var dn=document.getElementById('ovDone');dn.style.display='block';dn.innerHTML='輸出：<code style="word-break:break-all">'+r.output+'</code><br>原 '+fmt(parseFloat(r.originalDuration))+' \\u2192 新 '+fmt(parseFloat(r.newDuration))+(r.srt?'<br>已附字幕 .srt':'')+'<div style="margin-top:14px;text-align:right"><button class="btn-export" onclick="closeOv()">完成</button></div>';}
+    return;}
+  setTimeout(pollExport,1000);
+}).catch(function(){setTimeout(pollExport,1500);});}
 render();
 </script></body></html>`;
 }
