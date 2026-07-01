@@ -10,13 +10,15 @@
 const fs = require('fs');
 const path = require('path');
 
-// OpenCC 簡繁轉換（cn → tw）
+// OpenCC 簡繁轉換（cn → twp）
+// twp = 台灣正體「含慣用詞」：不只轉字，還換詞彙（視頻→影片、軟件→軟體、鼠標→滑鼠、信息→資訊）。
+// 舊的 'tw' 只轉字不換詞，會留「中國腔繁體」。BytePlus 的 output_zh_variant 參數實測不支援，故靠 OpenCC。
 let toTrad;
 try {
   const opencc = require(path.join(__dirname, 'node_modules/opencc-js'));
-  const converter = opencc.Converter({ from: 'cn', to: 'tw' });
+  const converter = opencc.Converter({ from: 'cn', to: 'twp' });
   toTrad = converter;
-  console.log('✅ OpenCC 已啟用（簡體→繁體）');
+  console.log('✅ OpenCC 已啟用（簡體→台灣正體含慣用詞 twp）');
 } catch (e) {
   toTrad = s => s; // fallback: no conversion
   console.warn('⚠️ OpenCC 未安裝，跳過繁體轉換');
