@@ -10,15 +10,17 @@
 const fs = require('fs');
 const path = require('path');
 
-// OpenCC 簡繁轉換（cn → twp）
-// twp = 台灣正體「含慣用詞」：不只轉字，還換詞彙（視頻→影片、軟件→軟體、鼠標→滑鼠、信息→資訊）。
-// 舊的 'tw' 只轉字不換詞，會留「中國腔繁體」。BytePlus 的 output_zh_variant 參數實測不支援，故靠 OpenCC。
+// OpenCC 簡繁轉換（cn → tw，只轉字不換詞）
+// 刻意用 'tw' 而非 'twp'：忠實跟隨使用者實際說的話，只把簡體字換成繁體字。
+// twp 會「自作主張」把詞彙換成台灣標準詞（视频→影片），但它是硬套詞表、不看語意，會誤傷——
+// 實測把使用者說的「抄寫對象」改成「抄寫物件」（意思錯了）。故不用 twp。
+// 註：「视频/软件」這類是不同的詞、不同發音，講台灣話 ASR 本來就轉「影片/軟體」，不需 twp 強換。
 let toTrad;
 try {
   const opencc = require(path.join(__dirname, 'node_modules/opencc-js'));
-  const converter = opencc.Converter({ from: 'cn', to: 'twp' });
+  const converter = opencc.Converter({ from: 'cn', to: 'tw' });
   toTrad = converter;
-  console.log('✅ OpenCC 已啟用（簡體→台灣正體含慣用詞 twp）');
+  console.log('✅ OpenCC 已啟用（簡體→繁體 tw，忠實不換詞）');
 } catch (e) {
   toTrad = s => s; // fallback: no conversion
   console.warn('⚠️ OpenCC 未安裝，跳過繁體轉換');
