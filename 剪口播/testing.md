@@ -74,6 +74,10 @@ node verify_export.js --output <cut.mp4> --input <原片> --delete <delete_segme
 **退出碼**：0 = 通過（含 warn）／2 = 有 FAIL／3 = `--strict` 下有 warn。
 **advisory**：驗證問題只記 log、塞進 API 回應，**不阻斷**已完成的匯出（成品已產出，由人決定要不要重剪）。
 門檻常數集中在 `verify_export.js` 檔頭（`TOL_DURATION` / `SILENCE_MIN` / `AV_DRIFT_TOL`）。
+**MERGE_GAP 單一來源**（2026-07-02，audit P0#1）：時長對帳的刪除段合併規則不再自帶複製品，
+改 require `merge_delete_segments.js` —— 與 `cut_video.sh`（落地 `*.final.json`）、
+`generate_cut_srt.js`、`generate_cut_txt.js` 四個消費者同一份實作。
+對應單元測試：`node merge_delete_segments.test.js`（12 案例，含 SRT 端到端不漂移驗證）。
 
 ---
 
