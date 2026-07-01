@@ -102,6 +102,18 @@ module.exports = function convertAiToIndices(phrases, words) {
       }
     }
 
+    // ── 處理句中雜音字（inline_filler_trim.js 標記的嗯/呃/欸）──
+    // 欄位是「全域 word index」（非 phrase 內 local index），句子保留、只刪這幾個字
+    if (!phrase.aiDelete && Array.isArray(phrase.inlineFillerWordIndices)) {
+      for (const globalIdx of phrase.inlineFillerWordIndices) {
+        if (typeof globalIdx !== 'number' || globalIdx < 0) continue;
+        if (words && globalIdx >= words.length) continue;
+        selected.add(globalIdx);
+        const key = String(globalIdx);
+        if (!reasons[key]) reasons[key] = 'AI:inline_filler';
+      }
+    }
+
     // ── 處理 gap 刪除（過長停頓修剪）──
     if (phrase.gapDelete) {
       const gapGroup = collectGapGroup(phrase, words);

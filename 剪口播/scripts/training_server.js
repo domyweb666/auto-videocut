@@ -2245,6 +2245,14 @@ const server = http.createServer((req, res) => {
             await runAI('node', audArgs2, { timeout: 600000 });
           } catch (e) { cutState.log.push('⚠️ audit 失敗（繼續）: ' + e.message); }
 
+          // 句中雜音清理（與主 pipeline 4b-5 一致，漏跑會導致重跑後嗯/呃標記消失）
+          cutState.log.push('📐 [後處理] 句中 filler 清理...');
+          try {
+            await runAI('node', [path.join(SCRIPT_DIR, 'inline_filler_trim.js'),
+                                 cutState.sentencesPath, cutState.subtitlesPath],
+                        { timeout: 30000 });
+          } catch (e) { cutState.log.push('⚠️ inline filler 失敗（不阻塞）: ' + e.message); }
+
           // 字詞手術暫停（P=11% 無提升）
           // cutState.log.push('⏭️  [2f/6] 字詞手術已暫停');
         } else {
