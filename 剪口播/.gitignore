@@ -16,3 +16,10 @@ package-lock.json
 Thumbs.db
 .vscode/
 .idea/
+
+# 金鑰（OPENAI/BYTEPLUS API key，絕不進 git）
+.env
+scripts/.env
+
+# 臨時測試 fixture
+scripts/_t_merge/
