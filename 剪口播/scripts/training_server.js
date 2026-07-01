@@ -23,16 +23,24 @@ const convertAiToIndices = require('./convert_ai_to_indices'); // 句級 sentenc
 
 // 把 AI 句級結果（sentences.json）轉成審核頁吃的字級 auto_selected.json 並寫檔。
 // 8900 流程的 AI 判斷寫在句級 sentences.json，但審核頁 / 匯出讀字級 auto_selected.json，
-// 缺這一步會導致「AI 跑了但審核頁零標記」。回傳 {indices, reasons}，失敗回 null。
+// 缺這一步會導致「AI 跑了但審核頁零標記」。另外把 fuzzy 近似重錄併進預選（見下）。
+// 回傳 {indices, reasons}，AI 與 fuzzy 都沒東西（或缺檔）回 null。
 function writeAutoSelectedFromSentences(workDir) {
   try {
     const sentPath = path.join(workDir, '1_轉錄', 'sentences.json');
     const subsPath = path.join(workDir, '1_轉錄', 'subtitles_words.json');
-    if (!fs.existsSync(sentPath) || !fs.existsSync(subsPath)) return null;
-    const phrases = JSON.parse(fs.readFileSync(sentPath, 'utf8'));
-    if (!Array.isArray(phrases) || !phrases.some(s => s && s.aiDelete)) return null; // AI 沒標任何刪除 → 不寫
+    if (!fs.existsSync(subsPath)) return null;
     const words = JSON.parse(fs.readFileSync(subsPath, 'utf8'));
-    const { indices, reasons } = convertAiToIndices(phrases, words);
+    let indices = [], reasons = {}, hasAI = false;
+    if (fs.existsSync(sentPath)) {
+      const phrases = JSON.parse(fs.readFileSync(sentPath, 'utf8'));
+      if (Array.isArray(phrases) && phrases.some(s => s && s.aiDelete)) {
+        ({ indices, reasons } = convertAiToIndices(phrases, words));
+        hasAI = true;
+      }
+    }
+    const fuzzyAdded = fuzzyRetakePreselect(workDir, words, indices, reasons);
+    if (!hasAI && !fuzzyAdded) return null; // 什麼標記都沒有 → 不寫（審核頁無預選）
     const analysisDir = path.join(workDir, '2_分析');
     fs.mkdirSync(analysisDir, { recursive: true });
     fs.writeFileSync(path.join(analysisDir, 'auto_selected.json'),
@@ -41,6 +49,59 @@ function writeAutoSelectedFromSentences(workDir) {
   } catch (e) {
     console.error('⚠️ writeAutoSelectedFromSentences 失敗:', e.message);
     return null;
+  }
+}
+
+// Fuzzy 近似重錄 → 審核頁預選（人工確認後才會剪；不進 mergeRetakes 的全自動路徑）。
+// exact 重錄（detectRetakes）由匯出時 mergeRetakes 直接併時間段；這裡補的是
+// 「校正稿合併證據 + 相似度」抓到的近似 take（隔碎片 / 前綴略低 / 一兩字差）。
+// 把 fuzzy 時間段映射成 subtitles_words 的字級 indices 併入預選，原地改 indices/reasons。
+// 回傳併入的段數；任何失敗回 0（純加值功能，不影響既有標記）。
+function fuzzyRetakePreselect(workDir, words, indices, reasons) {
+  try {
+    const cfg = (() => { try { return JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) { return {}; } })();
+    const rt = cfg.retake || {};
+    if (rt.enabled === false || rt.fuzzy_preselect === false) return 0;
+    const src = resolveRetakeSource(workDir);
+    if (!src) return 0;
+    const { detectRetakesFuzzy } = require('./detect_retakes.js');
+    const wraw = JSON.parse(fs.readFileSync(src.path, 'utf8'));
+    const warr = Array.isArray(wraw) ? wraw : (wraw.words || wraw.segments || []);
+    let corrected = '';
+    const cPath = path.join(workDir, '1_轉錄', 'corrected_text.txt');
+    if (fs.existsSync(cPath)) corrected = fs.readFileSync(cPath, 'utf8');
+    const fuzzy = detectRetakesFuzzy(warr, corrected);
+    if (!fuzzy.length) return 0;
+    const sel = new Set(indices);
+    let added = 0;
+    for (const r of fuzzy) {
+      const hit = [];
+      words.forEach((w, i) => {
+        if (!w || typeof w.start !== 'number' || typeof w.end !== 'number') return;
+        const ov = Math.min(w.end, r.end) - Math.max(w.start, r.start);
+        if (ov <= 0) return;
+        // gap 元素沾到就算；文字 word 要蓋過 40% 時長才算（避免邊界字被誤標）
+        if (w.isGap ? ov > 0.05 : ov / Math.max(w.end - w.start, 0.01) >= 0.4) hit.push(i);
+      });
+      if (!hit.length) continue;
+      if (hit.every(i => sel.has(i))) continue; // AI 已整段標過 → 不重複記
+      hit.forEach(i => sel.add(i));
+      const key = `${hit[0]}-${hit[hit.length - 1]}`;
+      if (!reasons[key]) {
+        reasons[key] = `疑似重錄(相似${Math.round(r.sim * 100)}%)：刪「${r.phrase}」留「${r.next}」`;
+      }
+      added++;
+    }
+    if (added) {
+      const sorted = [...sel].sort((a, b) => a - b);
+      indices.length = 0;
+      sorted.forEach(i => indices.push(i));
+      console.log(`🔎 fuzzy 重錄預選 ${added} 段（審核頁確認後才會剪）`);
+    }
+    return added;
+  } catch (e) {
+    console.warn('[fuzzy重錄預選] 失敗(略過):', (e.message || '').split('\n')[0]);
+    return 0;
   }
 }
 
@@ -259,18 +320,29 @@ function buildRefined(subsPath, contentSegments, art, workDir, outBase) {
 // 把「重錄(false-start)」時間段併進內容刪除清單。
 // 吃校正前的原始 whisper_words.json（保留重複；乾淨稿的 subtitles_words 看不到重複 take）。
 // 無 whisper_words.json → 回傳原清單（向下相容，不影響既有行為）。
+// 訊號源解析：舊流程（gpt-4o 校正）用校正前的 whisper_words.json；
+// 新流程（byteplus --ddc off）沒有 whisper_words，但 subtitles_words 本身就是未清理逐字稿，
+// 重錄都看得到 → 直接當 fallback。兩者都缺才放棄（明確 log，不再靜默 no-op）。
+function resolveRetakeSource(workDir) {
+  const whisperPath = path.join(workDir, '1_轉錄', 'whisper_words.json');
+  if (fs.existsSync(whisperPath)) return { path: whisperPath, label: 'whisper_words（校正前）' };
+  const subsPath = path.join(workDir, '1_轉錄', 'subtitles_words.json');
+  if (fs.existsSync(subsPath)) return { path: subsPath, label: 'subtitles_words（ddc off 逐字稿）' };
+  return null;
+}
+
 function mergeRetakes(deleteList, workDir, tag) {
   try {
     const cfg0 = (() => { try { return JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) { return {}; } })();
     if ((cfg0.retake || {}).enabled === false) return deleteList;
-    const whisperPath = path.join(workDir, '1_轉錄', 'whisper_words.json');
-    if (!fs.existsSync(whisperPath)) return deleteList;
+    const src = resolveRetakeSource(workDir);
+    if (!src) { console.warn(`[重錄偵測] ${tag || ''}略過：無 whisper_words / subtitles_words 訊號源`); return deleteList; }
     const { detectRetakes } = require('./detect_retakes.js');
-    const words = JSON.parse(fs.readFileSync(whisperPath, 'utf8'));
+    const words = JSON.parse(fs.readFileSync(src.path, 'utf8'));
     const arr = Array.isArray(words) ? words : (words.words || words.segments || []);
     const retakes = detectRetakes(arr).map(r => ({ start: r.start, end: r.end }));
     if (!retakes.length) return deleteList;
-    console.log(`🔁 ${tag || ''}重錄併入 ${retakes.length} 段（來源 whisper_words，校正前）`);
+    console.log(`🔁 ${tag || ''}重錄併入 ${retakes.length} 段（來源 ${src.label}）`);
     // 合併 + 排序（cut_video/refine 吃有序不重疊清單較穩）
     const all = [...(deleteList || []).map(s => ({ start: s.start, end: s.end })), ...retakes]
       .sort((a, b) => a.start - b.start);

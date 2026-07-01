@@ -81,7 +81,9 @@
   },
   "retake": {
     "enabled": true,
-    "_note": "重錄(false-start)偵測（detect_retakes.js）。吃校正前的 whisper_words.json（保留重複），抓立即重錄並刪前留後。乾淨稿(subtitles_words)已被 gpt-4o 依 reference.txt 合併重複，剪輯層看不到 → 影片會留重複語音、字幕卻沒有。設 enabled:false 可關。門檻在 detect_retakes.js（MINLEN/MAXGAP/PREFIX_RATIO），PREFIX_RATIO 是排比句 vs 重錄的關鍵守門。"
+    "fuzzy_preselect": true,
+    "_note": "重錄(false-start)偵測（detect_retakes.js）。吃校正前的 whisper_words.json（保留重複），抓立即重錄並刪前留後。乾淨稿(subtitles_words)已被 gpt-4o 依 reference.txt 合併重複，剪輯層看不到 → 影片會留重複語音、字幕卻沒有。設 enabled:false 可關。門檻在 detect_retakes.js（MINLEN/MAXGAP/PREFIX_RATIO），PREFIX_RATIO 是排比句 vs 重錄的關鍵守門。",
+    "_note_fuzzy": "fuzzy_preselect：近似重錄（隔碎片/前綴略低/一兩字差）只做審核頁預選、不自動剪，使用者在審核頁確認。主要證據＝gpt-4o 校正稿把其中一次合併掉（排比句兩次都保留故不誤標）；無校正稿時退回高相似度門檻。門檻在 detect_retakes.js 的 FUZZY 常數。"
   },
   "_baseline_f1": 0.9683,
   "_best_f1": 0.9683

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** detect_retakes.js 單元測試（無外部依賴，node detect_retakes.test.js 直接跑）*/
 const assert = require('assert');
-const { detectRetakes } = require('./detect_retakes.js');
+const { detectRetakes, detectRetakesFuzzy } = require('./detect_retakes.js');
 
 // 用等長等距的假字級（每字 0.1s）造 whisper_words，方便斷言時間段。
 function W(text) {
@@ -47,6 +47,40 @@ t('gap 元素(isGap)被忽略、不影響字序', () => {
   words.push(...[...'那你需要口頭警告作為處罰尾'].map((ch, i) => ({ text: ch, start: +(3.4 + i * 0.1).toFixed(2), end: +(3.4 + (i + 1) * 0.1).toFixed(2), isGap: false })));
   const r = detectRetakes(words);
   assert.strictEqual(r.length, 1, `應偵測到 1 段跨 gap 的重錄，實得 ${r.length}`);
+});
+
+console.log('\ndetect_retakes fuzzy:');
+
+t('fuzzy：一兩字差 + 校正稿合併證據 → 標', () => {
+  // 「心裡沒有見過」→「心裡沒建立過」（exact 抓不到：最長共同子串只有 3 字）
+  const text = '因為你心裡沒有見過心裡沒建立過這個印象所以';
+  const corrected = '因為你心裡沒建立過這個印象所以'; // 校正稿只留一次
+  const r = detectRetakesFuzzy(W(text), corrected);
+  assert.strictEqual(r.length, 1, `應標 1 段，實得 ${JSON.stringify(r)}`);
+  assert.strictEqual(r[0].evidence, 'corrected-merge');
+});
+
+t('fuzzy：排比句（校正稿兩次都在）→ 不標', () => {
+  const text = '把它想像成是你自己而人的角色想像成是造物主它用演化';
+  const corrected = '把它想像成是你自己而人的角色想像成是造物主它用演化'; // 兩次都保留＝原稿本來就這樣
+  const r = detectRetakesFuzzy(W(text), corrected);
+  assert.strictEqual(r.length, 0, `排比不該標，實得 ${JSON.stringify(r)}`);
+});
+
+t('fuzzy：無校正稿時退回高相似度門檻', () => {
+  // 前綴只到一半（exact 的 PREFIX_RATIO 擋掉）但整體相似度高 → 無校正稿也標
+  const hi = detectRetakesFuzzy(W('你可以把它想像成獎勵你可以把它當作是獎勵後面繼續講'), '');
+  assert.strictEqual(hi.length, 1, `高相似無校正稿應標，實得 ${JSON.stringify(hi)}`);
+  // 相似度中等（差很多字）→ 無校正稿不標
+  const mid = detectRetakesFuzzy(W('所以你可以把它想想所以你可以想要整只羊狗後面'), '');
+  assert.strictEqual(mid.length, 0, `中相似無校正稿不該標，實得 ${JSON.stringify(mid)}`);
+});
+
+t('fuzzy：exact 已涵蓋的範圍會被減掉', () => {
+  // 這段是乾淨立即重錄 → exact 全包 → fuzzy 殘段 < MIN_RESIDUAL → 空
+  const text = '那你需要口頭警告作為警告那你需要口頭警告作為處罰後面';
+  const r = detectRetakesFuzzy(W(text), '那你需要口頭警告作為處罰後面');
+  assert.strictEqual(r.length, 0, `exact 已涵蓋不該重標，實得 ${JSON.stringify(r)}`);
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
