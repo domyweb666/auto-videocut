@@ -6,7 +6,7 @@
  * 逐一式（一個一個）、三連副本、最長單位優先、與規則 G 的分界（≤5 字）。
  */
 const assert = require('assert');
-const { findShortStutterRepeats } = require('../rule_utils');
+const { findShortStutterRepeats, findGappedRepeats } = require('../rule_utils');
 
 let passed = 0, failed = 0;
 function t(name, fn) {
@@ -121,6 +121,45 @@ t('空字串/超短字串安全', () => {
   assert.strictEqual(findShortStutterRepeats('').length, 0);
   assert.strictEqual(findShortStutterRepeats('好').length, 0);
   assert.strictEqual(findShortStutterRepeats('好的').length, 0);
+});
+
+console.log('\n## 規則 C3：句內隔字重複（findGappedRepeats）');
+
+const SKIP = new Set(['什麼', '這個', '那個', '就是', '一個', '我們', '覺得']);
+
+t('「我覺得呃我覺得」→ 刪前面的 A+中間', () => {
+  const hits = findGappedRepeats('我覺得呃我覺得很好', { commonSkip: SKIP });
+  assert.strictEqual(hits.length, 1);
+  assert.strictEqual(hits[0].fragment, '我覺得');
+  assert.deepStrictEqual([hits[0].deleteStart, hits[0].deleteEnd], [0, 4]);
+});
+
+t('中間是口頭禪詞「就是」也算口誤：「這本書就是這本書很棒」', () => {
+  const hits = findGappedRepeats('這本書就是這本書很棒', { commonSkip: SKIP });
+  assert.strictEqual(hits.length, 1);
+  assert.strictEqual(hits[0].fragment, '這本書');
+});
+
+t('中間是內容詞 → 列舉句型不動：「定位一個白板藍海戰略一個白板」', () => {
+  const hits = findGappedRepeats('定位一個白板藍海戰略一個白板', { commonSkip: SKIP });
+  assert.strictEqual(hits.length, 0, `列舉不該標，實得 ${JSON.stringify(hits)}`);
+});
+
+t('常見詞跳過：「什麼該捨棄什麼該採用」不動', () => {
+  assert.strictEqual(findGappedRepeats('什麼該捨棄什麼該採用', { commonSkip: SKIP }).length, 0);
+});
+
+t('零間隔（AA）不歸 C3 管（那是 C2 的）', () => {
+  assert.strictEqual(findGappedRepeats('我覺得我覺得', { commonSkip: SKIP }).length, 0);
+});
+
+t('間隔超過 maxGap 不動', () => {
+  // 中間 5 個「相異」遲疑字 > maxGap 4（相同遲疑字會自成 A?A 命中，那是合理行為）
+  assert.strictEqual(findGappedRepeats('這本書呃嗯啊欸哦這本書', { commonSkip: SKIP, maxGap: 4 }).length, 0);
+});
+
+t('正常句子不動', () => {
+  assert.strictEqual(findGappedRepeats('今天我們來聊一本關於習慣的書', { commonSkip: SKIP }).length, 0);
 });
 
 console.log(`\n結果: ${passed} 通過, ${failed} 失敗`);

@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 /**
+ * ⚠️ LEGACY（2026-07-02 盤點定調）：本引擎屬於已退役的 F1/訓練層。
+ *
+ * 現行 8900 白底流程走 phrase 級鏈：ai_polish → phrase_prefilter → ai_cut_pairs
+ * → convert_ai_to_indices（+ detect_retakes/cough 預選橋接，見 training_server.js）。
+ * 本檔僅供 batch_train / measure_rules_f1 / auto_optimize / autoresearch 等
+ * 訓練層腳本使用，不在剪片主線上。能力對照與搬移狀態見 repo 根目錄
+ * 《規則引擎盤點_2026-07.md》。改剪輯行為請改 phrase_prefilter.js，不要改這裡。
+ *
  * 純規則自動標記（不需要 AI，用於批量訓練）
  *
  * 實現 SKILL.md 步驟 4.4-4.5 的確定性規則：

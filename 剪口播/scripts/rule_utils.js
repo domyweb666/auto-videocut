@@ -126,6 +126,55 @@ function findShortStutterRepeats(text, opts = {}) {
   return hits;
 }
 
+// ── 句內隔字重複偵測（A + 中間 + A，口誤重說）──
+// 「我覺得呃我覺得」→ 刪前面的 A+中間，留後面的 A。
+// 關鍵守門：中間必須是「遲疑雜音/口頭禪」（呃/嗯/就是/那個…），不能是內容詞——
+// 「定位一個白板藍海戰略一個白板」是列舉句型（每本書一個白板），中間是內容詞，不是口誤。
+// 回傳 [{ fragment, deleteStart, deleteEnd }]，字元索引，deleteEnd 不含（刪 A+中間，保留後面的 A）。
+const DEFAULT_MIDDLE_FILLER_CHARS = '嗯啊呃欸哦噢唉哎呀誒喔';
+const DEFAULT_MIDDLE_FILLER_WORDS = ['就是', '那個', '這個', '然後', '所以', '就', '那', '這'];
+
+function findGappedRepeats(text, opts = {}) {
+  const minLen = opts.minLen ?? 2;
+  const maxLen = opts.maxLen ?? 4;
+  const maxGap = opts.maxGap ?? 4;
+  const commonSkip = opts.commonSkip instanceof Set ? opts.commonSkip : new Set(opts.commonSkip ?? []);
+  const fillerChars = opts.middleFillerChars ?? DEFAULT_MIDDLE_FILLER_CHARS;
+  const fillerWords = new Set(opts.middleFillerWords ?? DEFAULT_MIDDLE_FILLER_WORDS);
+  const fillerCharRe = new RegExp(`[${fillerChars}]`, 'g');
+  // 中間只能是遲疑雜音字 + 至多一個口頭禪詞
+  const isFillerMiddle = (mid) => {
+    const rest = mid.replace(fillerCharRe, '');
+    return rest === '' || fillerWords.has(rest);
+  };
+
+  const hits = [];
+  let scanFrom = 0;
+  for (let pos = 0; pos < text.length - minLen * 2; pos++) {
+    if (pos < scanFrom) continue;
+    let hit = null;
+    for (let len = Math.min(maxLen, Math.floor((text.length - 1) / 2)); len >= minLen; len--) {  // 長單位優先
+      if (pos + len * 2 + 1 > text.length) continue;
+      const fragment = text.slice(pos, pos + len);
+      if (commonSkip.has(fragment)) continue;
+      const searchStart = pos + len + 1;  // gap ≥1（gap=0 是立即重複的範圍）
+      const searchEnd = Math.min(pos + len + maxGap, text.length - len);
+      for (let pos2 = searchStart; pos2 <= searchEnd; pos2++) {
+        if (text.slice(pos2, pos2 + len) !== fragment) continue;
+        if (!isFillerMiddle(text.slice(pos + len, pos2))) continue;  // 中間是內容詞 → 列舉/排比，不是口誤
+        hit = { fragment, deleteStart: pos, deleteEnd: pos2 };
+        break;
+      }
+      if (hit) break;
+    }
+    if (hit) {
+      hits.push(hit);
+      scanFrom = hit.deleteEnd;  // 後面的 A 保留，從它開始繼續掃
+    }
+  }
+  return hits;
+}
+
 // ── 讀取 training_config.json 與保留連接詞 ──
 function loadTrainingConfig(scriptDir) {
   const fs = require('fs');
@@ -162,6 +211,7 @@ module.exports = {
   findGapRuns,
   findShortStutterRepeats,
   DEFAULT_REDUP_WHITELIST,
+  findGappedRepeats,
   loadTrainingConfig,
   loadProtectedWords,
 };

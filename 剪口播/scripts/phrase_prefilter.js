@@ -28,6 +28,7 @@ const {
   bigramSimilarity,
   lcsRatio: computeLcsRatio,
   findShortStutterRepeats,
+  findGappedRepeats,
   loadTrainingConfig,
   loadProtectedWords,
 } = require('./rule_utils');
@@ -383,6 +384,83 @@ if (SHORT_STUTTER_ENABLED && wordsData) {
 }
 log(`規則 C2 單元立即重複: ${shortStutterCount} 個 phrase / ${shortStutterWords} 個 word`);
 
+// ── 規則 C3：句內隔字重複（A + 中間 + A，口誤重說）──
+// 移植自 legacy auto_select_rules.js 規則 6：「我覺得呃我覺得」→ 刪前面的 A+中間，留後面的 A。
+// 與 C2 分工：C2 抓零間隔（AA），C3 抓隔 1~max_gap 字（A?A）。
+// 兩道守門：常見詞跳過（config 鍵沿用 legacy 的 intra_repeat）＋「中間必須是遲疑詞」
+// （實測「定位一個白板藍海戰略一個白板」列舉句型會誤殺，中間是內容詞就不是口誤）。
+const INTRA_GAP_ENABLED = trainConfig.intra_repeat?.enabled ?? true;
+const INTRA_GAP_MIN     = parseInt(trainConfig.intra_repeat?.min_len ?? 2, 10);
+const INTRA_GAP_MAX     = parseInt(trainConfig.intra_repeat?.max_len ?? 4, 10);
+const INTRA_GAP_MAXGAP  = parseInt(trainConfig.intra_repeat?.max_gap ?? 4, 10);
+const INTRA_COMMON_SKIP = new Set(trainConfig.intra_repeat?.common_skip ?? [
+  '什麼', '這個', '那個', '就是', '一個', '不是', '可以', '因為',
+  '所以', '但是', '而且', '還是', '如果', '然後', '已經', '或者',
+  '需要', '沒有', '他們', '我們', '你們', '這些', '那些', '自己',
+  '其實', '比較', '應該', '可能', '一樣', '知道', '覺得', '開始',
+]);
+let intraGapCount = 0;
+let intraGapWords = 0;
+if (INTRA_GAP_ENABLED && wordsData) {
+  for (let i = 0; i < phrases.length; i++) {
+    if (deletedSet.has(i)) continue;
+    const ph = phrases[i];
+    const text = (ph.text || '').trim();
+    if (text.length < INTRA_GAP_MIN * 2 + 1) continue;
+
+    const hits = findGappedRepeats(text, {
+      minLen: INTRA_GAP_MIN,
+      maxLen: INTRA_GAP_MAX,
+      maxGap: INTRA_GAP_MAXGAP,
+      commonSkip: INTRA_COMMON_SKIP,
+      middleFillerChars: trainConfig.intra_repeat?.middle_filler_chars,
+      middleFillerWords: trainConfig.intra_repeat?.middle_filler_words,
+    });
+    if (hits.length === 0) continue;
+
+    // word 字元邊界表 + 健全性檢查（同 C2）
+    const wis = ph.wordIndices || [];
+    if (wis.length === 0) continue;
+    const bounds = [];
+    let cumLen = 0;
+    let mappingOk = true;
+    for (let k = 0; k < wis.length; k++) {
+      const w = wordsData[wis[k]];
+      if (!w) { mappingOk = false; break; }
+      const wLen = (w.text || '').length;
+      bounds.push([cumLen, cumLen + wLen]);
+      cumLen += wLen;
+    }
+    if (!mappingOk || cumLen !== text.length) continue;
+
+    // 守門：與 G/C2 已刪的字重疊的 hit 跳過
+    const preDeleted = new Set(ph.wordDeleteIdx || []);
+    const activeHits = preDeleted.size === 0 ? hits : hits.filter(h =>
+      ![...preDeleted].some(k => bounds[k] && bounds[k][0] < h.deleteEnd && bounds[k][1] > h.deleteStart));
+    if (activeHits.length === 0) continue;
+
+    const localIdxToDelete = [];
+    for (let k = 0; k < wis.length; k++) {
+      const [ws, we] = bounds[k];
+      if (activeHits.some(h => ws >= h.deleteStart && we <= h.deleteEnd)) {
+        localIdxToDelete.push(k);
+      }
+    }
+    if (localIdxToDelete.length === 0) continue;
+
+    const merged = new Set(ph.wordDeleteIdx || []);
+    localIdxToDelete.forEach(k => merged.add(k));
+    ph.wordDeleteIdx = [...merged].sort((a, b) => a - b);
+    const desc = activeHits.map(h => `「${h.fragment}」`).join('、');
+    ph.wordDeleteReason = ph.wordDeleteReason
+      ? `${ph.wordDeleteReason}; intra_gap_repeat: ${desc}`
+      : `intra_gap_repeat: ${desc} 口誤重說，刪前留後`;
+    intraGapCount++;
+    intraGapWords += localIdxToDelete.length;
+  }
+}
+log(`規則 C3 句內隔字重複: ${intraGapCount} 個 phrase / ${intraGapWords} 個 word`);
+
 // ── 規則 D：Take grouping（鏈式相似，保留最後）──
 let takeCount = 0;
 {
@@ -488,6 +566,42 @@ for (let i = 0; i < phrases.length; i++) {
   discourseCount++;
 }
 log(`規則 F 話語標記: ${discourseCount} 個`);
+
+// ── 規則 F2：放棄句首（移植自 legacy auto_select_rules.js 規則 14）──
+// 說了連接詞開頭但沒說完就停下重講：「那這樣就會…」[停頓] →「那這個概念的意思是…」
+// 短 phrase（≤ max_chars）+ 連接詞開頭 + 後面有停頓（gapAfter ≥ min_gap_sec）+ 下一句更長 → 整句刪。
+// 與規則 F 分工：F 抓非語言雜音/招呼開頭，F2 抓連接詞開頭的半途放棄。
+const ABANDONED_ENABLED    = trainConfig.abandoned_start?.enabled ?? true;
+const ABANDONED_MAX_CHARS  = parseInt(trainConfig.abandoned_start?.max_chars ?? 8, 10);
+const ABANDONED_MIN_GAP    = parseFloat(trainConfig.abandoned_start?.min_gap_sec ?? 0.5);
+const ABANDONED_CONNECTORS = trainConfig.abandoned_start?.connectors ?? [
+  '那', '那麼', '那個', '那這', '所以', '但是', '但', '然後', '而且', '可是',
+  '就是說', '因為', '如果', '不過', '而',
+];
+let abandonedCount = 0;
+if (ABANDONED_ENABLED) {
+  for (let i = 0; i < phrases.length - 1; i++) {
+    if (deletedSet.has(i)) continue;
+    const t = getText(phrases[i]);
+    if (t.length < 2 || t.length > ABANDONED_MAX_CHARS) continue;
+    if (!ABANDONED_CONNECTORS.some(c => c && t.startsWith(c))) continue;
+    // 後面要有真實停頓（講到一半停下來的證據）
+    const gapAfter = phrases[i].gapAfter;
+    if (typeof gapAfter !== 'number' || gapAfter < ABANDONED_MIN_GAP) continue;
+    // 下一句要更長（重講的完整版）
+    if (deletedSet.has(i + 1)) continue;
+    if (getText(phrases[i + 1]).length <= t.length) continue;
+
+    ruleDeletions.push({
+      phraseIdx: i,
+      rule: 'abandoned_start',
+      reason: `放棄句首: 「${t}」（連接詞開頭+停頓 ${gapAfter.toFixed(1)}s+下句更長）`,
+    });
+    deletedSet.add(i);
+    abandonedCount++;
+  }
+}
+log(`規則 F2 放棄句首: ${abandonedCount} 個`);
 
 // ── 候選對抽取 ──
 // 在 rule 未觸發的 phrase 之間找語意相似對，給 AI 判斷

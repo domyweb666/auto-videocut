@@ -48,7 +48,8 @@
    輸出: google_result.json → subtitles_words.json
 
 2. 分析
-   generate_subtitles.js → auto_select_rules.js → ai_cut_pairs.js
+   ai_polish.js → phrase_prefilter.js → ai_cut_pairs.js → convert_ai_to_indices
+   （auto_select_rules.js 已標 legacy，僅訓練層用；見 規則引擎盤點_2026-07.md）
    輸入: subtitles_words.json + training_config.json + 用户习惯/
    輸出: auto_selected.json（含 reasons）+ 口誤分析.md
 
