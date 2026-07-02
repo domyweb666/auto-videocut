@@ -164,29 +164,45 @@ function autoContentPreselect(workDir, words, indices, reasons) {
   }
 }
 
-// 估算匯出時 pause_flatten 會扣掉的靜音秒數（給審核頁「剪後」顯示真正的匯出長度）。
-// 缺 silences.json 就現場用 detect_silences 補產（匯出時本來也要）。pause_flatten 關閉或無音檔 → 回 0。
-function estimateSilenceRemovalSec(workDir) {
+// 估算匯出時苦工層（壓平/吸附/刀口原子化）會「額外」扣掉的秒數（給審核頁「剪後」顯示）。
+// audit #14：舊做法自己掃 silences 疊加 (len−target)——重複扣「已在刪除段內」的靜音、
+// 沒套兩段式壓平與文意分流 → 高估。改為 refine_segments 乾跑（與匯出同一套邏輯），
+// 取「refined 總刪除 − 內容刪除」的差值。任何一步失敗 → 回 0（估算是資訊性的，不擋頁面）。
+function estimateSilenceRemovalSec(workDir, words, autoSelectedIdx) {
   try {
-    let cfg = {};
-    cfg = readTrainingConfig();
-    const PF = cfg.pause_flatten || {};
-    if (PF.enabled === false) return 0;
-    const target = PF.target_sec ?? 0.3, floor = PF.floor_sec ?? 0.2;
-    const silPath = path.join(workDir, '2_分析', 'silences.json');
+    const cfg = readTrainingConfig();
+    if ((cfg.pause_flatten || {}).enabled === false) return 0;
+    const subsPath = path.join(workDir, '1_轉錄', 'subtitles_words.json');
     const audioPath = path.join(workDir, '1_轉錄', 'audio.mp3');
-    if (!fs.existsSync(silPath) && fs.existsSync(audioPath)) {
+    const analysisDir = path.join(workDir, '2_分析');
+    const art = {
+      rms: path.join(analysisDir, 'audio_rms.json'),
+      sil: path.join(analysisDir, 'silences.json'),
+      ok: fs.existsSync(audioPath) && fs.existsSync(subsPath),
+    };
+    if (!art.ok) return 0;
+    if (!fs.existsSync(art.sil)) {
       try {
-        fs.mkdirSync(path.join(workDir, '2_分析'), { recursive: true });
-        require('child_process').execFileSync('node', [path.join(SCRIPT_DIR, 'detect_silences.js'), audioPath, silPath], { stdio: 'pipe', maxBuffer: 50 * 1024 * 1024 });
+        fs.mkdirSync(analysisDir, { recursive: true });
+        require('child_process').execFileSync('node', [path.join(SCRIPT_DIR, 'detect_silences.js'), audioPath, art.sil], { stdio: 'pipe', maxBuffer: 50 * 1024 * 1024 });
       } catch (_) {}
     }
-    if (!fs.existsSync(silPath)) return 0;
-    let raw = JSON.parse(fs.readFileSync(silPath, 'utf8'));
-    raw = Array.isArray(raw) ? raw : (raw.silences || []);
-    let removed = 0;
-    for (const s of raw) { const len = s.end - s.start; if (len >= floor && len > target) removed += (len - target); }
-    return removed;
+    if (!fs.existsSync(art.sil)) return 0;
+    // 預選 indices → 內容刪除段：與審核頁 segs() 同規則（相鄰間隔 <0.05s 即併）
+    const idx = Array.from(autoSelectedIdx || []).filter(i => words && words[i]).sort((a, b) => a - b);
+    const content = [];
+    for (const i of idx) {
+      const w = words[i];
+      const last = content[content.length - 1];
+      if (last && w.start - last.end < 0.05) last.end = Math.max(last.end, w.end);
+      else content.push({ start: w.start, end: w.end });
+    }
+    const refinedPath = buildRefined(subsPath, content, art, workDir, 'delete_segments.estimate.refined.json');
+    if (!refinedPath) return 0;
+    let refined = JSON.parse(fs.readFileSync(refinedPath, 'utf8'));
+    refined = Array.isArray(refined) ? refined : (refined.segments || []);
+    const sum = a => a.reduce((t, s) => t + Math.max(0, s.end - s.start), 0);
+    return Math.max(0, sum(refined) - sum(content));
   } catch (_) { return 0; }
 }
 
@@ -1021,7 +1037,7 @@ const server = http.createServer((req, res) => {
       const enc = encodeURIComponent(videoName);
       const html = buildReviewDoc(words, autoSelected, autoReasons, {
         cutApiPath: `/api/cut/${enc}`,
-        silenceRemovalSec: estimateSilenceRemovalSec(ctx.workDir),
+        silenceRemovalSec: estimateSilenceRemovalSec(ctx.workDir, words, autoSelected),
       });
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);
