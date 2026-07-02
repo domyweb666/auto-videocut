@@ -83,5 +83,28 @@ t('fuzzy：exact 已涵蓋的範圍會被減掉', () => {
   assert.strictEqual(r.length, 0, `exact 已涵蓋不該重標，實得 ${JSON.stringify(r)}`);
 });
 
+console.log('\ndetect_retakes 幻覺守門:');
+
+t('whisper 幻覺複寫（第二份 take 時間戳塌陷）→ 不標', () => {
+  // 真實案例：「是基於當時原始人類的規則」whisper 複寫兩次，第二份全部 0 長度擠在同一時間點
+  const words = [...'是為了幫助原始人類更好的生存'].map((ch, i) => ({ text: ch, start: +(i * 0.2).toFixed(2), end: +((i + 1) * 0.2).toFixed(2), isGap: false }));
+  let t0 = words[words.length - 1].end;
+  // take1：正常時間戳
+  [...'是基於當時原始人類的規則'].forEach((ch, i) => words.push({ text: ch, start: +(t0 + i * 0.18).toFixed(2), end: +(t0 + (i + 1) * 0.18).toFixed(2), isGap: false }));
+  const t1 = words[words.length - 1].end;
+  // take2：幻覺——全部塌在同一時間點（0 長度）
+  [...'是基於當時原始人類的規則'].forEach(ch => words.push({ text: ch, start: t1, end: t1, isGap: false }));
+  [...'可是問題是現在環境變了'].forEach((ch, i) => words.push({ text: ch, start: +(t1 + 0.02 + i * 0.2).toFixed(2), end: +(t1 + 0.02 + (i + 1) * 0.2).toFixed(2), isGap: false }));
+  const ex = detectRetakes(words);
+  assert.strictEqual(ex.length, 0, `exact 不該把幻覺當重錄，實得 ${JSON.stringify(ex)}`);
+  const fz = detectRetakesFuzzy(words, '');
+  assert.strictEqual(fz.length, 0, `fuzzy 不該把幻覺當重錄，實得 ${JSON.stringify(fz)}`);
+});
+
+t('正常時間戳的真重錄不受守門影響', () => {
+  const r = detectRetakes(W('那你需要口頭警告作為警告那你需要口頭警告作為處罰後面'));
+  assert.strictEqual(r.length, 1);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

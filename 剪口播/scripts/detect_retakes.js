@@ -44,6 +44,23 @@ function buildCharSeq(words) {
   return seq;
 }
 
+// 幻覺守門：whisper 有時會把同一句「複寫」兩次，把第二份的字全部塞成 0 長度時間戳
+// （實測：「是基於當時原始人類的規則」×2，第二份 11 字擠在 0.6s、多數字 start==end，
+// 原片實際只講一次）。真人語速中文 ≥0.12s/字；take 的字均時長低於 MIN_SEC_PER_CHAR
+// 就當幻覺跳過——這種「重複」是轉錄假象，下刀會砍掉真內容。
+const MIN_SEC_PER_CHAR = 0.06; // 真人中文語速 ≥0.12s/字，低於此值不可能是真的講了兩次
+const ZERO_CHAR_SEC = 0.02;    // 單字時長低於此 ≈ 塌陷字
+const ZERO_FRAC = 0.4;         // 區間內塌陷字占比超過此 → 幻覺
+function isHallucinatedSpan(seq, p, len) {
+  if (len <= 0) return false;
+  const last = Math.min(p + len - 1, seq.length - 1);
+  const span = seq[last].end - seq[p].start;
+  if (span < len * MIN_SEC_PER_CHAR) return true;
+  let zero = 0;
+  for (let i = p; i <= last; i++) if (seq[i].end - seq[i].start < ZERO_CHAR_SEC) zero++;
+  return zero / len > ZERO_FRAC; // 跨區配對（一半正常一半塌陷）也擋得住
+}
+
 function detectRetakes(words) {
   const seq = buildCharSeq(words);
   const S = seq.map(x => x.ch).join('');
@@ -69,6 +86,8 @@ function detectRetakes(words) {
         // 共同前綴長度：從 p1、p2 同步往後比，直到岔開。重錄→接近整段；排比→只到錨點尾。
         let cp = 0; while (p1 + cp < p2 && S[p1 + cp] === S[p2 + cp]) cp++;
         if (cp < takeLen * PREFIX_RATIO) continue;    // 前綴太短 → 是排比/巧合開頭，不是重錄
+        // 任一 take 時長塌陷 → whisper 幻覺複寫，不是真重錄
+        if (isHallucinatedSpan(seq, p1, takeLen) || isHallucinatedSpan(seq, p2, takeLen)) continue;
         results.push({
           start: seq[p1].start,
           end: seq[p2].start,                         // 刪到「後一個 take 起點」為止
@@ -165,6 +184,8 @@ function detectRetakesFuzzy(words, correctedText, opts = {}) {
         const probeB = B.slice(0, Math.min(B.length, o.PROBE_LEN));
         const merged = !!C && !(C.includes(probeA) && C.includes(probeB));
         if (sim < o.SIM_SOLO && !merged) continue;
+        // 任一 take 時長塌陷 → whisper 幻覺複寫（同 exact 層守門）
+        if (isHallucinatedSpan(seq, p1, takeLen) || isHallucinatedSpan(seq, p2, takeLen)) continue;
         cands.push({
           start: seq[p1].start, end: seq[p2].start,
           phrase: A, next: B, sim,
