@@ -277,15 +277,21 @@ function openReview(){if(baseName)window.open('/review/'+encodeURIComponent(base
 const { getAvailableEncoders } = require('./encoder_utils');
 
 // ── 匯出後驗證：呼叫 verify_export.js，回傳解析後結果（永不 throw，驗證問題不阻斷匯出）──
-function runVerify(outputFile, inputFile, deleteSegmentsPath, tag = '') {
+// extra = { srt, subtitles, silences }：有給 srt+subtitles 就多跑「逐字對帳」（SRT 文字 vs 保留字，FAIL 級）
+function runVerify(outputFile, inputFile, deleteSegmentsPath, tag = '', extra = {}) {
   try {
     const verifyScript = path.join(__dirname, 'verify_export.js');
     if (!fs.existsSync(verifyScript)) return null;
+    const vArgs = [verifyScript, '--output', outputFile, '--input', inputFile, '--delete', deleteSegmentsPath, '--json'];
+    if (extra.srt && extra.subtitles) {
+      vArgs.push('--srt', extra.srt, '--subtitles', extra.subtitles);
+      if (extra.silences) vArgs.push('--silences', extra.silences);
+    }
     let stdout;
     try {
       stdout = execFileSync(
         'node',
-        [verifyScript, '--output', outputFile, '--input', inputFile, '--delete', deleteSegmentsPath, '--json'],
+        vArgs,
         { encoding: 'utf8' }
       );
     } catch (e) {
@@ -1196,7 +1202,7 @@ const server = http.createServer((req, res) => {
                 const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
                 srtFile = outputFile.replace(/\.[^/.]+$/, '.srt');
                 if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath))
-                  execFileSync('node', [srtScript, subtitlesPath, cutDeleteFile, srtFile], { stdio: 'pipe' });
+                  execFileSync('node', [srtScript, subtitlesPath, cutDeleteFile, srtFile, '--silences', _art.sil], { stdio: 'pipe' });
               } catch (srtErr) { console.error(`⚠️ [${videoName}] SRT 失敗:`, srtErr.message); srtFile = null; }
             }
             // 純文字文稿 TXT（依標點分段，跟審核頁文稿一致；音檔匯出也產，文稿一樣有用）
@@ -1211,7 +1217,12 @@ const server = http.createServer((req, res) => {
             const originalDuration = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + ctx.videoPath], { encoding: 'utf8' }).trim());
             const newDuration = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + outputFile], { encoding: 'utf8' }).trim());
             const deletedDuration = originalDuration - newDuration;
-            const verify = runVerify(outputFile, ctx.videoPath, cutDeleteFile, `[${videoName}] `);
+            // 逐字對帳：SRT 文字 vs 保留字（同一份 subtitles/刪除檔/靜音），一字之差 = FAIL
+            const verify = runVerify(outputFile, ctx.videoPath, cutDeleteFile, `[${videoName}] `, {
+              srt: srtFile,
+              subtitles: path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json'),
+              silences: _art.sil,
+            });
             exportState.result = {
               output: outputFile, srt: srtFile, txt: txtFile,
               originalDuration: originalDuration.toFixed(2), newDuration: newDuration.toFixed(2),
@@ -2490,19 +2501,7 @@ const server = http.createServer((req, res) => {
           cutState.log.push('✅ 剪輯完成: ' + outputFile);
           cutState.progress = 90;
 
-          // ── 匯出後自動驗證（verify_export，advisory：不影響已完成的匯出）──
-          // 用實際落刀的 cutDeleteFile（refined），verify 才對得上輸出
-          const verify = runVerify(outputFile, cutState.videoPath, cutDeleteFile);
-          cutState.verify = verify;
-          if (verify) {
-            const fails = verify.checks.filter(c => c.level === 'fail');
-            const warns = verify.checks.filter(c => c.level === 'warn');
-            if (fails.length)      cutState.log.push('❌ 匯出驗證 FAIL：' + fails.map(c => `${c.name} — ${c.msg}`).join('; '));
-            else if (warns.length) cutState.log.push('⚠️ 匯出驗證警示：' + warns.map(c => `${c.name} — ${c.msg}`).join('; '));
-            else                   cutState.log.push('✅ 匯出驗證全數通過');
-          }
-
-          // SRT 字幕匯出
+          // SRT 字幕匯出（先產 SRT，verify 的逐字對帳才有得驗）
           if (exportSrt) {
             const srtOutput = outputFile.replace(/\.(mp4|mkv|mov)$/i, '.srt');
             try {
@@ -2511,13 +2510,30 @@ const server = http.createServer((req, res) => {
                 path.join(SCRIPT_DIR, 'generate_cut_srt.js'),
                 cutState.subtitlesPath,
                 cutDeleteFile,
-                srtOutput
+                srtOutput,
+                '--silences', art.sil
               ], { cwd: cutState.workDir });
               cutState.log.push('✅ SRT 字幕已生成');
               cutState.outputSrt = srtOutput;
             } catch (srtErr) {
               cutState.log.push('⚠️ SRT 生成失敗: ' + srtErr.message);
             }
+          }
+
+          // ── 匯出後自動驗證（verify_export，advisory：不影響已完成的匯出）──
+          // 用實際落刀的 cutDeleteFile（refined），verify 才對得上輸出；有 SRT 就加逐字對帳
+          const verify = runVerify(outputFile, cutState.videoPath, cutDeleteFile, '', {
+            srt: cutState.outputSrt,
+            subtitles: cutState.subtitlesPath,
+            silences: art.sil,
+          });
+          cutState.verify = verify;
+          if (verify) {
+            const fails = verify.checks.filter(c => c.level === 'fail');
+            const warns = verify.checks.filter(c => c.level === 'warn');
+            if (fails.length)      cutState.log.push('❌ 匯出驗證 FAIL：' + fails.map(c => `${c.name} — ${c.msg}`).join('; '));
+            else if (warns.length) cutState.log.push('⚠️ 匯出驗證警示：' + warns.map(c => `${c.name} — ${c.msg}`).join('; '));
+            else                   cutState.log.push('✅ 匯出驗證全數通過');
           }
 
           // ── A/B 對比模式：A 完成後再跑 B 版 ──

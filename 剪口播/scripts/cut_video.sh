@@ -172,7 +172,7 @@ AUDIO_ARGS="-c:a aac -b:a 128k"
 FADE_DUR="${CUT_FADE_DUR:-0.03}"
 
 if [ "$CUT_LOSSLESS" = "1" ]; then
-  echo "💎 無損模式：音訊 stream copy、影片 libx264 CRF 17（忽略解析度/codec）"
+  echo "💎 無損模式：影片 libx264 CRF 17（忽略解析度/codec）；音訊：單段 copy／多段改走單趟 256k AAC 保口型同步"
   ENCODER="libx264"
   ENCODER_ARGS="-crf 17 -preset slow -profile:v $X264_PROFILE"
   ENCODER_LABEL="libx264 CRF 17 (近無損)"
@@ -300,7 +300,12 @@ fi
 # 可用 CUT_SINGLE_PASS=1 強制開、=0 強制關。
 SINGLE_PASS_THRESHOLD="${CUT_SINGLE_PASS_THRESHOLD:-12}"
 USE_SINGLE_PASS=0
-if [ "$CUT_LOSSLESS" != "1" ] && [ "$TOTAL_SEGS" -gt "$SINGLE_PASS_THRESHOLD" ]; then USE_SINGLE_PASS=1; fi
+if [ "$TOTAL_SEGS" -gt "$SINGLE_PASS_THRESHOLD" ]; then USE_SINGLE_PASS=1; fi
+# 無損模式：多段 concat 的音訊 copy 在每個接點被 AAC 框邊界取整，音相對畫每段多 ~18ms，
+# 段數一多嘴型越到後面越對不上（實測 106 段 +1.9s）。只要真的有切（>1 段）一律改走單趟：
+# 影片維持 CRF17 近無損，音訊改「一次性」256k AAC 重編（copy 過不了 atrim 濾鏡；只損失這一代，
+# 換取影音同一條濾鏡時間軸、零接點漂移）。口型同步優先於音訊零重編，使用者 2026-07-02 拍板。
+if [ "$CUT_LOSSLESS" = "1" ] && [ "$TOTAL_SEGS" -gt 1 ]; then USE_SINGLE_PASS=1; fi
 [ "$CUT_SINGLE_PASS" = "1" ] && USE_SINGLE_PASS=1
 [ "$CUT_SINGLE_PASS" = "0" ] && USE_SINGLE_PASS=0
 
@@ -346,8 +351,10 @@ parts.push('[vc]'+(scale?scale:'null')+'[v]');
 fs.writeFileSync('$TMP_DIR/filt.txt', parts.join(';'));
 " "$SCALE_FILTER"
   if [ "$CUT_LOSSLESS" = "1" ]; then
+    # 濾鏡輸出無法 -c:a copy，音訊在此一次性重編 256k AAC（透明級；見上方無損單趟說明）
+    echo "💎 無損單趟：影片 $ENCODER_LABEL、音訊 256k AAC 一次重編（保口型同步）"
     ffmpeg -y -v error -stats -i "file:$INPUT" -filter_complex_script "$TMP_DIR/filt.txt" \
-      -map "[v]" -map "[a]" -c:v $ENCODER $ENCODER_ARGS -pix_fmt $PIX_FMT $FPS_ARGS $AUDIO_ARGS $MOVFLAGS_ARGS "file:$OUTPUT"
+      -map "[v]" -map "[a]" -c:v $ENCODER $ENCODER_ARGS -pix_fmt $PIX_FMT $FPS_ARGS -c:a aac -b:a 256k $MOVFLAGS_ARGS "file:$OUTPUT"
   else
     ffmpeg -y -v error -stats -i "file:$INPUT" -filter_complex_script "$TMP_DIR/filt.txt" \
       -map "[v]" -map "[a]" -c:v $ENCODER $ENCODER_ARGS -b:v ${BITRATE_K}k -maxrate ${MAXRATE_K}k -bufsize ${BUFSIZE_K}k \

@@ -39,19 +39,17 @@ node compare_transcriptions.js \
 
 ### L3 — 單元測試（修改純函式時）
 
-目前尚未建立 `scripts/test/` 目錄。
+現有測試檔（在 `scripts/` 根目錄，直接 `node <檔名>` 跑）：
+- `refine_segments.test.js` — 停頓壓平/切點吸附/刀口原子化/文意分流（25 案例）
+- `detect_retakes.test.js` — 重錄 exact/fuzzy/遠距/near-exact/幻覺守門（19 案例）
+- `merge_delete_segments.test.js` — MERGE_GAP 合併（12 案例）
 
-純函式候選（適合寫 node:test）：
-- `srt_reverse_align.js` — 反向對齊邏輯
-- `compare_transcriptions.js` — F1 計算邏輯
-- `rule_utils.js` — 規則工具函式
-
-**建立方式**（當規則 01 觸發時）：
 ```bash
-mkdir scripts/test
-# 建 scripts/test/srt_reverse_align.test.js 等
-node --test scripts/test/
+cd scripts
+node refine_segments.test.js; node detect_retakes.test.js; node merge_delete_segments.test.js
 ```
+
+純函式候選（尚未覆蓋）：`srt_reverse_align.js`、`compare_transcriptions.js`、`rule_utils.js`、`kept_words.js`
 
 ---
 
@@ -62,14 +60,22 @@ node --test scripts/test/
 
 ```bash
 # 也可手動單獨跑（任何 _cut.mp4 都行）
-node verify_export.js --output <cut.mp4> --input <原片> --delete <delete_segments.json>
+node verify_export.js --output <cut.mp4> --input <原片> --delete <delete_segments.json> \
+  [--srt <cut.srt> --subtitles <subtitles_words.json> --silences <silences.json>]
 ```
 
 | 檢查 | 等級 | 門檻 |
 |------|------|------|
 | 時長對帳（keepSegs 預計 vs ffprobe 實際） | **FAIL** | 落差 > 0.5s |
 | 殘留長靜音（silencedetect 掃成品） | WARN | -30dB / > 1.5s（排除頭尾 1.2s） |
-| 音畫漂移（video 流 vs audio 流時長） | WARN | 差 > 0.3s |
+| 音畫漂移（video 流 vs audio 流時長） | **FAIL**（2026-07-03 由 WARN 升級） | 差 > 0.3s |
+| 逐字對帳（SRT 文字 vs 保留字，2026-07-03 新增） | **FAIL** | 一字之差即 FAIL |
+
+**逐字對帳（2026-07-03）**：SRT 實檔文字必須等於用同一份 subtitles_words + 刪除清單
+（`kept_words.js` 規則：發音區被刪 >50% 才丟字）算出的保留字串。抓接線層 bug——SRT 用到舊
+刪除檔、外部改過 SRT、去留規則不同源。`kept_words.js` 是「哪些字算保留」的**單一事實來源**，
+`generate_cut_srt.js` / `generate_cut_txt.js` / `verify_export.js` / `refine_segments.js`
+（Step C 刀口原子化）四個消費者共用。training_server 匯出時自動帶 `--srt/--subtitles/--silences`。
 
 **timeline_map（2026-07-02）**：成品每個保留段實際長度 ≠ 理想長度（單趟路徑 concat filter
 每段推進 max(影片段長, 音訊段長)，影片長受 frame 邊界/VFR 抖動；多段路徑 frame 進位 + AAC

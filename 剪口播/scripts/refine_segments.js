@@ -24,6 +24,8 @@
 const fs = require('fs');
 const path = require('path');
 const { MERGE_GAP } = require(path.join(__dirname, 'merge_delete_segments.js'));
+const { speechIntervalsOf, intervalsTotal, overlapTotal, subtractIntervals, KEEP_THRESHOLD } =
+  require(path.join(__dirname, 'kept_words.js'));
 
 // ── 參數 ──
 const wordsFile = process.argv[2];
@@ -64,6 +66,17 @@ const PF_LONG_TARGET = PF.long_target_sec ?? PF_TARGET;
 const PF_KEEP_SIDE = PF.keep_side || 'tail';
 const PF_PROTECT_IDX = new Set(PF.protect_idx || []);
 const PF_PROTECT_RANGES = (PF.protect_ranges || []).filter(r => Array.isArray(r) && r.length === 2);
+// 文意分流開關（見 targetForSeg）：預設開，semantic:false 關閉退回純長度分流
+const PF_SEMANTIC = PF.semantic !== false;
+
+// 刀口邊界字原子化（Step C）：預設開，word_atomic.enabled:false 關閉
+const WA = config.word_atomic || {};
+const WA_ENABLED = WA.enabled !== false;
+const WA_MIN_OVERLAP = WA.min_overlap_sec ?? 0.01;
+// 碎屑容忍：殘留/誤刪 ≤ 此值視為切點吸附級碎屑（聽不見），不觸發原子化——
+// 否則會把吸附特意選的 RMS 波谷刀點硬拉回字邊界（切在響音上反而爆音）。
+// 必須 > cut_snap.max_intrude_sec（預設 0.06），否則跟吸附互相打架。
+const WA_SLIVER = WA.sliver_sec ?? 0.09;
 
 const CS = config.cut_snap || {};
 const CS_ENABLED = CS.enabled !== false;
@@ -152,6 +165,30 @@ function targetFor(len) {
   return len >= PF_LONG_PAUSE - EPS ? PF_LONG_TARGET : PF_TARGET;
 }
 
+// ── 文意分流：停頓前一個字帶句末標點（。！？）＝句子邊界＝轉場（留 long_target），
+// 否則是句中停頓＝氣口（壓 target）——句中卡 2 秒是死空氣不是轉場，純長度分流會誤留。
+// 只在「轉錄帶標點（句末標點 ≥3 個）且 long_target 有意義」時啟用，否則退回長度分流
+// （whisper 原始詞常無標點；既有測試 fixture 也無標點，行為不變）。
+const SENT_END_RE = /[。！？!?…]["」』）)]?$/;
+const spokenWords = words
+  .filter(w => !w.isGap && w.text && Number.isFinite(w.start))
+  .sort((a, b) => a.start - b.start);
+const sentEndCount = spokenWords.reduce((n, w) => n + (SENT_END_RE.test(String(w.text)) ? 1 : 0), 0);
+const semanticOn = PF_SEMANTIC && PF_LONG_TARGET > PF_TARGET + EPS && sentEndCount >= 3;
+function lastWordBefore(t) {
+  let lo = 0, hi = spokenWords.length - 1, ans = null;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (spokenWords[mid].start < t) { ans = spokenWords[mid]; lo = mid + 1; } else hi = mid - 1;
+  }
+  return ans;
+}
+function targetForSeg(seg, len) {
+  if (!semanticOn) return targetFor(len);
+  const w = lastWordBefore(seg.start + EPS);
+  return (w && SENT_END_RE.test(String(w.text))) ? PF_LONG_TARGET : PF_TARGET;
+}
+
 if (PF_ENABLED) {
   if (PF_TARGET <= MERGE_GAP + EPS) {
     console.error(`⚠️ pause_flatten.target_sec=${PF_TARGET} <= MERGE_GAP(${MERGE_GAP})，留的靜音可能被 cut_video.sh 合併吃掉。建議 >${MERGE_GAP}`);
@@ -165,7 +202,7 @@ if (PF_ENABLED) {
     for (const seg of kept) {
       const len = seg.end - seg.start;
       if (len < PF_FLOOR - EPS) continue;                   // 太短：正常呼吸
-      const tgt = targetFor(len);                           // 氣口 vs 轉場，挑對應保留量
+      const tgt = targetForSeg(seg, len);                   // 氣口 vs 轉場（文意優先，退回長度）
       if (len <= tgt + EPS) continue;                       // 已夠短
       const cut = len - tgt;
       if (PF_KEEP_SIDE === 'head') {
@@ -238,6 +275,44 @@ if (CS_ENABLED && rmsFile && fs.existsSync(rmsFile)) {
   console.error(`⚠️ 找不到 RMS 序列 ${rmsFile}，跳過切點吸附（僅做停頓壓平）`);
 }
 
+// ══════════════════════════════════════════════════════
+// Step C — 刀口邊界字原子化
+// ══════════════════════════════════════════════════════
+// 切點落在字的發音區中間時，SRT/TXT 用「發音區被刪 >50% 才丟字」（kept_words.js）決定去留；
+// 影片這邊如果留半個字，就會出現「SRT 沒這個字但影片講了半聲」（或反之），違反三邊逐字一致。
+// 這裡把刀口推齊到字邊界：發音區被刪 >50% → 補刀刪完整個發音區；≤50% → 刀從發音區退出去。
+// 發音區＝字跨度扣掉音訊實測靜音——STT 灌進字尾的靜音照樣可壓平，不受原子化影響。
+let atomExpanded = 0, atomShrunk = 0;
+if (WA_ENABLED) {
+  const silForWords = silenceSource === 'audio' ? silenceIntervals : null;
+  const expandIvs = [], shrinkIvs = [];
+  for (const w of words) {
+    if (w.isGap || !(Number.isFinite(w.start) && Number.isFinite(w.end) && w.end > w.start)) continue;
+    const speech = speechIntervalsOf(w, silForWords);
+    const sDur = intervalsTotal(speech);
+    if (sDur <= EPS) continue;
+    const ov = overlapTotal(speech, workSegs);
+    if (ov <= WA_MIN_OVERLAP) continue;              // 刀沒碰到發音區
+    if (ov >= sDur - WA_MIN_OVERLAP) continue;       // 發音區已整段刪除，本來就原子
+    const kept = sDur - ov;
+    if (ov / sDur > KEEP_THRESHOLD) {
+      if (kept <= WA_SLIVER) continue;               // 殘留只是碎屑（吸附波谷），聽不見，不補刀
+      expandIvs.push(...speech); atomExpanded++;
+    } else {
+      if (ov <= WA_SLIVER) continue;                 // 誤刪只是碎屑，不退刀
+      shrinkIvs.push(...speech); atomShrunk++;
+    }
+  }
+  if (expandIvs.length || shrinkIvs.length) {
+    let segs = workSegs;
+    if (shrinkIvs.length) {
+      // 把刀從要保留的發音區裡退出去（刪除段扣掉這些區間）
+      segs = segs.flatMap(s => subtractIntervals(s.start, s.end, shrinkIvs));
+    }
+    workSegs = mergeSegs([...segs, ...expandIvs.map(iv => ({ start: iv.start, end: iv.end }))]);
+  }
+}
+
 // ── 輸出 ──
 const refined = workSegs
   .filter(s => s.end - s.start > EPS)
@@ -253,8 +328,10 @@ const avgMove = snapMovedMs.length
 console.error('📊 精修結果:');
 console.error(`   靜音來源: ${silenceSource}（${silenceIntervals.length} 段）`);
 console.error(`   停頓壓平: 氣口 ${flattenedCount} 處（壓到 ${PF_TARGET}s）` +
-  (Number.isFinite(PF_LONG_PAUSE) ? `、轉場 ${longFlattenedCount} 處（≥${PF_LONG_PAUSE}s，留 ${PF_LONG_TARGET}s）` : ''));
+  ((semanticOn || Number.isFinite(PF_LONG_PAUSE)) ? `、轉場 ${longFlattenedCount} 處（留 ${PF_LONG_TARGET}s）` : '') +
+  `｜分流=${semanticOn ? `文意（句末標點 ${sentEndCount} 個）` : '長度'}`);
 console.error(`   切點吸附: ${snappedCount} 個邊界（平均移動 ${avgMove}ms）`);
+if (WA_ENABLED) console.error(`   刀口原子化: 補刀刪完整字 ${atomExpanded} 個、退刀保整字 ${atomShrunk} 個`);
 console.error(`   刪除總長: ${origTotal.toFixed(2)}s → ${refinedTotal.toFixed(2)}s`);
 console.error(`   區段數: ${baseSegs.length} → ${refined.length}`);
 console.error(`✅ 已保存: ${outputFile}`);

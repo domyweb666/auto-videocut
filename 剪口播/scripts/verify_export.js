@@ -9,11 +9,14 @@
  * 檢查（fail = 擋下；warn = 標記但不擋）：
  *   1. 時長對帳   [FAIL] keepSegs 預計時長 vs ffprobe 實際，落差 > 容忍值 = concat/編碼 bug
  *   2. 殘留長靜音 [WARN] silencedetect 掃成品，>1.5s 死空氣 = 漏剪 or 邊界留太多
- *   3. 音畫漂移   [WARN] video 流時長 vs audio 流時長落差過大 = 剪接點 A/V drift
+ *   3. 音畫漂移   [FAIL] video 流時長 vs audio 流時長落差過大 = 剪接點 A/V drift（嘴型會對不上）
+ *   4. 逐字對帳   [FAIL] 匯出 SRT 的文字 vs（subtitles_words + 刪除清單）算出的保留字，
+ *                 一字之差都算 FAIL——「審核區/SRT/影片」三邊一致的驗證關卡
  *   段數資訊      [INFO] 預計保留段數（成品本身無法回推，僅供對照）
  *
  * 用法：
  *   node verify_export.js --output <cut.mp4> [--input <原片>] [--delete <delete_segments.json>]
+ *                         [--srt <cut.srt>] [--subtitles <subtitles_words.json>] [--silences <silences.json>]
  *                         [--json] [--quiet] [--strict]
  *
  * 退出碼：0 = 通過（含 warn）；2 = 有 FAIL；3 = --strict 下有 warn；1 = 參數/執行錯誤
@@ -25,6 +28,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { mergeDeleteSegments } = require(path.join(__dirname, 'merge_delete_segments.js'));
+const { computeKeptWords, loadSilences } = require(path.join(__dirname, 'kept_words.js'));
 
 // ── 參數 ──
 const TOL_DURATION = 0.5;   // 時長對帳容忍秒數
@@ -44,6 +48,9 @@ function parseArgs(argv) {
     else if (a === '--output' || a === '-o') o.output = argv[++i];
     else if (a === '--input' || a === '-i') o.input = argv[++i];
     else if (a === '--delete' || a === '-d') o.delete = argv[++i];
+    else if (a === '--srt') o.srt = argv[++i];
+    else if (a === '--subtitles') o.subtitles = argv[++i];
+    else if (a === '--silences') o.silences = argv[++i];
     else if (!o.output) o.output = a; // 位置參數兜底
   }
   return o;
@@ -208,13 +215,14 @@ function main() {
   }
 
   // 3. 音畫漂移 ──────────────────────────────────────
+  // FAIL 級（原 WARN）：兩軌長差 = 接點累積的 A/V 錯位，直接反映嘴型對不上，不能只警示。
   if (isVideo && isAudio) {
     const vDur = probeDuration(opt.output, 'v:0');
     const aDur = probeDuration(opt.output, 'a:0');
     if (Number.isFinite(vDur) && Number.isFinite(aDur)) {
       const drift = Math.abs(vDur - aDur);
       const ok = drift <= AV_DRIFT_TOL;
-      add(ok ? 'pass' : 'warn', '音畫漂移', ok,
+      add(ok ? 'pass' : 'fail', '音畫漂移', ok,
         `video ${vDur.toFixed(2)}s／audio ${aDur.toFixed(2)}s／差 ${drift.toFixed(2)}s（容忍 ${AV_DRIFT_TOL}s）`,
         { drift });
     } else {
@@ -224,7 +232,58 @@ function main() {
     add('info', '音畫漂移', true, '純音訊成品，跳過');
   }
 
+  // 4. 逐字對帳（SRT 文字 vs 保留字）──────────────────
+  // 「審核區 / SRT / 影片」三邊逐字一致的驗證關卡：SRT 實檔的文字必須等於
+  // 用同一份 subtitles_words + 刪除清單（kept_words.js 規則）算出的保留字串，一字之差都 FAIL。
+  // 抓的是接線層 bug：SRT 用到舊刪除檔、外部改過 SRT、去留規則不同源。
+  if (opt.srt && opt.subtitles) {
+    try {
+      if (!fs.existsSync(opt.srt)) {
+        add('warn', '逐字對帳', false, `找不到 SRT: ${opt.srt}`);
+      } else if (!fs.existsSync(opt.subtitles) || !opt.delete || !fs.existsSync(opt.delete)) {
+        add('warn', '逐字對帳', false, '缺 subtitles_words 或刪除清單，跳過');
+      } else {
+        const srtText = parseSrtText(fs.readFileSync(opt.srt, 'utf8'));
+        const words = JSON.parse(fs.readFileSync(opt.subtitles, 'utf8'));
+        const delSegs = mergeDeleteSegments(JSON.parse(fs.readFileSync(opt.delete, 'utf8')));
+        const silences = loadSilences(opt.silences);
+        const expectText = computeKeptWords(words, delSegs, silences)
+          .map(w => String(w.text || '')).join('').replace(/\s+/g, '');
+        if (srtText === expectText) {
+          add('pass', '逐字對帳', true, `SRT 與保留字 100% 一致（${expectText.length} 字）`);
+        } else {
+          let d = 0;
+          while (d < srtText.length && d < expectText.length && srtText[d] === expectText[d]) d++;
+          const ctx = (s) => s.slice(Math.max(0, d - 8), d + 8);
+          add('fail', '逐字對帳', false,
+            `SRT ${srtText.length} 字 vs 預期 ${expectText.length} 字，第 ${d + 1} 字起不一致：` +
+            `SRT「…${ctx(srtText)}…」 vs 預期「…${ctx(expectText)}…」`,
+            { srtLen: srtText.length, expectLen: expectText.length, firstDiff: d });
+        }
+      }
+    } catch (e) {
+      add('warn', '逐字對帳', false, `對帳執行失敗: ${e.message}`);
+    }
+  } else {
+    add('info', '逐字對帳', true, '未提供 --srt / --subtitles，跳過此項');
+  }
+
   return report(opt, checks);
+}
+
+// SRT → 純文字（去掉 BOM、序號行、時間軸行、所有空白）
+function parseSrtText(raw) {
+  if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1);
+  return raw.split(/\r?\n/)
+    .filter(ln => {
+      const t = ln.trim();
+      if (!t) return false;
+      if (/^\d+$/.test(t)) return false;                        // 序號行
+      if (/^\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->/.test(t)) return false; // 時間軸行
+      return true;
+    })
+    .join('')
+    .replace(/\s+/g, '');
 }
 
 // ── 輸出與退出碼 ──

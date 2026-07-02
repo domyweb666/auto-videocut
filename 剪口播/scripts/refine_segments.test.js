@@ -206,6 +206,63 @@ console.log('\n[測試 11] 無 long_pause_sec：長停頓也只壓到 target');
   ok(hasSeg(out, 0.5, 1.75), '退回舊行為：壓到 target 0.25s（刪 [0.5,1.75]）');
 }
 
+// ── 測試 12：刀口原子化——字主體被刪 → 補刀刪完發音區 ──
+console.log('\n[測試 12] 原子化補刀：字發音區被刪 >50% → 整個發音區刪掉');
+{
+  // 字 x 跨 [0.4,1.3]，音訊實測 [0.7,1.3] 是靜音 → 發音區 [0.4,0.7]=0.3s
+  const words = [
+    { text: 'a', start: 0.0, end: 0.4, isGap: false },
+    { text: 'x', start: 0.4, end: 1.3, isGap: false },
+    { text: 'b', start: 1.3, end: 1.8, isGap: false },
+  ];
+  const silences = [{ start: 0.7, end: 1.3, dur: 0.6 }];
+  const cfg = { pause_flatten: { enabled: false }, cut_snap: { enabled: false } };
+  // 內容刪除吃掉發音區 0.2/0.3（67%），殘留 0.1s > 碎屑容忍 0.09 → 應補刀到 [0.4,0.7]
+  const out = run(words, [{ start: 0.4, end: 0.6 }], null, cfg, silences);
+  ok(hasSeg(out, 0.4, 0.7), `補刀刪完發音區 [0.4,0.7]（實際 ${JSON.stringify(out)}）`);
+}
+
+// ── 測試 13：刀口原子化——字主體保留 → 刀退出發音區 ──
+console.log('\n[測試 13] 原子化退刀：字發音區被刪 ≤50% → 刀退出，整字保留');
+{
+  const words = [
+    { text: 'a', start: 0.0, end: 0.5, isGap: false },
+    { text: 'x', start: 0.5, end: 1.0, isGap: false },
+    { text: 'b', start: 1.0, end: 1.6, isGap: false },
+  ];
+  const cfg = { pause_flatten: { enabled: false }, cut_snap: { enabled: false } };
+  // 刪除 [0.85,1.0] 只吃掉 x 的 30%（0.15s > 碎屑 0.09）→ 退刀，x 完整保留 → 無刪除
+  const out = run(words, [{ start: 0.85, end: 1.0 }], null, cfg);
+  ok(out.length === 0, `刀退出發音區，刪除清空（實際 ${JSON.stringify(out)}）`);
+}
+
+// ── 測試 14：文意分流——句末停頓留長、句中停頓壓短（同長度不同待遇）──
+console.log('\n[測試 14] 文意分流：句末=轉場留 0.6s、句中=氣口壓 0.3s');
+{
+  const words = [
+    { text: '今天講到這。', start: 0.0, end: 0.5, isGap: false },
+    { text: '接著',       start: 2.0, end: 2.5, isGap: false },
+    { text: '再來呢，',   start: 2.5, end: 3.0, isGap: false },
+    { text: '好。',       start: 4.5, end: 5.0, isGap: false },
+    { text: '嗯。',       start: 6.0, end: 6.5, isGap: false },  // 湊滿 3 個句末標點啟用文意分流
+  ];
+  // 兩個停頓長度一樣 1.5s：第一個在「。」之後（句末），第二個在「，」之後（句中）
+  const silences = [{ start: 0.5, end: 2.0 }, { start: 3.0, end: 4.5 }];
+  const cfg = {
+    pause_flatten: { enabled: true, floor_sec: 0.2, target_sec: 0.3, long_pause_sec: 1.2, long_target_sec: 0.6, keep_side: 'tail' },
+    cut_snap: { enabled: false },
+    word_atomic: { enabled: false },
+  };
+  const out = run(words, [], null, cfg, silences);
+  ok(hasSeg(out, 0.5, 1.4), `句末停頓留 0.6s：刪 [0.5,1.4]（實際 ${JSON.stringify(out)}）`);
+  ok(hasSeg(out, 3.0, 4.2), '句中停頓壓 0.3s：刪 [3.0,4.2]（長度分流會誤留 0.6s）');
+  // semantic:false → 退回長度分流，兩個都是轉場留 0.6
+  const cfg2 = JSON.parse(JSON.stringify(cfg));
+  cfg2.pause_flatten.semantic = false;
+  const out2 = run(words, [], null, cfg2, silences);
+  ok(hasSeg(out2, 3.0, 3.9), 'semantic:false 退回長度分流：句中長停頓也留 0.6s（刪 [3.0,3.9]）');
+}
+
 // ── 總結（先印，確保結果一定看得到）──
 console.log(`\n── 結果：${pass} 通過 / ${fail} 失敗 ──`);
 

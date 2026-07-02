@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { mergeDeleteSegments } = require(path.join(__dirname, 'merge_delete_segments.js'));
+const { computeKeptWords, loadSilences } = require(path.join(__dirname, 'kept_words.js'));
 
 const wordsFile = process.argv[2];
 const deleteFile = process.argv[3];
@@ -26,24 +27,13 @@ const words = JSON.parse(fs.readFileSync(wordsFile, 'utf8'));
 // 被吞掉的短保留區裡的字不進文稿（那些字在成品裡已被剪掉）
 const deleteSegments = mergeDeleteSegments(JSON.parse(fs.readFileSync(deleteFile, 'utf8')));
 
-// 一個字被刪的比例（與 generate_cut_srt.js 同標準：主體被刪才丟，字尾靜音被壓不算）
-function deletedFraction(start, end) {
-  const dur = end - start;
-  if (dur <= 0) return 0;
-  let overlap = 0;
-  for (const seg of deleteSegments) {
-    const lo = Math.max(start, seg.start);
-    const hi = Math.min(end, seg.end);
-    if (hi > lo) overlap += hi - lo;
-  }
-  return overlap / dur;
-}
+// 字的去留判斷走 kept_words.js（與 SRT / verify_export / 刀口原子化同源）：
+// 發音區被刪 >50% 才丟，字尾靜音被壓不算
+const silences = loadSilences(path.join(path.dirname(wordsFile), '..', '2_分析', 'silences.json'));
 
 // 串起保留文字
 let text = '';
-for (const w of words) {
-  if (w.isGap) continue;
-  if (deletedFraction(w.start, w.end) > 0.5) continue;
+for (const w of computeKeptWords(words, deleteSegments, silences)) {
   text += (w.text || '');
 }
 

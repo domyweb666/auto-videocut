@@ -130,6 +130,11 @@ const FUZZY = {
   SIM_CAND: 0.45,     // 有校正稿合併證據時的相似度下限
   SIM_SOLO: 0.62,     // 無校正稿證據時，單靠相似度要達到這門檻
   MIN_RESIDUAL: 0.6,  // 減去 exact 已涵蓋範圍後，殘段至少要這麼長（秒）才值得標
+  // ── near-exact（一字之差）──
+  // exact 層 PREFIX_RATIO 擋掉、MIN_TAKE 5 也擋掉的短重講（「所以你可」→「所以你說」）。
+  // 編輯距離 ≤1 時 take 下限放寬到 4 字；有校正稿時仍要求合併證據（防「一個白板/一個黑板」列舉誤判）。
+  NEAR_MIN_TAKE: 4,
+  MIN_RESIDUAL_NEAR: 0.35, // 4 字 take 常短於 0.6s，殘段門檻同步放低
   PROBE_LEN: 10,      // 拿 false-start 前幾個字去校正稿查存在（太短會撞到 take 間共同前綴）
   // ── 遠距層（隔 1–2 句放棄碎片的重錄）──
   // gap 26~MAXGAP_FAR 的配對：整段 levSim 會被中間碎片稀釋到必掉出門檻，
@@ -196,7 +201,9 @@ function detectRetakesFuzzy(words, correctedText, opts = {}) {
         const far = gap > o.MAXGAP;      // 遠距配對：中間隔了放棄碎片
         if (far && !C) continue;          // 遠距一律要校正稿硬證據，沒有就不啟用
         const takeLen = p2 - p1;
-        if (takeLen < o.MIN_TAKE || takeLen > (far ? o.MAX_TAKE_FAR : o.MAX_TAKE)) continue;
+        // near-exact 允許 4 字 take 進來，是否真的放行由後面的編輯距離判斷
+        const minTake = far ? o.MIN_TAKE : Math.min(o.MIN_TAKE, o.NEAR_MIN_TAKE);
+        if (takeLen < minTake || takeLen > (far ? o.MAX_TAKE_FAR : o.MAX_TAKE)) continue;
 
         let A, B, sim, merged;
         if (far) {
@@ -228,18 +235,24 @@ function detectRetakesFuzzy(words, correctedText, opts = {}) {
 
         A = S.substr(p1, takeLen); B = S.substr(p2, takeLen);
         sim = levSim(A, B);
+        // near-exact：編輯距離 ≤1（A/B 等長，dist = (1-sim)×takeLen）＝一字之差的重講
+        const nearExact = (1 - sim) * takeLen <= 1 + 1e-6;
+        if (takeLen < o.MIN_TAKE && !nearExact) continue;  // 4 字 take 只有 near-exact 才放行
         if (sim < o.SIM_CAND) continue;
         // 兩個 take 開頭都在校正稿 → 兩句不同內容都被留下 → 不是重錄；否則＝被合併 → 證據
         const probeA = A.slice(0, Math.min(A.length, o.PROBE_LEN));
         const probeB = B.slice(0, Math.min(B.length, o.PROBE_LEN));
         merged = !!C && !(C.includes(probeA) && C.includes(probeB));
         if (sim < o.SIM_SOLO && !merged) continue;
+        // 4 字 near-exact 在「有校正稿且兩個 take 都在稿裡」時不標——
+        // 那是「一個白板/一個黑板」式列舉，不是重錄（短 take 純相似度分不開，靠校正稿站隊）
+        if (nearExact && takeLen < o.MIN_TAKE && C && !merged) continue;
         // 任一 take 時長塌陷 → whisper 幻覺複寫（同 exact 層守門）
         if (isHallucinatedSpan(seq, p1, takeLen) || isHallucinatedSpan(seq, p2, takeLen)) continue;
         cands.push({
           start: seq[p1].start, end: seq[p2].start,
           phrase: A, next: B, sim,
-          evidence: merged ? 'corrected-merge' : 'high-sim',
+          evidence: merged ? 'corrected-merge' : (nearExact ? 'near-exact' : 'high-sim'),
         });
       }
     }
@@ -269,8 +282,10 @@ function detectRetakesFuzzy(words, correctedText, opts = {}) {
       }
       segs = next;
     }
+    // near-exact 的 take 只有 4 字上下（常短於 0.6s），殘段門檻用較低的一檔
+    const minRes = f.evidence === 'near-exact' ? o.MIN_RESIDUAL_NEAR : o.MIN_RESIDUAL;
     for (const s of segs) {
-      if (s.end - s.start >= o.MIN_RESIDUAL) out.push({ ...f, start: s.start, end: s.end });
+      if (s.end - s.start >= minRes) out.push({ ...f, start: s.start, end: s.end });
     }
   }
   return out;

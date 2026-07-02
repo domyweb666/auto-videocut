@@ -5,7 +5,11 @@
  * 從原始 subtitles_words.json + delete_segments.json
  * 計算保留文字的新時間戳，輸出標準 SRT 格式
  *
- * 用法: node generate_cut_srt.js <subtitles_words.json> <delete_segments.json> [output.srt] [--map <timeline_map.json>]
+ * 用法: node generate_cut_srt.js <subtitles_words.json> <delete_segments.json> [output.srt]
+ *       [--map <timeline_map.json>] [--silences <silences.json>]
+ *
+ * 字的去留判斷走 kept_words.js（發音區被刪 >50% 才丟）；--silences 未指定時
+ * 自動找 <words所在資料夾>/../2_分析/silences.json，找不到退回整字跨度判斷。
  *
  * 時間軸：cut_video.sh 匯出時會在成品旁落地 <成品名>.timeline_map.json（理想→成品實測分段映射，
  * 消除 frame 進位/VFR 造成的每段 +6~20ms 累積漂移）。本腳本自動找 <output去.srt>.timeline_map.json，
@@ -15,11 +19,15 @@
 const fs = require('fs');
 const path = require('path');
 const { mergeDeleteSegments } = require(path.join(__dirname, 'merge_delete_segments.js'));
+const { isWordKept, loadSilences } = require(path.join(__dirname, 'kept_words.js'));
 
 const args = process.argv.slice(2);
 let mapArg = null;
 const mi = args.indexOf('--map');
 if (mi >= 0) { mapArg = args[mi + 1]; args.splice(mi, 2); }
+let silencesArg = null;
+const si = args.indexOf('--silences');
+if (si >= 0) { silencesArg = args[si + 1]; args.splice(si, 2); }
 const wordsFile = args[0];
 const deleteFile = args[1];
 const outputFile = args[2] || 'output_cut.srt';
@@ -74,21 +82,12 @@ function getDeletedTimeBefore(time) {
   return deleted;
 }
 
-// 一個字被刪除的比例（重疊時長 / 字時長）。
-// 用比例而非「任何重疊」判斷：Google STT 會把停頓吸進字的 end 裡，
-// 停頓壓平的 partial delete 落在字尾的靜音上，但字本身有講出來——
-// 不能因為字尾的靜音被刪就把整個字（含字幕文字）丟掉。
-function deletedFraction(start, end) {
-  const dur = end - start;
-  if (dur <= 0) return 0;
-  let overlap = 0;
-  for (const seg of deleteSegments) {
-    const lo = Math.max(start, seg.start);
-    const hi = Math.min(end, seg.end);
-    if (hi > lo) overlap += hi - lo;
-  }
-  return overlap / dur;
-}
+// 字的去留判斷改走 kept_words.js（單一事實來源，與 TXT / verify_export / 刀口原子化同源）：
+// 發音區（字跨度扣掉音訊實測靜音）被刪 >50% 才丟——STT 會把停頓吸進字的 end 裡，
+// 停頓壓平刪的是字尾靜音，字本身有講出來，不能把字幕文字跟著丟掉。
+// 無 silences 資料時退回整字跨度算（舊行為）。
+const silences = loadSilences(silencesArg || path.join(path.dirname(wordsFile), '..', '2_分析', 'silences.json'));
+if (silences) console.error(`🔇 發音區判斷使用音訊實測靜音（${silences.length} 段）`);
 
 // ── 篩選保留的文字並重映射時間 ──
 // start/end 各自用「該時間點之前被刪的累積量」映射，
@@ -96,7 +95,7 @@ function deletedFraction(start, end) {
 const keptWords = [];
 for (const w of words) {
   if (w.isGap) continue;
-  if (deletedFraction(w.start, w.end) > 0.5) continue;   // 主體被刪才丟
+  if (!isWordKept(w, deleteSegments, silences)) continue;   // 發音區主體被刪才丟
 
   const newStart = timelineMap ? mapTime(w.start) : w.start - getDeletedTimeBefore(w.start);
   let newEnd = timelineMap ? mapTime(w.end) : w.end - getDeletedTimeBefore(w.end);
