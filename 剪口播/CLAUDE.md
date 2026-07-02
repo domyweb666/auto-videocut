@@ -43,30 +43,29 @@
 
 ```
 1. 轉錄
-   google_transcribe.py / whisper_transcribe.sh
-   輸入: audio.mp3
-   輸出: google_result.json → subtitles_words.json
+   byteplus_transcribe.py（--ddc off 逐字稿；憑證見 scripts/.env）
+   輸入: audio.mp3（必須單聲道 -ac 1 -ar 16000）
+   輸出: subtitles_words.json（含 isGap）
+   （google_transcribe.py / whisper 系列僅備援；reference.txt 只餵 flag_against_reference.js 高亮疑似聽錯，不改寫）
 
 2. 分析
    ai_polish.js → phrase_prefilter.js → ai_cut_pairs.js → convert_ai_to_indices
+   ＋機械偵測層：detect_retakes（exact/fuzzy 重錄）、detect_coughs_ml、detect_redundancy（語意重複）
    （auto_select_rules.js 已標 legacy，僅訓練層用；見 規則引擎盤點_2026-07.md）
    輸入: subtitles_words.json + training_config.json + 用户习惯/
-   輸出: auto_selected.json（含 reasons）+ 口誤分析.md
+   輸出: auto_selected.json（含 reasons；所有內容決策進審核頁預選＝WYSIWYG）
 
 3. 審核 UI
    generate_review_doc.js + training_server.js（port 8900，路由 /review/<name>）
-   輸入: subtitles_words.json + auto_selected.json + 原片
-   輸出: review.html（使用者在瀏覽器確認/修改）
+   輸入: subtitles_words.json + auto_selected.json
+   輸出: 純白文稿審核頁（使用者在瀏覽器確認/修改後匯出）
 
 4. 匯出
-   cut_video.sh（ffmpeg NVENC）
-   輸入: 使用者 userSelected + subtitles_words.json
-   輸出: _cut.mp4 + _cut.srt + user_corrections.jsonl（訓練資料）
+   /api/cut/<name> → gap 橋接（bridge_gap_deletes）→ refine_segments（壓平/吸附/刀口原子化）→ cut_video.sh
+   輸出: <成品名>/ 子資料夾（mp4 + srt + txt + timeline_map.json）
 
-5. 訓練回饋閉環
-   apply_feedback.js → training_server.js（port 8900）
-   輸入: diff_report.json + user_corrections.jsonl
-   輸出: training_config.json（更新）+ training_output/training_report.md
+5. （已退役 2026-06-30）訓練回饋閉環
+   F1/自動優化層退役；回饋改「口頭回報 → 規則檔（用户习惯/）」。退役腳本在 scripts/legacy/
 ```
 
 ---
@@ -75,15 +74,18 @@
 
 | 腳本 | 用途 |
 |------|------|
+| `training_server.js` | 唯一服務器（port 8900）：剪輯頁 `/` + 審核頁 `/review/<name>` + 匯出 `/api/cut/<name>`。2026-07-03 瘦身 7287→1291 行，訓練層/舊深色頁 API 已全數移除 |
 | `ai_cut_pairs.js` | 核心 AI 分析：讀 few-shot 候選對，判斷刪/留 |
-| `ai_evaluate_training.js` | 訓練評估（--sample N --use-pair-mode），產出 F1 |
-| `compare_transcriptions.js` | 對照兩份轉錄結果，計算 per-category P/R/F1 |
-| `training_server.js` | 唯一服務器（port 8900）：剪輯頁 + 審核頁（/review/<name>）+ 訓練。支援 Range 請求 |
-| `cut_video.sh` | ffmpeg 幀級精確剪輯，自動偵測原片參數 |
-| `srt_reverse_align.js` | 反向 SRT 對齊：從字幕推算 deleteIndices |
-| `apply_feedback.js` | 將使用者修正寫回 training_config.json |
-| `batch_train.js` | 批次訓練協調器 |
+| `detect_retakes.js` | 重錄偵測（exact + fuzzy，含 whisper 幻覺守門） |
+| `detect_coughs_ml.py` | 咳嗽/清喉 ML 分類（AST audioset） |
 | `detect_redundancy.py` | 語意重複偵測（sentence-transformers / 3-gram fallback） |
+| `refine_segments.js` | 苦工層：停頓壓平/切點吸附/刀口原子化 |
+| `bridge_gap_deletes.js` | 手動刪除梳齒橋接（audit #4） |
+| `merge_delete_segments.js` | MERGE_GAP 合併唯一實作（ffmpeg/SRT/TXT/verify 四方共用） |
+| `cut_video.sh` | ffmpeg 幀級精確剪輯，自動偵測原片參數；落地 timeline_map.json |
+| `verify_export.js` | 成品驗證（時長對帳/殘留靜音/逐字對帳） |
+| `compare_transcriptions.js` | L2 回歸工具：對照兩份轉錄結果 |
+| `scripts/legacy/` | 退役訓練層腳本歸檔（batch_train、ai_evaluate_training 等，見其 README） |
 
 ---
 
@@ -99,18 +101,19 @@
 
 ---
 
-## 目前狀態基線（2026-04-24）
+## 目前狀態基線（2026-07-03）
 
-- 合併 F1：**96.83%**
-- 已完成：Sprint 1–3 共 11 項功能（VAD、候選對、waveform、保護詞、SRT 反向、A/B、批次）
+- F1 已退役（2026-06-30），改碼門檻＝L2 回歸 + L4 成品驗證 + L3 單元測試（8 套全綠）
+- training_server.js 瘦身至 ~1300 行；舊深色頁（waveform/批次/保護詞 UI）與訓練層 API 已移除，退役腳本在 scripts/legacy/
+- 缺陷審查 2026-07-02 十四條全數處置完畢（見 E:\自動剪輯\缺陷審查_2026-07-02.md）
 - git 已有 origin/main，每次重大變更前先 commit
 
 ---
 
 ## 常見問題
 
-**Q: 審核頁（training_server.js, 8900）為何不能用 python -m http.server 替代？**
-A: 影片播放依賴 HTTP Range 請求（206 Partial Content），python 簡易服務器不支援。→ ADR-006
+**Q: 審核頁（training_server.js, 8900）為何不能用靜態檔案伺服器替代？**
+A: 審核頁是動態產生（讀 auto_selected/subtitles 即時渲染），匯出/重跑 AI 都是 POST API；不是靜態頁。（舊答案的 Range 影片播放已隨深色頁移除）
 
 **Q: auto_selected.json 讀到 object 還是 array？**
 A: 兩格式向下兼容：是陣列 → 直接用；是物件 → 讀 `.indices`。所有腳本都處理了這個分歧。
