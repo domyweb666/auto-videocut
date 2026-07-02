@@ -1105,6 +1105,18 @@ const server = http.createServer((req, res) => {
         // WYSIWYG：不再在匯出端併入重錄/咳嗽——它們已由 autoContentPreselect 進審核頁預選，
         // 使用者看到並核可的 deleteList 就是最終內容決策（refine 只做壓平/吸附等苦工）。
 
+        // 梳齒橋接（audit #4）：審核頁 gap 元素不可選，逐字手動刪除會在字間留 0.2~0.3s 殘 gap，
+        // 剪完首尾相接串成死空氣。相鄰刪除段之間只剩 gap/靜音（無發音字）→ 併成一段。失敗降級原清單。
+        try {
+          const _bridgeSubs = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
+          if (deleteList.length >= 2 && fs.existsSync(_bridgeSubs)) {
+            const bridgeGapDeletes = require(path.join(SCRIPT_DIR, 'bridge_gap_deletes.js'));
+            const bridged = bridgeGapDeletes(deleteList, JSON.parse(fs.readFileSync(_bridgeSubs, 'utf8')));
+            if (bridged.length < deleteList.length) console.log(`🌉 [${videoName}] gap 橋接：${deleteList.length} 段 → ${bridged.length} 段`);
+            deleteList = bridged;
+          }
+        } catch (e) { console.warn(`[${videoName}] gap 橋接失敗，使用原始清單:`, (e.message || '').split('\n')[0]); }
+
         // 將 delete_segments.json 寫進該影片的工作目錄
         const deleteSegmentsPath = path.join(ctx.workDir, 'delete_segments.json');
         fs.writeFileSync(deleteSegmentsPath, JSON.stringify(deleteList, null, 2));
