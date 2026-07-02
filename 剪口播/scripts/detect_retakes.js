@@ -131,6 +131,16 @@ const FUZZY = {
   SIM_SOLO: 0.62,     // 無校正稿證據時，單靠相似度要達到這門檻
   MIN_RESIDUAL: 0.6,  // 減去 exact 已涵蓋範圍後，殘段至少要這麼長（秒）才值得標
   PROBE_LEN: 10,      // 拿 false-start 前幾個字去校正稿查存在（太短會撞到 take 間共同前綴）
+  // ── 遠距層（隔 1–2 句放棄碎片的重錄）──
+  // gap 26~MAXGAP_FAR 的配對：整段 levSim 會被中間碎片稀釋到必掉出門檻，
+  // 改比「兩個 take 開頭各 FAR_CMP_LEN 字窗口」；證據改用「探針出現次數」
+  // （近距的存在性檢查在兩 take 同前綴時會兩個都命中而失效）：
+  // 10 字探針在原始轉錄出現 N 次、校正稿 < N 次 ＝ 校正把重複合併了。
+  // 沒有校正稿 → 遠距層整個不啟用（純相似度在這個距離分不開重錄與呼應句）。
+  MAXGAP_FAR: 60,     // 遠距上限（約 1–2 句碎片）
+  MAX_TAKE_FAR: 75,   // 遠距 false-start+碎片 總字數上限
+  FAR_CMP_LEN: 20,    // 遠距比對窗口（兩 take 開頭各取這麼多字比 levSim）
+  SIM_FAR: 0.6,       // 遠距窗口相似度門檻
 };
 
 // Levenshtein 相似度（0~1）
@@ -153,13 +163,22 @@ function levSim(a, b) {
  * @param {string} correctedText gpt-4o 校正後全文（可空字串＝無校正稿）
  * @returns [{ start, end, phrase, next, sim, evidence }]
  *   時間段＝疑似 false-start（已剔除 exact 層涵蓋的部分）；evidence:
- *   'corrected-merge'＝校正稿合併證據、'high-sim'＝純高相似度。
+ *   'corrected-merge'＝校正稿合併證據、'high-sim'＝純高相似度、
+ *   'corrected-merge-far'＝遠距配對（隔 1–2 句碎片）＋探針次數證據。
  */
 function detectRetakesFuzzy(words, correctedText, opts = {}) {
   const o = { ...FUZZY, ...opts };
   const seq = buildCharSeq(words);
   const S = seq.map(x => x.ch).join('');
   const C = normText(correctedText);
+
+  // 探針出現次數（遠距證據用）
+  const countIn = (str, sub) => {
+    if (!sub) return 0;
+    let c = 0, i = 0;
+    while ((i = str.indexOf(sub, i)) !== -1) { c++; i++; }
+    return c;
+  };
 
   const cands = [];
   for (let k = o.MAXK; k >= o.MINLEN; k--) {
@@ -173,16 +192,47 @@ function detectRetakesFuzzy(words, correctedText, opts = {}) {
       for (let a = 0; a < pos.length - 1; a++) {
         const p1 = pos[a], p2 = pos[a + 1];
         const gap = p2 - (p1 + k);
-        if (gap < 0 || gap > o.MAXGAP) continue;
+        if (gap < 0 || gap > o.MAXGAP_FAR) continue;
+        const far = gap > o.MAXGAP;      // 遠距配對：中間隔了放棄碎片
+        if (far && !C) continue;          // 遠距一律要校正稿硬證據，沒有就不啟用
         const takeLen = p2 - p1;
-        if (takeLen < o.MIN_TAKE || takeLen > o.MAX_TAKE) continue;
-        const A = S.substr(p1, takeLen), B = S.substr(p2, takeLen);
-        const sim = levSim(A, B);
+        if (takeLen < o.MIN_TAKE || takeLen > (far ? o.MAX_TAKE_FAR : o.MAX_TAKE)) continue;
+
+        let A, B, sim, merged;
+        if (far) {
+          // 錯位錨點正規化：同一對 take 會以多個偏移配對（p1+d/p2+d），merge 後
+          // 刪除段尾會多吃 take2 開頭幾個字。先把兩點同步往前推到共同前綴最左端，
+          // 讓所有錯位對收斂成同一個 canonical 配對。
+          let q1 = p1, q2 = p2;
+          while (q1 > 0 && S[q1 - 1] === S[q2 - 1]) { q1--; q2--; }
+          // 整段 levSim 會被碎片稀釋 → 只比兩個 take 開頭各 FAR_CMP_LEN 字
+          const L = Math.min(o.FAR_CMP_LEN, S.length - q2);
+          if (L < o.MIN_TAKE) continue;
+          A = S.substr(q1, L); B = S.substr(q2, L);
+          sim = levSim(A, B);
+          if (sim < o.SIM_FAR) continue;
+          // 次數證據：探針在原始轉錄出現 N 次、校正稿 < N 次 ＝ 校正把重複合併掉了。
+          // （近距的「存在性」檢查在兩 take 同前綴時 probeA==probeB 兩個都命中，會漏；次數比不會。）
+          const probeA = A.slice(0, Math.min(A.length, o.PROBE_LEN));
+          const probeB = B.slice(0, Math.min(B.length, o.PROBE_LEN));
+          merged = countIn(C, probeA) < countIn(S, probeA) || countIn(C, probeB) < countIn(S, probeB);
+          if (!merged) continue;
+          if (isHallucinatedSpan(seq, q1, L) || isHallucinatedSpan(seq, q2, L)) continue;
+          cands.push({
+            start: seq[q1].start, end: seq[q2].start,
+            phrase: S.slice(q1, q2), next: B, sim,   // phrase＝實際會刪的 take1+碎片
+            evidence: 'corrected-merge-far',
+          });
+          continue;
+        }
+
+        A = S.substr(p1, takeLen); B = S.substr(p2, takeLen);
+        sim = levSim(A, B);
         if (sim < o.SIM_CAND) continue;
         // 兩個 take 開頭都在校正稿 → 兩句不同內容都被留下 → 不是重錄；否則＝被合併 → 證據
         const probeA = A.slice(0, Math.min(A.length, o.PROBE_LEN));
         const probeB = B.slice(0, Math.min(B.length, o.PROBE_LEN));
-        const merged = !!C && !(C.includes(probeA) && C.includes(probeB));
+        merged = !!C && !(C.includes(probeA) && C.includes(probeB));
         if (sim < o.SIM_SOLO && !merged) continue;
         // 任一 take 時長塌陷 → whisper 幻覺複寫（同 exact 層守門）
         if (isHallucinatedSpan(seq, p1, takeLen) || isHallucinatedSpan(seq, p2, takeLen)) continue;

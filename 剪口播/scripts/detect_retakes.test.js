@@ -83,6 +83,49 @@ t('fuzzy：exact 已涵蓋的範圍會被減掉', () => {
   assert.strictEqual(r.length, 0, `exact 已涵蓋不該重標，實得 ${JSON.stringify(r)}`);
 });
 
+console.log('\ndetect_retakes fuzzy 遠距層（隔 1–2 句碎片）:');
+
+// take1(19字) + 放棄碎片(26字) + take2(19字，尾 2 字不同) + 後續。gap≈33 字（>近距 25、≤遠距 60）
+const FAR_TEXT = '而如果是正面情緒的話我們就會覺得開心' + '呃不對等一下我想一下這段要怎麼講比較好我們重新來一次' + '而如果是正面情緒的話我們就會覺得爽快' + '這樣的迴路就會被強化下去';
+const FAR_CORRECTED = '而如果是正面情緒的話我們就會覺得爽快這樣的迴路就會被強化下去'; // 校正稿只留一次
+
+t('遠距：take 中間隔一句放棄碎片 + 校正稿次數證據 → 標（連碎片一起刪）', () => {
+  const r = detectRetakesFuzzy(W(FAR_TEXT), FAR_CORRECTED);
+  assert.strictEqual(r.length, 1, `應標 1 段，實得 ${JSON.stringify(r)}`);
+  assert.strictEqual(r[0].evidence, 'corrected-merge-far');
+  assert.ok(Math.abs(r[0].start - 0.0) < 1e-6, 'start 應為 take1 開頭');
+  // 刪到 take2 起點（第 44 字≈4.4s）：take1(18字)+碎片(26字)=44
+  assert.ok(Math.abs(r[0].end - 4.4) < 0.15, `end 應≈4.4（take2 起點），實為 ${r[0].end}`);
+});
+
+t('遠距：無校正稿 → 整層不啟用，不標', () => {
+  const r = detectRetakesFuzzy(W(FAR_TEXT), '');
+  assert.strictEqual(r.length, 0, `無校正稿不該標遠距，實得 ${JSON.stringify(r)}`);
+});
+
+t('遠距：呼應句（校正稿兩次都在）→ 不標', () => {
+  // 同一句開頭在遠處合法重現（強調/呼應），校正稿兩次都保留 → 次數證據不成立
+  const text = '而如果是正面情緒的話我們就會覺得開心' + '呃不對等一下我想一下這段要怎麼講比較好我們重新來一次' + '而如果是正面情緒的話我們就會覺得開心';
+  const corrected = text; // 校正稿原樣保留兩次
+  const r = detectRetakesFuzzy(W(text), corrected);
+  assert.strictEqual(r.length, 0, `呼應句不該標，實得 ${JSON.stringify(r)}`);
+});
+
+t('遠距：中間碎片超過 60 字 → 超出範圍不標', () => {
+  const frag = '呃不對等一下我想一下這段要怎麼講比較好我們重新來一次然後這邊還有一些別的東西要先講完才輪得到那句話再說一次的機會出現';
+  const text = '而如果是正面情緒的話我們就會覺得開心' + frag + '而如果是正面情緒的話我們就會覺得爽快' + '這樣的迴路就會被強化';
+  const r = detectRetakesFuzzy(W(text), '而如果是正面情緒的話我們就會覺得爽快這樣的迴路就會被強化');
+  assert.strictEqual(r.length, 0, `超過遠距上限不該標，實得 ${JSON.stringify(r)}`);
+});
+
+t('遠距：近距行為不受影響（原 fuzzy 測試已覆蓋，此處驗證同輸入結果不變）', () => {
+  const text = '因為你心裡沒有見過心裡沒建立過這個印象所以';
+  const corrected = '因為你心裡沒建立過這個印象所以';
+  const r = detectRetakesFuzzy(W(text), corrected);
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].evidence, 'corrected-merge');
+});
+
 console.log('\ndetect_retakes 幻覺守門:');
 
 t('whisper 幻覺複寫（第二份 take 時間戳塌陷）→ 不標', () => {

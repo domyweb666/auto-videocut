@@ -99,8 +99,8 @@ function autoContentPreselect(workDir, words, indices, reasons) {
           let corrected = '';
           const cPath = path.join(workDir, '1_轉錄', 'corrected_text.txt');
           if (fs.existsSync(cPath)) corrected = fs.readFileSync(cPath, 'utf8');
-          added += preselectSegs(words, detectRetakesFuzzy(warr, corrected), sel, reasons,
-            r => `疑似重錄(相似${Math.round(r.sim * 100)}%)：刪「${r.phrase}」留「${r.next}」`);
+          added += preselectSegs(words, detectRetakesFuzzy(warr, corrected, rt.fuzzy_opts || {}), sel, reasons,
+            r => `疑似重錄(相似${Math.round(r.sim * 100)}%${r.evidence === 'corrected-merge-far' ? '，隔碎片' : ''})：刪「${r.phrase}」留「${r.next}」`);
         }
       }
     }
