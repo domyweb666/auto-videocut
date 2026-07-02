@@ -27,6 +27,7 @@ const path = require('path');
 const {
   bigramSimilarity,
   lcsRatio: computeLcsRatio,
+  findShortStutterRepeats,
   loadTrainingConfig,
   loadProtectedWords,
 } = require('./rule_utils');
@@ -309,6 +310,78 @@ for (let i = 0; i < phrases.length; i++) {
   intraRepeatWords += localIdxToDelete.length;
 }
 log(`規則 G Intra-phrase 重複: ${intraRepeatCount} 個 phrase / ${intraRepeatWords} 個 word`);
+
+// ── 規則 C2：單元立即重複（2–20 字 AB AB 型，任意位置）──
+// 補兩個空窗：(1) 規則 C 寫死清單外的短卡頓「我覺得我覺得」「可以可以」；
+// (2) 規則 G 只掃句首前綴，句中的長立即重複（「進而質疑先前所知道的一切」×2）沒人管。
+// 字級刪除（刪前留後），phrase 整句保留；與規則 G 同用 wordDeleteIdx。
+// 守門：hit 的完整重複範圍若與 G 已刪的字重疊 → 跳過該 hit（否則 G 刪後份 + C2 刪前份 = 兩份全滅）。
+const SHORT_STUTTER_ENABLED = trainConfig.short_stutter?.enabled ?? true;
+const SHORT_STUTTER_MIN = parseInt(trainConfig.short_stutter?.min_len ?? 2, 10);
+const SHORT_STUTTER_MAX = parseInt(trainConfig.short_stutter?.max_len ?? 20, 10);
+const SHORT_STUTTER_WHITELIST = trainConfig.short_stutter?.whitelist; // 未設 → rule_utils 預設
+let shortStutterCount = 0;
+let shortStutterWords = 0;
+if (SHORT_STUTTER_ENABLED && wordsData) {
+  for (let i = 0; i < phrases.length; i++) {
+    if (deletedSet.has(i)) continue;
+    const ph = phrases[i];
+    const text = (ph.text || '').trim();
+    if (text.length < SHORT_STUTTER_MIN * 2) continue;
+
+    let hits = findShortStutterRepeats(text, {
+      minLen: SHORT_STUTTER_MIN,
+      maxLen: SHORT_STUTTER_MAX,
+      whitelist: SHORT_STUTTER_WHITELIST,
+    });
+    if (hits.length === 0) continue;
+
+    // 建 word 字元邊界表（與規則 G 同一走法），並做健全性檢查
+    const wis = ph.wordIndices || [];
+    if (wis.length === 0) continue;
+    const bounds = [];  // bounds[k] = [wordStart, wordEnd)
+    let cumLen = 0;
+    let mappingOk = true;
+    for (let k = 0; k < wis.length; k++) {
+      const w = wordsData[wis[k]];
+      if (!w) { mappingOk = false; break; }
+      const wLen = (w.text || '').length;
+      bounds.push([cumLen, cumLen + wLen]);
+      cumLen += wLen;
+    }
+    if (!mappingOk || cumLen !== text.length) continue;
+
+    // 守門：G 已刪的字若落在 hit 的完整重複範圍 [start, end) 內 → 該組重複 G 已處理，跳過
+    const preDeleted = new Set(ph.wordDeleteIdx || []);
+    if (preDeleted.size > 0) {
+      hits = hits.filter(h => ![...preDeleted].some(k =>
+        bounds[k] && bounds[k][0] < h.end && bounds[k][1] > h.start));
+      if (hits.length === 0) continue;
+    }
+
+    // 只刪完全落在 deleteStart/deleteEnd（前 copies-1 份）內的字
+    const localIdxToDelete = [];
+    for (let k = 0; k < wis.length; k++) {
+      const [ws, we] = bounds[k];
+      if (hits.some(h => ws >= h.deleteStart && we <= h.deleteEnd)) {
+        localIdxToDelete.push(k);
+      }
+    }
+    if (localIdxToDelete.length === 0) continue;
+
+    // 與規則 G 的 wordDeleteIdx 合併（去重）
+    const merged = new Set(ph.wordDeleteIdx || []);
+    localIdxToDelete.forEach(k => merged.add(k));
+    ph.wordDeleteIdx = [...merged].sort((a, b) => a - b);
+    const desc = hits.map(h => `「${h.unit.slice(0, 12)}${h.unit.length > 12 ? '…' : ''}」×${h.copies}`).join('、');
+    ph.wordDeleteReason = ph.wordDeleteReason
+      ? `${ph.wordDeleteReason}; short_stutter: ${desc}`
+      : `short_stutter: ${desc}，刪前留後`;
+    shortStutterCount++;
+    shortStutterWords += localIdxToDelete.length;
+  }
+}
+log(`規則 C2 單元立即重複: ${shortStutterCount} 個 phrase / ${shortStutterWords} 個 word`);
 
 // ── 規則 D：Take grouping（鏈式相似，保留最後）──
 let takeCount = 0;
