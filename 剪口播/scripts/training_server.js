@@ -98,8 +98,13 @@ function autoContentPreselect(workDir, words, indices, reasons) {
           let corrected = '';
           const cPath = path.join(workDir, '1_轉錄', 'corrected_text.txt');
           if (fs.existsSync(cPath)) corrected = fs.readFileSync(cPath, 'utf8');
-          added += preselectSegs(words, detectRetakesFuzzy(warr, corrected, rt.fuzzy_opts || {}), sel, reasons,
-            r => `疑似重錄(相似${Math.round(r.sim * 100)}%${r.evidence === 'corrected-merge-far' ? '，隔碎片' : ''})：刪「${r.phrase}」留「${r.next}」`);
+          // 無校正稿（新 BytePlus 流程）時，講稿 reference.txt 是排比/重錄判別證據，
+          // 同時讓遠距層重新啟用（detect_retakes 的 refMergeEvidence，次數差+scripted 守門）
+          let referenceText = '';
+          const rPath = path.join(workDir, '1_轉錄', 'reference.txt');
+          if (fs.existsSync(rPath)) referenceText = fs.readFileSync(rPath, 'utf8');
+          added += preselectSegs(words, detectRetakesFuzzy(warr, corrected, { ...(rt.fuzzy_opts || {}), referenceText }), sel, reasons,
+            r => `疑似重錄(相似${Math.round(r.sim * 100)}%${r.evidence.endsWith('-far') ? '，隔碎片' : ''}${r.evidence.startsWith('reference') ? '，講稿佐證' : ''})：刪「${r.phrase}」留「${r.next}」`);
         }
       }
     }

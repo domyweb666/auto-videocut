@@ -163,19 +163,43 @@ function levSim(a, b) {
   return 1 - prev[n] / Math.max(m, n);
 }
 
+// ── 參考講稿（reference.txt）當判別證據 ──
+// 新流程（BytePlus --ddc off）沒有校正稿，fuzzy 的排比/重錄判別會退化成純相似度、
+// 遠距層整個關閉。但使用者的口播多半有講稿：**講稿裡句子只出現一次、轉錄裡出現
+// 兩次＝重錄；排比句在講稿裡本來就有兩個變體**。所以講稿證據用「次數差」而不是
+// 校正稿的「存在性」（重錄兩個 take 開頭常相同，存在性檢查會兩個都命中而失效）。
+// 守門：探針至少要有一邊「在講稿裡找得到」才算證據——即興段（講稿沒有的內容）
+// 兩個探針都 miss，若也算證據會把即興段的呼應句全標成重錄，寧可退回純相似度門檻。
+// 繁簡：講稿常是繁體、轉錄是簡體 → 講稿先展開成 [原文, 轉繁, 轉簡] 三個變體，
+// 探針對任一變體命中都算（用 opencc-js；載入失敗就只比原文，功能降級不炸）。
+function buildRefVariants(referenceText) {
+  const raw = normText(referenceText);
+  if (!raw) return [];
+  const variants = new Set([raw]);
+  try {
+    const OpenCC = require('opencc-js');
+    variants.add(OpenCC.Converter({ from: 'cn', to: 'tw' })(raw));
+    variants.add(OpenCC.Converter({ from: 'tw', to: 'cn' })(raw));
+  } catch (_) { /* opencc 不在 → 只比原文 */ }
+  return [...variants];
+}
+
 /**
  * @param {Array} words 校正前 whisper_words（同 detectRetakes）
  * @param {string} correctedText gpt-4o 校正後全文（可空字串＝無校正稿）
+ * @param {object} opts 覆寫 FUZZY 參數；opts.referenceText＝使用者講稿（無校正稿時的判別證據）
  * @returns [{ start, end, phrase, next, sim, evidence }]
  *   時間段＝疑似 false-start（已剔除 exact 層涵蓋的部分）；evidence:
- *   'corrected-merge'＝校正稿合併證據、'high-sim'＝純高相似度、
- *   'corrected-merge-far'＝遠距配對（隔 1–2 句碎片）＋探針次數證據。
+ *   'corrected-merge'＝校正稿合併證據、'reference-merge'＝講稿次數差證據、
+ *   'high-sim'＝純高相似度、'near-exact'＝一字之差、
+ *   'corrected-merge-far' / 'reference-merge-far'＝遠距配對（隔 1–2 句碎片）。
  */
 function detectRetakesFuzzy(words, correctedText, opts = {}) {
   const o = { ...FUZZY, ...opts };
   const seq = buildCharSeq(words);
   const S = seq.map(x => x.ch).join('');
   const C = normText(correctedText);
+  const RV = buildRefVariants(opts.referenceText);
 
   // 探針出現次數（遠距證據用）
   const countIn = (str, sub) => {
@@ -183,6 +207,14 @@ function detectRetakesFuzzy(words, correctedText, opts = {}) {
     let c = 0, i = 0;
     while ((i = str.indexOf(sub, i)) !== -1) { c++; i++; }
     return c;
+  };
+  const countInRef = sub => RV.reduce((m, v) => Math.max(m, countIn(v, sub)), 0);
+  // 講稿次數差證據：至少一邊在講稿找得到（scripted 守門）＋任一探針在轉錄出現次數 > 講稿次數
+  const refMergeEvidence = (probeA, probeB) => {
+    if (!RV.length) return false;
+    const cA = countInRef(probeA), cB = countInRef(probeB);
+    if (cA === 0 && cB === 0) return false; // 即興段：無證據，退回純相似度
+    return cA < countIn(S, probeA) || cB < countIn(S, probeB);
   };
 
   const cands = [];
@@ -199,7 +231,7 @@ function detectRetakesFuzzy(words, correctedText, opts = {}) {
         const gap = p2 - (p1 + k);
         if (gap < 0 || gap > o.MAXGAP_FAR) continue;
         const far = gap > o.MAXGAP;      // 遠距配對：中間隔了放棄碎片
-        if (far && !C) continue;          // 遠距一律要校正稿硬證據，沒有就不啟用
+        if (far && !C && !RV.length) continue; // 遠距一律要硬證據（校正稿或講稿），都沒有就不啟用
         const takeLen = p2 - p1;
         // near-exact 允許 4 字 take 進來，是否真的放行由後面的編輯距離判斷
         const minTake = far ? o.MIN_TAKE : Math.min(o.MIN_TAKE, o.NEAR_MIN_TAKE);
@@ -218,17 +250,21 @@ function detectRetakesFuzzy(words, correctedText, opts = {}) {
           A = S.substr(q1, L); B = S.substr(q2, L);
           sim = levSim(A, B);
           if (sim < o.SIM_FAR) continue;
-          // 次數證據：探針在原始轉錄出現 N 次、校正稿 < N 次 ＝ 校正把重複合併掉了。
+          // 次數證據：探針在原始轉錄出現 N 次、校正稿/講稿 < N 次 ＝ 重複被合併/講稿只寫一次。
           // （近距的「存在性」檢查在兩 take 同前綴時 probeA==probeB 兩個都命中，會漏；次數比不會。）
           const probeA = A.slice(0, Math.min(A.length, o.PROBE_LEN));
           const probeB = B.slice(0, Math.min(B.length, o.PROBE_LEN));
-          merged = countIn(C, probeA) < countIn(S, probeA) || countIn(C, probeB) < countIn(S, probeB);
-          if (!merged) continue;
+          let farEvidence = '';
+          if (C && (countIn(C, probeA) < countIn(S, probeA) || countIn(C, probeB) < countIn(S, probeB)))
+            farEvidence = 'corrected-merge-far';
+          else if (!C && refMergeEvidence(probeA, probeB))
+            farEvidence = 'reference-merge-far';
+          if (!farEvidence) continue;
           if (isHallucinatedSpan(seq, q1, L) || isHallucinatedSpan(seq, q2, L)) continue;
           cands.push({
             start: seq[q1].start, end: seq[q2].start,
             phrase: S.slice(q1, q2), next: B, sim,   // phrase＝實際會刪的 take1+碎片
-            evidence: 'corrected-merge-far',
+            evidence: farEvidence,
           });
           continue;
         }
@@ -239,20 +275,24 @@ function detectRetakesFuzzy(words, correctedText, opts = {}) {
         const nearExact = (1 - sim) * takeLen <= 1 + 1e-6;
         if (takeLen < o.MIN_TAKE && !nearExact) continue;  // 4 字 take 只有 near-exact 才放行
         if (sim < o.SIM_CAND) continue;
-        // 兩個 take 開頭都在校正稿 → 兩句不同內容都被留下 → 不是重錄；否則＝被合併 → 證據
+        // 校正稿：兩個 take 開頭都在稿裡 → 排比句不標；否則＝被合併 → 證據。
+        // 無校正稿但有講稿：次數差證據（重錄兩 take 開頭常相同，存在性檢查會失效，見 refMergeEvidence）。
         const probeA = A.slice(0, Math.min(A.length, o.PROBE_LEN));
         const probeB = B.slice(0, Math.min(B.length, o.PROBE_LEN));
-        merged = !!C && !(C.includes(probeA) && C.includes(probeB));
+        let mergeSrc = '';
+        if (C) { if (!(C.includes(probeA) && C.includes(probeB))) mergeSrc = 'corrected-merge'; }
+        else if (refMergeEvidence(probeA, probeB)) mergeSrc = 'reference-merge';
+        merged = !!mergeSrc;
         if (sim < o.SIM_SOLO && !merged) continue;
-        // 4 字 near-exact 在「有校正稿且兩個 take 都在稿裡」時不標——
-        // 那是「一個白板/一個黑板」式列舉，不是重錄（短 take 純相似度分不開，靠校正稿站隊）
-        if (nearExact && takeLen < o.MIN_TAKE && C && !merged) continue;
+        // 4 字 near-exact 在「有校正稿/講稿、但查無合併證據」時不標——
+        // 那是「一個白板/一個黑板」式列舉，不是重錄（短 take 純相似度分不開，靠稿站隊）
+        if (nearExact && takeLen < o.MIN_TAKE && (C || RV.length) && !merged) continue;
         // 任一 take 時長塌陷 → whisper 幻覺複寫（同 exact 層守門）
         if (isHallucinatedSpan(seq, p1, takeLen) || isHallucinatedSpan(seq, p2, takeLen)) continue;
         cands.push({
           start: seq[p1].start, end: seq[p2].start,
           phrase: A, next: B, sim,
-          evidence: merged ? 'corrected-merge' : (nearExact ? 'near-exact' : 'high-sim'),
+          evidence: mergeSrc || (nearExact ? 'near-exact' : 'high-sim'),
         });
       }
     }

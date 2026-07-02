@@ -173,5 +173,58 @@ t('正常時間戳的真重錄不受守門影響', () => {
   assert.strictEqual(r.length, 1);
 });
 
+console.log('\ndetect_retakes 講稿（reference.txt）證據層:');
+
+t('講稿次數差：轉錄兩次、講稿一次 → 標 reference-merge', () => {
+  // 同 corrected-merge 案例，但改用講稿當證據（新 BytePlus 流程沒有校正稿）
+  const text = '因為你心裡沒有見過心裡沒建立過這個印象所以';
+  const r = detectRetakesFuzzy(W(text), '', { referenceText: '因為你心裡沒建立過這個印象所以' });
+  assert.strictEqual(r.length, 1, `應標 1 段，實得 ${JSON.stringify(r)}`);
+  assert.strictEqual(r[0].evidence, 'reference-merge');
+});
+
+t('講稿排比句：兩個變體講稿裡都有（各一次）→ 不標', () => {
+  const text = '把它想像成是你自己而人的角色想像成是造物主它用演化';
+  const r = detectRetakesFuzzy(W(text), '', { referenceText: text });
+  assert.strictEqual(r.length, 0, `排比不該標，實得 ${JSON.stringify(r)}`);
+});
+
+t('即興段守門：探針都不在講稿 → 無證據，退回純相似度（中相似不標）', () => {
+  // 中等相似（無稿時 SIM_SOLO 擋掉的那段），講稿完全無關 → 不能因「講稿裡找不到」就當重錄
+  const text = '所以你可以把它想想所以你可以想要整只羊狗後面';
+  const r = detectRetakesFuzzy(W(text), '', { referenceText: '今天要講的主題是情緒與決策的關係完全不同的內容' });
+  assert.strictEqual(r.length, 0, `即興段不該標，實得 ${JSON.stringify(r)}`);
+});
+
+t('繁簡正規化：轉錄簡體、講稿繁體 → 仍能配上（opencc）', () => {
+  const text = '因为你心里没有见过心里没建立过这个印象所以'; // BytePlus zh-CN 簡體轉錄
+  const r = detectRetakesFuzzy(W(text), '', { referenceText: '因為你心裡沒建立過這個印象所以' }); // 使用者講稿繁體
+  assert.strictEqual(r.length, 1, `繁簡混用應標 1 段，實得 ${JSON.stringify(r)}`);
+  assert.strictEqual(r[0].evidence, 'reference-merge');
+});
+
+t('遠距層：只有講稿（無校正稿）也啟用 → 標 reference-merge-far', () => {
+  // 同 FAR_TEXT 結構：take1 + 放棄碎片 + take2，講稿只寫一次
+  const r = detectRetakesFuzzy(W(FAR_TEXT), '', { referenceText: '而如果是正面情緒的話我們就會覺得爽快這樣的迴路就會被強化下去' });
+  assert.strictEqual(r.length, 1, `講稿應讓遠距層啟用，實得 ${JSON.stringify(r)}`);
+  assert.strictEqual(r[0].evidence, 'reference-merge-far');
+  assert.ok(Math.abs(r[0].end - 4.4) < 0.15, `end 應≈4.4（take2 起點），實為 ${r[0].end}`);
+});
+
+t('遠距層：講稿裡開頭出現兩次（刻意呼應）→ 次數相等，不標', () => {
+  const text = '而如果是正面情緒的話我們就會覺得開心' + '呃不對等一下我想一下這段要怎麼講比較好我們重新來一次' + '而如果是正面情緒的話我們就會覺得開心';
+  const ref = '而如果是正面情緒的話我們就會覺得開心中間有別的內容而如果是正面情緒的話我們就會覺得開心';
+  const r = detectRetakesFuzzy(W(text), '', { referenceText: ref });
+  assert.strictEqual(r.length, 0, `講稿呼應句不該標，實得 ${JSON.stringify(r)}`);
+});
+
+t('有校正稿時：校正稿優先，講稿不改變既有行為', () => {
+  const text = '因為你心裡沒有見過心裡沒建立過這個印象所以';
+  const corrected = '因為你心裡沒建立過這個印象所以';
+  const r = detectRetakesFuzzy(W(text), corrected, { referenceText: '完全無關的講稿' });
+  assert.strictEqual(r.length, 1);
+  assert.strictEqual(r[0].evidence, 'corrected-merge');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
