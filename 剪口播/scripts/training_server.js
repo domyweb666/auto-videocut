@@ -120,6 +120,37 @@ function autoContentPreselect(workDir, words, indices, reasons) {
       }
     }
 
+    // 3) 語意重複建議（嵌入向量，低信心層）— 只讀 prepareArtifacts 背景產出的快取，
+    //    絕不現算（審核頁載入會同步走到這裡，模型編碼可達數十秒）。
+    //    抓「字面差異大但語意相同」的遠距重複（bigram/LCS 候選對層看不見的），
+    //    刪較短句、理由標明低信心，審核頁可取消。
+    const se = cfg.semantic_embed || {};
+    if (se.enabled !== false) {
+      const semPath = path.join(workDir, '2_分析', 'semantic_pairs.json');
+      if (fs.existsSync(semPath)) {
+        try {
+          const cands = JSON.parse(fs.readFileSync(semPath, 'utf8')) || [];
+          const maxN = se.max_pairs ?? 8;
+          let n = 0;
+          for (const c of cands) {  // detect_redundancy 已按相似度降序
+            if (n >= maxN) break;
+            if (!c || !c.sent_a || !c.sent_b) continue;
+            const del = String(c.sent_a.text).length <= String(c.sent_b.text).length ? c.sent_a : c.sent_b;
+            const keep = del === c.sent_a ? c.sent_b : c.sent_a;
+            if (sel.has(del.startIdx) || sel.has(keep.startIdx)) continue; // 任一側已被刪 → 不疊加
+            const hit = [];
+            for (let k = del.startIdx; k <= del.endIdx && k < words.length; k++) hit.push(k);
+            if (!hit.length || hit.every(k => sel.has(k))) continue;
+            hit.forEach(k => sel.add(k));
+            const key = `${hit[0]}-${hit[hit.length - 1]}`;
+            if (!reasons[key]) reasons[key] = `語意重複建議(嵌入${Math.round((c.similarity || 0) * 100)}%，低信心請確認)：與「${String(keep.text).slice(0, 15)}…」重複，刪較短`;
+            n++; added += 1;
+          }
+          if (n) console.log(`🧠 語意重複建議（嵌入）預選 ${n} 段`);
+        } catch (e) { console.warn('[語意建議] 解析失敗(略過):', (e.message || '').split('\n')[0]); }
+      }
+    }
+
     if (added) {
       const sorted = [...sel].sort((a, b) => a - b);
       indices.length = 0;
@@ -295,6 +326,7 @@ function prepareArtifacts(workDir, subsPath, audioPath, analysisDir, cb) {
     rms: path.join(analysisDir, 'audio_rms.json'),
     sil: path.join(analysisDir, 'silences.json'),
     cough: path.join(analysisDir, 'cough_ml.json'),
+    sem: path.join(analysisDir, 'semantic_pairs.json'),
     ok: false,
   };
   try { fs.mkdirSync(analysisDir, { recursive: true }); } catch (_) {}
@@ -302,20 +334,51 @@ function prepareArtifacts(workDir, subsPath, audioPath, analysisDir, cb) {
   art.ok = true;
   const cfg = readTrainingConfig();
   const coughEnabled = (cfg.cough_ml || {}).enabled !== false;
-  const steps = [];
+  const steps = []; // [cmd, args, saveStdoutTo?]
   if (!fs.existsSync(art.rms))
     steps.push(['python', [path.join(SCRIPT_DIR, 'extract_audio_features.py'), audioPath, subsPath, path.join(analysisDir, 'audio_features.json'), '--dump-series', art.rms]]);
   if (!fs.existsSync(art.sil))
     steps.push(['node', [path.join(SCRIPT_DIR, 'detect_silences.js'), audioPath, art.sil]]);
   if (coughEnabled && !fs.existsSync(art.cough))
     steps.push(['python', [path.join(SCRIPT_DIR, 'detect_coughs_ml.py'), audioPath, art.cough, '--thr', '0.2']]);
+  // 語意重複建議（嵌入向量，低信心層）：從 AI 保留句建 sentences.txt →
+  // detect_redundancy.py（sentence-transformers，缺依賴自動退 3-gram）→ 快取 semantic_pairs.json。
+  // 放這裡（背景）而非 autoContentPreselect（審核頁載入會同步觸發）——模型編碼可達數十秒。
+  const semCfg = cfg.semantic_embed || {};
+  if (semCfg.enabled !== false && !fs.existsSync(art.sem)) {
+    try {
+      const sentPath = path.join(workDir, '1_轉錄', 'sentences.json');
+      if (fs.existsSync(sentPath)) {
+        const phr = JSON.parse(fs.readFileSync(sentPath, 'utf8'));
+        const minLen = semCfg.min_len ?? 10;
+        const lines = [];
+        phr.forEach((p, si) => {
+          if (!p || p.aiDelete) return;
+          const wis = p.wordIndices || [];
+          if (!wis.length) return;
+          const text = String(p.displayText || p.text || '').replace(/[|\r\n]/g, '').trim();
+          if (text.length < minLen) return;
+          lines.push(si + '|' + wis[0] + '-' + wis[wis.length - 1] + '|' + text);
+        });
+        if (lines.length >= 2) {
+          const txt = path.join(analysisDir, 'semantic_sentences.txt');
+          fs.writeFileSync(txt, lines.join('\n'), 'utf8');
+          steps.push(['python', [path.join(SCRIPT_DIR, 'detect_redundancy.py'), txt,
+            String(semCfg.threshold ?? 0.9), String(semCfg.min_gap ?? 3), String(semCfg.max_gap ?? 40)],
+            art.sem]);
+        }
+      }
+    } catch (e) { console.warn('[8900 精修] 語意建議前置失敗(略過):', (e.message || '').split('\n')[0]); }
+  }
   const { execFile } = require('child_process');
   let i = 0;
   const next = () => {
     if (i >= steps.length) { cb(art); return; }
-    const [c, a] = steps[i++];
-    execFile(c, a, { maxBuffer: 50 * 1024 * 1024 }, (err) => {
+    const [c, a, saveTo] = steps[i++];
+    // timeout 防呆：語意/咳嗽首跑要下載模型，網路壞掉時別讓整條鏈掛死（正常跑遠低於此值）
+    execFile(c, a, { maxBuffer: 50 * 1024 * 1024, timeout: 600000, env: { ...process.env, PYTHONIOENCODING: 'utf-8' } }, (err, stdout) => {
       if (err) console.warn('[8900 精修] 步驟失敗(略過):', (err.message || '').split('\n')[0]);
+      else if (saveTo) { try { fs.writeFileSync(saveTo, stdout); } catch (e2) { console.warn('[8900 精修] 落檔失敗:', e2.message); } }
       next();
     });
   };
@@ -914,6 +977,7 @@ const server = http.createServer((req, res) => {
         const upstream = Math.max(
           _mt(path.join(ctx.workDir, '1_轉錄', 'sentences.json')),
           _mt(path.join(ctx.workDir, '2_分析', 'cough_ml.json')),
+          _mt(path.join(ctx.workDir, '2_分析', 'semantic_pairs.json')),
           _mt(subsPath));
         if (!autoM || autoM < upstream) writeAutoSelectedFromSentences(ctx.workDir);
       } catch (_) {}

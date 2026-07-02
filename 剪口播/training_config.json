@@ -89,5 +89,14 @@
     "_note_fuzzy": "fuzzy_preselect：近似重錄（隔碎片/前綴略低/一兩字差）只做審核頁預選、不自動剪，使用者在審核頁確認。主要證據＝gpt-4o 校正稿把其中一次合併掉（排比句兩次都保留故不誤標）；無校正稿時退回高相似度門檻。門檻在 detect_retakes.js 的 FUZZY 常數。"
   },
   "_baseline_f1": 0.9683,
-  "_best_f1": 0.9683
+  "_best_f1": 0.9683,
+  "semantic_embed": {
+    "enabled": true,
+    "threshold": 0.9,
+    "min_gap": 3,
+    "max_gap": 40,
+    "min_len": 10,
+    "max_pairs": 8,
+    "_note": "語意重複建議（嵌入向量，低信心層）。prepareArtifacts 背景跑 detect_redundancy.py（sentence-transformers paraphrase-multilingual-MiniLM-L12-v2，缺依賴退 3-gram），結果快取 2_分析/semantic_pairs.json；autoContentPreselect 只讀快取（審核頁載入不現算）。抓字面差異大但語意相同的遠距重複，刪較短句、理由標「低信心請確認」。threshold 0.9=只抓近乎確定的重講；實測 0.80 會把「文章結構前後呼應」這類合法重述也撈進來，別亂降。max_pairs 上限避免灌爆審核頁。"
+  }
 }
