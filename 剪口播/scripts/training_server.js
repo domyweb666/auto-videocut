@@ -16,8 +16,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawn } = require('child_process');
-const buildReviewHtml = require('./generate_review');
-const { parseAutoSelected } = buildReviewHtml;
+const { parseAutoSelected } = require('./parse_auto_selected'); // 從退役 generate_review.js 抽出（audit #12）
 const buildReviewDoc = require('./generate_review_doc'); // 純白文稿版審核頁（取代深色版，舊版保留備援）
 const convertAiToIndices = require('./convert_ai_to_indices'); // 句級 sentences.json → 字級 {indices,reasons}
 
