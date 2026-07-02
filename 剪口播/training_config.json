@@ -34,7 +34,9 @@
     "max_len": 3,
     "min_gap": 0.5
   },
-  "intra_repeat": { "min_len": 4 },
+  "intra_repeat": {
+    "min_len": 4
+  },
   "phrase_repeat": {
     "enabled": true,
     "min_len": 5,
@@ -46,8 +48,8 @@
   "abandoned_start": {},
   "incomplete_sentence": {},
   "candidate_pair": {
-    "similarity": 0.30,
-    "lcs_ratio": 0.30,
+    "similarity": 0.3,
+    "lcs_ratio": 0.3,
     "window": 8,
     "max_pairs": 50,
     "min_text_len": 4
@@ -55,22 +57,23 @@
   "use_pair_mode": true,
   "pause_flatten": {
     "enabled": true,
-    "floor_sec": 0.20,
-    "target_sec": 0.3,
+    "floor_sec": 0.2,
+    "target_sec": 0.45,
     "long_pause_sec": 1.2,
-    "long_target_sec": 0.6,
+    "long_target_sec": 0.8,
     "keep_side": "tail",
     "noise_db": -30,
-    "min_dur": 0.20,
+    "min_dur": 0.2,
     "protect_ranges": [],
     "protect_idx": [],
-    "_note": "句間停頓壓平，依原始保留停頓長度分兩段（大原則：剪短但留一口氣，不要剪到零）。① 保留長度 < long_pause_sec 的是『氣口』→ 壓到 target_sec(0.3s ≈ 30fps 6-9 格)；② ≥ long_pause_sec(1.2s) 的是『段落/主題轉場』→ 只壓到 long_target_sec(0.6s)，留較多呼吸（轉場留白）。floor_sec 以下不動（正常呼吸）。靜音來源＝音訊實測(detect_silences.js, noise_db/min_dur 給 ffmpeg silencedetect)，非 STT gap（Google STT 字時間戳零間隔，isGap 看不到真實停頓）。節奏偏快→target 收到 0.25；偏沉穩→long_target 放寬到 0.8~1.0。戲劇性刻意停頓不靠自動判斷（分不出死空氣），用 protect_ranges=[[start,end],...] 手動挖坑保留。約束：target_sec/long_target_sec 皆須 > cut_video.sh 的 MERGE_GAP(0.2)，且 long_target_sec ≥ target_sec。未設 long_pause_sec 時退回單一 target 舊行為。口誤/重講/贅字/卡詞的整段刪除屬內容判斷層，不歸本層。"
+    "_note": "句間停頓壓平，依原始保留停頓長度分兩段（大原則：剪短但留一口氣，不要剪到零）。① 保留長度 < long_pause_sec 的是『氣口』→ 壓到 target_sec(0.3s ≈ 30fps 6-9 格)；② ≥ long_pause_sec(1.2s) 的是『段落/主題轉場』→ 只壓到 long_target_sec(0.6s)，留較多呼吸（轉場留白）。floor_sec 以下不動（正常呼吸）。靜音來源＝音訊實測(detect_silences.js, noise_db/min_dur 給 ffmpeg silencedetect)，非 STT gap（Google STT 字時間戳零間隔，isGap 看不到真實停頓）。節奏偏快→target 收到 0.25；偏沉穩→long_target 放寬到 0.8~1.0。戲劇性刻意停頓不靠自動判斷（分不出死空氣），用 protect_ranges=[[start,end],...] 手動挖坑保留。約束：target_sec/long_target_sec 皆須 > cut_video.sh 的 MERGE_GAP(0.2)，且 long_target_sec ≥ target_sec。未設 long_pause_sec 時退回單一 target 舊行為。口誤/重講/贅字/卡詞的整段刪除屬內容判斷層，不歸本層。",
+    "_calibration": "2026-07-02 以 43 支使用者剪映成品（training_output/*/audio_edited.mp3，7973 個內部停頓，silencedetect -30dB/0.2s 去頭尾）實測：短停頓(<1.2s) p50=0.46/mean=0.51/p75=0.64；轉場(>=1.2s) 佔 3.5%、p50=1.33。據此 target_sec 0.3->0.45（貼齊成品中位數）、long_target_sec 0.6->0.8（往量測靠但原始長停頓多為死空氣，先取沉穩上緣，要再鬆需實聽）。量測腳本見 scratchpad pause_calib/measure.js 邏輯（ffmpeg silencedetect 掃 audio_edited）。"
   },
   "cut_snap": {
     "enabled": true,
     "window_sec": 0.12,
     "max_intrude_sec": 0.06,
-    "valley_margin_db": 6.0,
+    "valley_margin_db": 6,
     "_note": "切點吸附：刀點往最近靜音波谷移。window=搜尋窗±秒；max_intrude=最多吃進有聲幾秒；valley_margin_db=要比當下安靜幾 dB 才移（煞車）"
   },
   "cough_ml": {
