@@ -953,6 +953,23 @@ const server = http.createServer((req, res) => {
         // WYSIWYG：不再在匯出端併入重錄/咳嗽——它們已由 autoContentPreselect 進審核頁預選，
         // 使用者看到並核可的 deleteList 就是最終內容決策（refine 只做壓平/吸附等苦工）。
 
+        // 審稿記分卡：diff「AI 預選 vs 使用者最終勾選」按偵測器記帳（橋接前的原始勾選，
+        // 取消勾選＝該偵測器誤刪、手動補刪＝整體漏刪）。純記帳不影響匯出，失敗靜默。
+        // 看報表：node review_scorecard.js --report
+        try {
+          const _scSubs = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
+          const _scAuto = path.join(ctx.workDir, '2_分析', 'auto_selected.json');
+          if (fs.existsSync(_scSubs) && fs.existsSync(_scAuto)) {
+            const _scWords = JSON.parse(fs.readFileSync(_scSubs, 'utf8'));
+            const _scParsed = parseAutoSelected(JSON.parse(fs.readFileSync(_scAuto, 'utf8')));
+            const { buildScorecard, appendScorecard } = require('./review_scorecard');
+            const card = buildScorecard(_scWords, _scParsed.autoSelected, _scParsed.autoReasons, deleteList);
+            appendScorecard(videoName, ctx.workDir, card);
+            const rej = Object.values(card.categories).reduce((t, c) => t + c.rejected, 0);
+            console.log(`📊 [${videoName}] 記分卡：退回 ${rej} 字、手動補刪 ${card.missed.words} 字（${card.missed.sec}s）`);
+          }
+        } catch (e) { console.warn(`[${videoName}] 記分卡失敗(略過):`, (e.message || '').split('\n')[0]); }
+
         // 梳齒橋接（audit #4）：審核頁 gap 元素不可選，逐字手動刪除會在字間留 0.2~0.3s 殘 gap，
         // 剪完首尾相接串成死空氣。相鄰刪除段之間只剩 gap/靜音（無發音字）→ 併成一段。失敗降級原清單。
         try {
