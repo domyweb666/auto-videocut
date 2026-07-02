@@ -1043,14 +1043,19 @@ const server = http.createServer((req, res) => {
         const container = (exportOptions.container || 'mp4').toLowerCase();
         const mainExt = exportOptions.audioOnly ? 'mp3' : container;
         const baseName = path.basename(ctx.videoPath).replace(/\.[^/.]+$/, '');
-        // 輸出資料夾：使用者指定且存在則用之，否則預設影片工作目錄
-        let outDir = ctx.workDir;
+        // 成品名稱：使用者取名（濾掉路徑分隔與 Windows 非法字元），留空＝<影片名>_cut
+        const exportName = String(exportOptions.exportName || '').replace(/[\\/:*?"<>|]/g, '').trim() || `${baseName}_cut`;
+        // 輸出資料夾：使用者指定且存在則用之，否則預設影片工作目錄；
+        // 一律在其下建「成品名稱」同名子資料夾，mp4/srt/txt/timeline_map 收攏一起，不再散一地
+        let outBase = ctx.workDir;
         if (exportOptions.outputDir && typeof exportOptions.outputDir === 'string') {
           const od = exportOptions.outputDir.trim();
-          try { if (od && fs.existsSync(od) && fs.statSync(od).isDirectory()) outDir = od; } catch (_) {}
+          try { if (od && fs.existsSync(od) && fs.statSync(od).isDirectory()) outBase = od; } catch (_) {}
         }
-        const shellOutputFile = path.join(outDir, `${baseName}_cut.${container}`);
-        const finalOutputFile = path.join(outDir, `${baseName}_cut.${mainExt}`);
+        const outDir = path.join(outBase, exportName);
+        try { fs.mkdirSync(outDir, { recursive: true }); } catch (_) {}
+        const shellOutputFile = path.join(outDir, `${exportName}.${container}`);
+        const finalOutputFile = path.join(outDir, `${exportName}.${mainExt}`);
 
         const env = {
           ...process.env,

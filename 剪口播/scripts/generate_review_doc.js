@@ -88,7 +88,9 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
 <div id="ov"><div class="ovbox">
   <div id="ovForm">
     <h3>匯出設定</h3>
-    <label>輸出資料夾</label>
+    <label>成品名稱</label>
+    <div class="ovrow"><input type="text" id="expName" placeholder="留空＝影片名_cut"></div>
+    <label>輸出資料夾（會在其下建「成品名稱」子資料夾，影片/字幕/文稿收攏一起）</label>
     <div class="ovrow"><input type="text" id="expDir" placeholder="留空＝存到影片原資料夾"><button onclick="pickDir()">瀏覽</button></div>
     <label>格式</label>
     <select id="expFmt"><option value="mp4">MP4（H.264，通用）</option><option value="mov">MOV</option><option value="mkv">MKV</option><option value="mp3">只要音檔（MP3）</option></select>
@@ -142,7 +144,7 @@ function expFail(m){document.getElementById('ovStep').textContent='匯出失敗'
 function runExport(){
   var dl=segs().map(function(g){return{start:g.s,end:g.e};});
   var fm=document.getElementById('expFmt').value;var audioOnly=(fm==='mp3');
-  var opt={outputDir:document.getElementById('expDir').value.trim(),container:audioOnly?'mp4':fm,audioOnly:audioOnly,lossless:document.getElementById('expLossless').checked};
+  var opt={outputDir:document.getElementById('expDir').value.trim(),exportName:document.getElementById('expName').value.trim(),container:audioOnly?'mp4':fm,audioOnly:audioOnly,lossless:document.getElementById('expLossless').checked};
   document.getElementById('ovForm').style.display='none';document.getElementById('ovProg').style.display='block';
   document.getElementById('ovDone').style.display='none';document.getElementById('ovStep').textContent='匯出中…';setBar(0);
   fetch('${cutApiPath}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deleteList:dl,exportOptions:opt})}).then(function(r){return r.json();}).then(function(d){if(d&&d.error){expFail(d.error);return;}pollExport();}).catch(function(e){expFail(e.message);});
