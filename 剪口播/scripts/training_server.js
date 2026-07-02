@@ -503,6 +503,30 @@ let cutState = {
 // 匯出進度狀態（審核頁匯出改成非同步，讓前端輪詢百分比）
 let exportState = { running: false, progress: 0, step: '', videoName: '', result: null, error: null };
 
+// Git Bash 路徑偵測：env 覆寫 → 常見安裝路徑 → 由 git.exe 位置反推。
+// 不可用 PATH 上的裸 'bash'（Windows 會解析成 System32 的 WSL bash，吃不了 C:/ 路徑）。
+let _bashBinCache = null;
+function resolveBashBin() {
+  if (_bashBinCache) return _bashBinCache;
+  if (process.platform !== 'win32') return (_bashBinCache = 'bash');
+  const candidates = [
+    process.env.GIT_BASH_PATH,
+    'C:\\Program Files\\Git\\bin\\bash.exe',
+    'C:\\Program Files (x86)\\Git\\bin\\bash.exe',
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Programs', 'Git', 'bin', 'bash.exe') : null,
+  ].filter(Boolean);
+  for (const c of candidates) { try { if (fs.existsSync(c)) return (_bashBinCache = c); } catch (_) {} }
+  try {
+    const git = require('child_process').execFileSync('where.exe', ['git.exe'], { stdio: 'pipe' })
+      .toString().split(/\r?\n/)[0].trim();
+    if (git) {
+      const b = path.join(path.dirname(path.dirname(git)), 'bin', 'bash.exe');
+      if (fs.existsSync(b)) return (_bashBinCache = b);
+    }
+  } catch (_) {}
+  return (_bashBinCache = 'C:\\Program Files\\Git\\bin\\bash.exe');
+}
+
 function startCutProcess(videoPath, referenceText) {
   const baseName = path.basename(videoPath).replace(/\.[^/.]+$/, '');
   const workDir = path.join(process.cwd(), 'cut_work', baseName);
@@ -1050,6 +1074,12 @@ const server = http.createServer((req, res) => {
     req.on('data', c => body += c);
     req.on('end', () => {
       try {
+        // 並發防護：一次只允許一個匯出（兩個分頁/連按兩次會寫同一輸出檔，成品損壞）
+        if (exportState.running) {
+          res.writeHead(409, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: `已有匯出進行中（${exportState.videoName}），請等它完成` }));
+          return;
+        }
         const videoName = decodeURIComponent(req.url.replace('/api/cut/', '').split('?')[0]);
         const ctx = findVideoForName(videoName);
         if (!ctx) {
@@ -1142,7 +1172,7 @@ const server = http.createServer((req, res) => {
 
         const scriptPath = path.join(SCRIPT_DIR, 'cut_video.sh');
         // Windows 用 Git Bash 全路徑，避免 PATH 上的 bash 解析成 WSL bash（吃不了 C:/ 路徑會直接失敗）
-        const bashBin = process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash';
+        const bashBin = resolveBashBin();
 
         // ── 非同步落刀：串流 stdout 解析 PROGRESS=N/TOTAL → exportState.progress，前端輪詢 /api/export-status ──
         exportState = { running: true, progress: 2, step: '準備', videoName, result: null, error: null };
@@ -2411,7 +2441,7 @@ const server = http.createServer((req, res) => {
         const deleteFile = path.join(cutState.workDir, 'delete_segments.json');
         fs.writeFileSync(deleteFile, JSON.stringify(segments, null, 2));
 
-        const baseName = path.basename(cutState.videoPath).replace(/\\.[^/.]+$/, '');
+        const baseName = path.basename(cutState.videoPath).replace(/\.[^/.]+$/, '');
         const outDir = (outputDir && fs.existsSync(outputDir)) ? outputDir : cutState.workDir;
         const ext = (container && ['mp4','mkv','mov'].includes(container.toLowerCase())) ? container.toLowerCase() : 'mp4';
         const safeFilename = outputFilename
@@ -2459,12 +2489,14 @@ const server = http.createServer((req, res) => {
         cutState.step = '剪輯中';
 
         // 非同步剪輯（Windows 用 Git Bash，避免 WSL bash）
-        const bashPath = process.platform === 'win32'
-          ? 'C:\\Program Files\\Git\\bin\\bash.exe'
-          : 'bash';
+        const bashPath = resolveBashBin();
         const child = spawn(bashPath, [scriptPath, inputPathUnix, cutDeleteFileUnix, outputFileUnix], {
           cwd: cutState.workDir,
           env,
+        });
+        child.on('error', e => {
+          cutState.log.push('❌ 剪輯啟動失敗（bash 不存在？）: ' + e.message);
+          cutState.step = '完成'; cutState.progress = 100; cutState.running = false;
         });
 
         // 串流 stdout：解析 PROGRESS=N/TOTAL 即時更新 cutState.progress（50% → 90%）
