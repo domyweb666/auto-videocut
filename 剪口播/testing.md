@@ -71,6 +71,14 @@ node verify_export.js --output <cut.mp4> --input <原片> --delete <delete_segme
 | 殘留長靜音（silencedetect 掃成品） | WARN | -30dB / > 1.5s（排除頭尾 1.2s） |
 | 音畫漂移（video 流 vs audio 流時長） | WARN | 差 > 0.3s |
 
+**timeline_map（2026-07-02）**：成品每個保留段實際長度 ≠ 理想長度（單趟路徑 concat filter
+每段推進 max(影片段長, 音訊段長)，影片長受 frame 邊界/VFR 抖動；多段路徑 frame 進位 + AAC
+priming），段數一多累積成秒級——這是物理現象不是 bug。`cut_video.sh` 匯出後由
+`build_timeline_map.js` 在成品旁落地 `<成品名>.timeline_map.json`（理想 src → 成品 dst 分段
+映射，映射總長 == ffprobe 實測）。有 map 時：時長對帳改比「**預測(Σ每段推進) vs 實測**」
+（仍能抓真 concat bug，如 AAC priming 累積靜音），「理想 vs 實測」降為 info；
+`generate_cut_srt.js` 自動吃 map 校正字幕時間戳（無 map 退回理想時間軸，行為同舊版）。
+
 **退出碼**：0 = 通過（含 warn）／2 = 有 FAIL／3 = `--strict` 下有 warn。
 **advisory**：驗證問題只記 log、塞進 API 回應，**不阻斷**已完成的匯出（成品已產出，由人決定要不要重剪）。
 門檻常數集中在 `verify_export.js` 檔頭（`TOL_DURATION` / `SILENCE_MIN` / `AV_DRIFT_TOL`）。

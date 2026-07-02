@@ -155,10 +155,31 @@ function main() {
       const { total: delTotal, mergedCount } = mergedDeletedTime(delSegs);
       const expected = origDur - delTotal;
       const diff = actualDur - expected;
-      const ok = Math.abs(diff) <= TOL_DURATION;
-      add(ok ? 'pass' : 'fail', '時長對帳', ok,
-        `預計 ${expected.toFixed(2)}s／實際 ${actualDur.toFixed(2)}s／落差 ${diff >= 0 ? '+' : ''}${diff.toFixed(2)}s（容忍 ±${TOL_DURATION}s）`,
-        { expected, actual: actualDur, diff });
+      // timeline_map 存在時：改對帳「模型預測 vs 實測」。理想 vs 實測的差是已知物理現象
+      // （concat 每段推進 max(v,a)，frame 進位/VFR 抖動），已由映射供 SRT 校正，列 info 不擋。
+      // 預測 vs 實測仍能抓真正的 concat/編碼 bug（如 AAC priming 累積靜音）。
+      const mapPath = opt.output.replace(/\.[^.]+$/, '') + '.timeline_map.json';
+      let map = null;
+      try {
+        if (fs.existsSync(mapPath)) {
+          const m = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+          if (m && Number.isFinite(m.predictedDuration)) map = m;
+        }
+      } catch (_) {}
+      if (map) {
+        const diffP = actualDur - map.predictedDuration;
+        const ok = Math.abs(diffP) <= TOL_DURATION;
+        add(ok ? 'pass' : 'fail', '時長對帳', ok,
+          `預測(timeline_map) ${map.predictedDuration.toFixed(2)}s／實際 ${actualDur.toFixed(2)}s／落差 ${diffP >= 0 ? '+' : ''}${diffP.toFixed(2)}s（容忍 ±${TOL_DURATION}s）`,
+          { expected: map.predictedDuration, actual: actualDur, diff: diffP });
+        add('info', '理想時長差', true,
+          `理想 ${expected.toFixed(2)}s vs 實際 ${actualDur.toFixed(2)}s（差 ${diff >= 0 ? '+' : ''}${diff.toFixed(2)}s，frame 進位所致，SRT 已用映射校正）`);
+      } else {
+        const ok = Math.abs(diff) <= TOL_DURATION;
+        add(ok ? 'pass' : 'fail', '時長對帳', ok,
+          `預計 ${expected.toFixed(2)}s／實際 ${actualDur.toFixed(2)}s／落差 ${diff >= 0 ? '+' : ''}${diff.toFixed(2)}s（容忍 ±${TOL_DURATION}s）`,
+          { expected, actual: actualDur, diff });
+      }
       add('info', '保留段數', true, `預計保留 ${mergedCount + 1} 段（成品本身無法回推，僅供對照）`);
     } else if (delSegs) {
       add('warn', '時長對帳', true, '原片或成品時長讀取失敗（N/A），跳過');

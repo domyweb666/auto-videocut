@@ -311,6 +311,21 @@ if [ "$OUT_EXT_LC" = "mp4" ] || [ "$OUT_EXT_LC" = "mov" ] || [ "$OUT_EXT_LC" = "
   MOVFLAGS_ARGS="-movflags +faststart"
 fi
 
+# ── 時間軸映射（兩條路徑共用）──
+# 成品每個保留段的實際長度 ≠ 理想長度（單趟：concat 每段推進 max(v,a)、影片長受 frame 邊界/VFR 抖動；
+# 多段：seg 檔 frame 進位 + AAC priming），段數一多累積 +秒級 → SRT 用理想時間軸會片尾漂移。
+# 匯出成功後把「理想 src → 成品 dst」分段映射落地在成品旁，generate_cut_srt / verify_export 自動讀取。
+MAP_FILE="${OUTPUT%.*}.timeline_map.json"
+write_timeline_map() {
+  local mode="$1" actual_dur="$2"
+  rm -f "$MAP_FILE"   # 先清舊映射：生成失敗時寧可讓 SRT 退回理想時間軸，也不能配到上一次匯出的舊 map
+  if [ "$mode" = "packets" ]; then
+    ffprobe -v error -select_streams v:0 -show_entries packet=pts_time,duration_time -of csv=p=0 "file:$INPUT" > "$TMP_DIR/vpkts.csv" 2>/dev/null
+  fi
+  node "$SCRIPT_DIR/build_timeline_map.js" "$TMP_DIR/segments.json" "$mode" "$actual_dur" "$MAP_FILE" "$TMP_DIR" "$INPUT_FPS" \
+    || echo "⚠️ timeline_map 生成失敗（SRT 將退回理想時間軸）"
+}
+
 if [ "$USE_SINGLE_PASS" = "1" ]; then
   echo "🎛️ 單趟濾鏡切割（${TOTAL_SEGS} 段，trim/atrim+concat 一次重編碼，避免多段 concat 音訊破裂）"
   # 由 segments.json（保留片段）生成 filter_complex 腳本。
@@ -343,6 +358,7 @@ fs.writeFileSync('$TMP_DIR/filt.txt', parts.join(';'));
   echo "✅ 已保存: $OUTPUT"
   NEW_DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "file:$OUTPUT")
   echo "📹 新时长: ${NEW_DURATION}s"
+  write_timeline_map packets "$NEW_DURATION"
 else
 
 echo "✂️ 提取 $TOTAL_SEGS 个片段（并行度 $PARALLEL）..."
@@ -468,6 +484,7 @@ if [ $? -eq 0 ]; then
   fi
   echo "📹 新时长: ${NEW_DURATION}s"
   echo "📊 原始码率: ${BITRATE_K}kbps → 输出码率: ${NEW_BR_K}kbps"
+  write_timeline_map segfiles "$NEW_DURATION"
 else
   echo "❌ 拼接失败"
   exit 1

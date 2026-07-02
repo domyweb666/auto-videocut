@@ -5,16 +5,24 @@
  * 從原始 subtitles_words.json + delete_segments.json
  * 計算保留文字的新時間戳，輸出標準 SRT 格式
  *
- * 用法: node generate_cut_srt.js <subtitles_words.json> <delete_segments.json> [output.srt]
+ * 用法: node generate_cut_srt.js <subtitles_words.json> <delete_segments.json> [output.srt] [--map <timeline_map.json>]
+ *
+ * 時間軸：cut_video.sh 匯出時會在成品旁落地 <成品名>.timeline_map.json（理想→成品實測分段映射，
+ * 消除 frame 進位/VFR 造成的每段 +6~20ms 累積漂移）。本腳本自動找 <output去.srt>.timeline_map.json，
+ * 也可 --map 顯式指定；找不到就退回理想時間軸（舊行為，片尾可能漂移）。
  */
 
 const fs = require('fs');
 const path = require('path');
 const { mergeDeleteSegments } = require(path.join(__dirname, 'merge_delete_segments.js'));
 
-const wordsFile = process.argv[2];
-const deleteFile = process.argv[3];
-const outputFile = process.argv[4] || 'output_cut.srt';
+const args = process.argv.slice(2);
+let mapArg = null;
+const mi = args.indexOf('--map');
+if (mi >= 0) { mapArg = args[mi + 1]; args.splice(mi, 2); }
+const wordsFile = args[0];
+const deleteFile = args[1];
+const outputFile = args[2] || 'output_cut.srt';
 
 if (!wordsFile || !deleteFile) {
   console.error('用法: node generate_cut_srt.js <subtitles_words.json> <delete_segments.json> [output.srt]');
@@ -26,6 +34,32 @@ const words = JSON.parse(fs.readFileSync(wordsFile, 'utf8'));
 // 兩刪除段間 ≤0.2s 的短保留區會被一併剪掉，不合併的話那些字仍留在字幕裡，
 // 且其後每條字幕的時間全部漂移
 const deleteSegments = mergeDeleteSegments(JSON.parse(fs.readFileSync(deleteFile, 'utf8')));
+
+// ── timeline_map：成品實測時間軸（有就用，沒有退回理想時間軸）──
+let timelineMap = null;
+{
+  const mapPath = mapArg || (outputFile.replace(/\.srt$/i, '') + '.timeline_map.json');
+  try {
+    if (fs.existsSync(mapPath)) {
+      const m = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+      if (m && Array.isArray(m.segments) && m.segments.length) {
+        timelineMap = m.segments;
+        console.error(`🧭 套用實測時間軸映射: ${mapPath}（理想 ${m.idealDuration}s → 實測 ${m.actualDuration}s）`);
+      }
+    }
+  } catch (e) { console.error(`⚠️ timeline_map 解析失敗，退回理想時間軸: ${e.message}`); }
+  if (!timelineMap) console.error('ℹ️ 無 timeline_map，使用理想時間軸（段數多時片尾字幕可能漂移）');
+}
+
+// 用映射把原片時間換算成成品時間：
+// 段內 → dstStart + 段內偏移（夾在 dstEnd 內）；刪除縫隙 → 下一保留段起點；頭尾外 → 夾邊界
+function mapTime(t) {
+  for (const s of timelineMap) {
+    if (t < s.srcStart) return s.dstStart;
+    if (t < s.srcEnd) return Math.min(s.dstStart + (t - s.srcStart), s.dstEnd);
+  }
+  return timelineMap[timelineMap.length - 1].dstEnd;
+}
 
 // ── 時間映射函數（複用 generate_subtitles.js 邏輯）──
 function getDeletedTimeBefore(time) {
@@ -64,8 +98,8 @@ for (const w of words) {
   if (w.isGap) continue;
   if (deletedFraction(w.start, w.end) > 0.5) continue;   // 主體被刪才丟
 
-  const newStart = w.start - getDeletedTimeBefore(w.start);
-  let newEnd = w.end - getDeletedTimeBefore(w.end);
+  const newStart = timelineMap ? mapTime(w.start) : w.start - getDeletedTimeBefore(w.start);
+  let newEnd = timelineMap ? mapTime(w.end) : w.end - getDeletedTimeBefore(w.end);
   if (newEnd <= newStart) newEnd = newStart + 0.05;       // 防呆
   keptWords.push({
     text: w.text,
