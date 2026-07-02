@@ -29,13 +29,17 @@ function normText(s) {
   return String(s || '').replace(/[\s，。、！？；：,.!?…"「」』（）()]/g, '');
 }
 
-// 字級序列：每個 char 記 {ch, start, end}（跳過 gap 元素，只看真的講出來的字）
+// 字級序列：每個 char 記 {ch, start, end}（跳過 gap 元素，只看真的講出來的字）。
+// 多字 token 的每個字用「線性內插」分攤時間——若全部沿用 token 起訖，長 token（十幾個字
+// 一個時間戳）會讓刪除邊界整坨塌在 token 開頭，實測會多吞前一句的尾巴或留下殘字。
 function buildCharSeq(words) {
   const seq = [];
   for (const w of words) {
     if (w && w.isGap) continue;
-    const t = normText(w.text || w.word || '');
-    for (const ch of t) seq.push({ ch, start: w.start, end: w.end });
+    const t = [...normText(w.text || w.word || '')];
+    if (!t.length) continue;
+    const step = (w.end - w.start) / t.length;
+    t.forEach((ch, i) => seq.push({ ch, start: w.start + i * step, end: w.start + (i + 1) * step }));
   }
   return seq;
 }

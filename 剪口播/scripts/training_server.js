@@ -59,7 +59,7 @@ function writeAutoSelectedFromSentences(workDir) {
 // 回傳併入的段數；任何失敗回 0（純加值功能，不影響既有標記）。
 function fuzzyRetakePreselect(workDir, words, indices, reasons) {
   try {
-    const cfg = (() => { try { return JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) { return {}; } })();
+    const cfg = readTrainingConfig();
     const rt = cfg.retake || {};
     if (rt.enabled === false || rt.fuzzy_preselect === false) return 0;
     const src = resolveRetakeSource(workDir);
@@ -110,7 +110,7 @@ function fuzzyRetakePreselect(workDir, words, indices, reasons) {
 function estimateSilenceRemovalSec(workDir) {
   try {
     let cfg = {};
-    try { cfg = JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) {}
+    cfg = readTrainingConfig();
     const PF = cfg.pause_flatten || {};
     if (PF.enabled === false) return 0;
     const target = PF.target_sec ?? 0.3, floor = PF.floor_sec ?? 0.2;
@@ -249,6 +249,15 @@ function runVerify(outputFile, inputFile, deleteSegmentsPath, tag = '') {
 const PORT = process.argv[2] || 8900;
 const SCRIPT_DIR = __dirname;
 
+// 統一讀 repo 根目錄的 training_config.json。
+// ⚠️ config 在 SCRIPT_DIR 的上一層——過去多處直接 join(SCRIPT_DIR,...) 讀 = 永遠 ENOENT 被
+// catch 吞掉 → 整份 config 靜默失效、跑內建預設（實例：咳嗽門檻調 0.45 從沒生效，
+// conf=0.549 的清喉一直用預設 0.55 卡在門檻外）。所有讀取一律走這個 helper。
+function readTrainingConfig() {
+  try { return JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, '..', 'training_config.json'), 'utf8')); }
+  catch (_) { return {}; }
+}
+
 // ── 苦工層精修 orchestration（停頓壓平/切點吸附/咳嗽/音訊分句）共用工具 ──
 // 8900 是唯一服務器（剪輯 + 審核 + 訓練）；舊的 8899 review_server 已退役移除。
 // 慢步驟（RMS 序列 / 音訊靜音 / 咳嗽 ML）非阻塞、結果快取；refine 本身快、同步。
@@ -263,8 +272,7 @@ function prepareArtifacts(workDir, subsPath, audioPath, analysisDir, cb) {
   try { fs.mkdirSync(analysisDir, { recursive: true }); } catch (_) {}
   if (!audioPath || !fs.existsSync(audioPath) || !fs.existsSync(subsPath)) { cb(art); return; }
   art.ok = true;
-  let cfg = {};
-  try { cfg = JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) {}
+  const cfg = readTrainingConfig();
   const coughEnabled = (cfg.cough_ml || {}).enabled !== false;
   const steps = [];
   if (!fs.existsSync(art.rms))
@@ -291,7 +299,7 @@ function buildRefined(subsPath, contentSegments, art, workDir, outBase) {
   try {
     if (!art.ok) return null;
     let cfg = {};
-    try { cfg = JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) {}
+    cfg = readTrainingConfig();
     const minConf = (cfg.cough_ml || {}).min_confidence ?? 0.55;
     const coughPad = (cfg.cough_ml || {}).pad_sec ?? 0.08; // 外擴，避免切點吸附把咳嗽邊緣留下
     let content = (contentSegments || []).map(s => ({ start: s.start, end: s.end }));
@@ -334,7 +342,7 @@ function resolveRetakeSource(workDir) {
 
 function mergeRetakes(deleteList, workDir, tag) {
   try {
-    const cfg0 = (() => { try { return JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'training_config.json'), 'utf8')); } catch (_) { return {}; } })();
+    const cfg0 = readTrainingConfig();
     if ((cfg0.retake || {}).enabled === false) return deleteList;
     const src = resolveRetakeSource(workDir);
     if (!src) { console.warn(`[重錄偵測] ${tag || ''}略過：無 whisper_words / subtitles_words 訊號源`); return deleteList; }
@@ -1176,7 +1184,9 @@ const server = http.createServer((req, res) => {
     let initDir = path.join(process.cwd(), 'output');
     if (!fs.existsSync(initDir)) initDir = process.cwd();
     const initDirPs = initDir.replace(/'/g, "''");
-    const ps = "Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description='選擇匯出資料夾'; $f.SelectedPath='" + initDirPs + "'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write($f.SelectedPath) }";
+    // OpenFileDialog + ValidateNames=false = 檔案總管式介面選資料夾（FolderBrowserDialog 是老樹狀 UI，難用）：
+    // 使用者走進目標資料夾按「開啟」，取 FileName 的 dirname 當結果
+    const ps = "Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='走進要匯出的資料夾後按「開啟」'; $f.InitialDirectory='" + initDirPs + "'; $f.ValidateNames=$false; $f.CheckFileExists=$false; $f.CheckPathExists=$true; $f.FileName='選擇此資料夾'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write([System.IO.Path]::GetDirectoryName($f.FileName)) }";
     execFile('powershell', ['-STA', '-NoProfile', '-Command', ps], { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ path: (stdout || '').trim() }));

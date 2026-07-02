@@ -62,6 +62,7 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
   .ovbox input[type=text],.ovbox select{width:100%;padding:8px 10px;border:1px solid #d3d1c7;border-radius:8px;font-size:14px;box-sizing:border-box;}
   .ovrow{display:flex;gap:8px;}.ovrow input{flex:1;}
   .ovrow button,.ovbtns button{border:1px solid #d3d1c7;background:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;}
+  .ovbtns button.btn-export{background:#2c2c2a;color:#fff;border:none;} /* 不加這條會被上一行的 background:#fff 蓋掉 → 白字白底 */
   .ovchk{display:flex;align-items:center;gap:6px;margin-top:12px;font-size:13px;color:#444;}
   .ovbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;}
   .ovbar{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin:14px 0 6px;}
