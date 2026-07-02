@@ -31,6 +31,7 @@ function writeAutoSelectedFromSentences(workDir) {
     if (!fs.existsSync(subsPath)) return null;
     const words = JSON.parse(fs.readFileSync(subsPath, 'utf8'));
     let indices = [], reasons = {}, hasAI = false;
+    const pairs = {}; // rangeKey → {start,end}＝該刪除段對應「保留的那個 take」時間段（審核頁對照顯示用）
     if (fs.existsSync(sentPath)) {
       const phrases = JSON.parse(fs.readFileSync(sentPath, 'utf8'));
       if (Array.isArray(phrases) && phrases.some(s => s && s.aiDelete)) {
@@ -38,13 +39,13 @@ function writeAutoSelectedFromSentences(workDir) {
         hasAI = true;
       }
     }
-    const autoAdded = autoContentPreselect(workDir, words, indices, reasons);
+    const autoAdded = autoContentPreselect(workDir, words, indices, reasons, pairs);
     if (!hasAI && !autoAdded) return null; // 什麼標記都沒有 → 不寫（審核頁無預選）
     const analysisDir = path.join(workDir, '2_分析');
     fs.mkdirSync(analysisDir, { recursive: true });
     fs.writeFileSync(path.join(analysisDir, 'auto_selected.json'),
-                     JSON.stringify({ indices, reasons }, null, 2), 'utf8');
-    return { indices, reasons };
+                     JSON.stringify({ indices, reasons, pairs }, null, 2), 'utf8');
+    return { indices, reasons, pairs };
   } catch (e) {
     console.error('⚠️ writeAutoSelectedFromSentences 失敗:', e.message);
     return null;
@@ -56,8 +57,9 @@ function writeAutoSelectedFromSentences(workDir) {
 // auto_selected.json，審核頁看得到、可取消；匯出端只執行使用者核可的清單。
 // 原地改 indices/reasons；回傳併入段數；任何失敗回 0（不影響既有標記）。
 
-// 把時間段映射成字級 indices 併入選取集；每段記一條 reason（range key）
-function preselectSegs(words, segs, sel, reasons, reasonOf) {
+// 把時間段映射成字級 indices 併入選取集；每段記一條 reason（range key）。
+// keepOf（選配）回傳該段對應「保留 take」的時間範圍 → 記進 pairs，審核頁點到刪除段時同步高亮保留段
+function preselectSegs(words, segs, sel, reasons, reasonOf, pairs, keepOf) {
   let n = 0;
   for (const r of segs) {
     const hit = [];
@@ -73,12 +75,13 @@ function preselectSegs(words, segs, sel, reasons, reasonOf) {
     hit.forEach(i => sel.add(i));
     const key = `${hit[0]}-${hit[hit.length - 1]}`;
     if (!reasons[key]) reasons[key] = reasonOf(r);
+    if (pairs && keepOf) { const kp = keepOf(r); if (kp) pairs[key] = { start: +kp.start.toFixed(2), end: +kp.end.toFixed(2) }; }
     n++;
   }
   return n;
 }
 
-function autoContentPreselect(workDir, words, indices, reasons) {
+function autoContentPreselect(workDir, words, indices, reasons, pairs) {
   try {
     const cfg = readTrainingConfig();
     const sel = new Set(indices);
@@ -92,8 +95,10 @@ function autoContentPreselect(workDir, words, indices, reasons) {
         const { detectRetakes, detectRetakesFuzzy } = require('./detect_retakes.js');
         const wraw = JSON.parse(fs.readFileSync(src.path, 'utf8'));
         const warr = Array.isArray(wraw) ? wraw : (wraw.words || wraw.segments || []);
+        // 保留 take 緊跟在刪除段之後，長度≈刪除段（供審核頁對照高亮；粗估即可）
+        const keepAfter = r => ({ start: r.end, end: r.end + Math.min(Math.max(r.end - r.start, 0.5), 6) });
         added += preselectSegs(words, detectRetakes(warr), sel, reasons,
-          r => `重錄take：刪「${r.phrase}」留後一次`);
+          r => `重錄take：刪「${r.phrase}」留後一次`, pairs, keepAfter);
         if (rt.fuzzy_preselect !== false) {
           let corrected = '';
           const cPath = path.join(workDir, '1_轉錄', 'corrected_text.txt');
@@ -103,8 +108,14 @@ function autoContentPreselect(workDir, words, indices, reasons) {
           let referenceText = '';
           const rPath = path.join(workDir, '1_轉錄', 'reference.txt');
           if (fs.existsSync(rPath)) referenceText = fs.readFileSync(rPath, 'utf8');
+          // fuzzy 的保留 take 也從刪除段結尾起算，時長按「保留字數/刪除字數」比例粗估
+          const keepFuzzy = r => {
+            const ratio = r.phrase && r.next ? r.next.length / Math.max(r.phrase.length, 1) : 1;
+            const len = Math.min(Math.max((r.end - r.start) * ratio, 0.5), 6);
+            return { start: r.end, end: r.end + len };
+          };
           added += preselectSegs(words, detectRetakesFuzzy(warr, corrected, { ...(rt.fuzzy_opts || {}), referenceText }), sel, reasons,
-            r => `疑似重錄(相似${Math.round(r.sim * 100)}%${r.evidence.endsWith('-far') ? '，隔碎片' : ''}${r.evidence.startsWith('reference') ? '，講稿佐證' : ''})：刪「${r.phrase}」留「${r.next}」`);
+            r => `疑似重錄(相似${Math.round(r.sim * 100)}%${r.evidence.endsWith('-far') ? '，隔碎片' : ''}${r.evidence.startsWith('reference') ? '，講稿佐證' : ''})：刪「${r.phrase}」留「${r.next}」`, pairs, keepFuzzy);
         }
       }
     }
@@ -148,6 +159,10 @@ function autoContentPreselect(workDir, words, indices, reasons) {
             hit.forEach(k => sel.add(k));
             const key = `${hit[0]}-${hit[hit.length - 1]}`;
             if (!reasons[key]) reasons[key] = `語意重複建議(嵌入${Math.round((c.similarity || 0) * 100)}%，低信心請確認)：與「${String(keep.text).slice(0, 15)}…」重複，刪較短`;
+            // 語意配對的保留句有精確字級範圍 → 直接記時間（審核頁對照高亮）
+            if (pairs && words[keep.startIdx] && words[Math.min(keep.endIdx, words.length - 1)]) {
+              pairs[key] = { start: +words[keep.startIdx].start.toFixed(2), end: +words[Math.min(keep.endIdx, words.length - 1)].end.toFixed(2) };
+            }
             n++; added += 1;
           }
           if (n) console.log(`🧠 語意重複建議（嵌入）預選 ${n} 段`);
@@ -239,13 +254,15 @@ const CUT_DOC_HTML = `<!DOCTYPE html>
 </style></head><body>
 <div class="wrap">
   <h1>剪輯影片</h1>
-  <p class="sub">丟影片、貼講稿（選填），按開始。中間機器全包，跑完去審核。</p>
+  <p class="sub">丟影片（直接拖進視窗也行）、貼講稿（選填），按開始。中間機器全包，跑完去審核。</p>
   <div class="card">
     <label>影片路徑</label>
     <div class="row">
-      <input type="text" id="videoInput" placeholder="貼上影片路徑，或點瀏覽">
+      <input type="text" id="videoInput" placeholder="貼上影片路徑、點瀏覽，或直接把檔案拖進來">
       <button onclick="browse()" style="white-space:nowrap;">瀏覽</button>
     </div>
+    <div id="dropHint" style="display:none;border:2px dashed #185FA5;border-radius:8px;padding:10px;text-align:center;font-size:13px;color:#185FA5;margin-bottom:14px;">放開以上傳影片</div>
+    <div id="upProg" style="display:none;font-size:12.5px;color:#5f5e5a;margin:0 0 14px;">上傳中… <span id="upPct">0%</span>（會複製一份到 cut_work/_uploads/）</div>
     <label>參考文稿（選填，講稿/大綱即可）— 有貼的話，審核時會標出疑似聽錯的字</label>
     <textarea id="refInput" placeholder="貼上這支影片的講稿或大綱；留空則直接辨識"></textarea>
     <button class="btn-go" id="goBtn" onclick="start()">開始處理</button>
@@ -293,6 +310,28 @@ function rerunAI(){
   fetch('/api/rerun-ai',{method:'POST'}).then(function(r){return r.json()}).then(function(d){if(d&&d.error){fail(d.error);return;}poll();}).catch(function(e){fail(e.message)});
 }
 function openReview(){if(baseName)window.open('/review/'+encodeURIComponent(baseName),'_blank');}
+// ── 拖放上傳：瀏覽器拿不到本機檔案路徑，只能把位元組複製一份進 cut_work/_uploads/ ──
+var dragDepth=0;
+document.addEventListener('dragover',function(e){e.preventDefault();});
+document.addEventListener('dragenter',function(e){e.preventDefault();dragDepth++;document.getElementById('dropHint').style.display='block';});
+document.addEventListener('dragleave',function(e){dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)document.getElementById('dropHint').style.display='none';});
+document.addEventListener('drop',function(e){
+  e.preventDefault();dragDepth=0;document.getElementById('dropHint').style.display='none';
+  var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+  if(!f)return;
+  if(!/\\.(mp4|mov|mkv|avi|flv|webm|m4v)$/i.test(f.name)){alert('請丟影片檔（mp4/mov/mkv…）');return;}
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST','/api/upload-video?name='+encodeURIComponent(f.name));
+  document.getElementById('upProg').style.display='block';
+  xhr.upload.onprogress=function(ev){if(ev.lengthComputable)document.getElementById('upPct').textContent=Math.round(ev.loaded/ev.total*100)+'%';};
+  xhr.onload=function(){
+    document.getElementById('upProg').style.display='none';
+    try{var d=JSON.parse(xhr.responseText);if(d.path){document.getElementById('videoInput').value=d.path;}else{alert('上傳失敗：'+(d.error||xhr.status));}}
+    catch(err){alert('上傳失敗：'+err.message);}
+  };
+  xhr.onerror=function(){document.getElementById('upProg').style.display='none';alert('上傳失敗（連線錯誤）');};
+  xhr.send(f);
+});
 </script></body></html>`;
 
 // ── 匯出後驗證：呼叫 verify_export.js，回傳解析後結果（永不 throw，驗證問題不阻斷匯出）──
@@ -894,17 +933,20 @@ const server = http.createServer((req, res) => {
           _mt(subsPath));
         if (!autoM || autoM < upstream) writeAutoSelectedFromSentences(ctx.workDir);
       } catch (_) {}
-      let autoSelected = [], autoReasons = {};
+      let autoSelected = [], autoReasons = {}, autoPairs = {};
       if (fs.existsSync(autoPath)) {
         const raw = JSON.parse(fs.readFileSync(autoPath, 'utf8'));
         const parsed = parseAutoSelected(raw);
         autoSelected = parsed.autoSelected;
         autoReasons = parsed.autoReasons;
+        if (raw && raw.pairs) autoPairs = raw.pairs; // rangeKey → 保留 take 時間段（對照高亮）
       }
       const enc = encodeURIComponent(videoName);
       const html = buildReviewDoc(words, autoSelected, autoReasons, {
         cutApiPath: `/api/cut/${enc}`,
         silenceRemovalSec: estimateSilenceRemovalSec(ctx.workDir, words, autoSelected),
+        pairs: autoPairs,
+        audioUrl: fs.existsSync(path.join(ctx.workDir, '1_轉錄', 'audio.mp3')) ? `/review-audio/${enc}` : '',
       });
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);
@@ -915,6 +957,32 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+
+  // GET /review-audio/<videoName> — 審核頁段落試聽用音訊（支援 Range，<audio> seek 需要）。
+  // 只服務工作目錄內的 audio.mp3（固定路徑組合，無使用者輸入路徑 → 無穿越面）。
+  if (req.method === 'GET' && req.url.startsWith('/review-audio/')) {
+    try {
+      const nm = decodeURIComponent(req.url.replace('/review-audio/', '').split('?')[0]);
+      const ctx = findVideoForName(nm);
+      const audioPath = ctx && path.join(ctx.workDir, '1_轉錄', 'audio.mp3');
+      if (!audioPath || !fs.existsSync(audioPath)) { res.writeHead(404); res.end('no audio'); return; }
+      const stat = fs.statSync(audioPath);
+      if (req.headers.range) {
+        const m = req.headers.range.replace('bytes=', '').split('-');
+        const start = parseInt(m[0], 10) || 0;
+        const end = m[1] ? parseInt(m[1], 10) : stat.size - 1;
+        res.writeHead(206, {
+          'Content-Type': 'audio/mpeg', 'Accept-Ranges': 'bytes',
+          'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Content-Length': end - start + 1,
+        });
+        fs.createReadStream(audioPath, { start, end }).pipe(res);
+      } else {
+        res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': stat.size, 'Accept-Ranges': 'bytes' });
+        fs.createReadStream(audioPath).pipe(res);
+      }
+    } catch (err) { res.writeHead(500); res.end(err.message); }
+    return;
+  }
 
   // POST /api/cut/<videoName> — 對指定影片執行剪輯
   if (req.method === 'POST' && req.url.startsWith('/api/cut/')) {
@@ -1194,6 +1262,35 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+
+  // ── API: 拖放上傳影片（瀏覽器拿不到本機路徑，只能收位元組 → 存 cut_work/_uploads/）──
+  if (req.method === 'POST' && req.url.startsWith('/api/upload-video')) {
+    try {
+      const q = new URL(req.url, 'http://localhost');
+      const rawName = path.basename(q.searchParams.get('name') || 'upload.mp4').replace(/[\\/:*?"<>|]/g, '');
+      if (!/\.(mp4|mov|mkv|avi|flv|webm|m4v)$/i.test(rawName)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: '只收影片檔' })); return;
+      }
+      const upDir = path.join(process.cwd(), 'cut_work', '_uploads');
+      fs.mkdirSync(upDir, { recursive: true });
+      let dest = path.join(upDir, rawName);
+      for (let n = 2; fs.existsSync(dest); n++) dest = path.join(upDir, rawName.replace(/(\.[^.]+)$/, `_${n}$1`));
+      const ws = fs.createWriteStream(dest);
+      req.pipe(ws);
+      ws.on('finish', () => {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ path: dest }));
+        console.log(`📥 拖放上傳 → ${dest}`);
+      });
+      ws.on('error', e => { try { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: e.message })); } catch (_) {} });
+      req.on('error', () => { try { ws.destroy(); fs.unlinkSync(dest); } catch (_) {} });
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
 
   // ── API: 剪輯 - 提取音頻+轉錄+標記 ──
   if (req.method === 'POST' && req.url === '/api/process-video') {
