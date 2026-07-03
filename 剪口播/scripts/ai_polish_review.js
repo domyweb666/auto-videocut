@@ -82,7 +82,7 @@ if (OUTLINE_FILE && fs.existsSync(OUTLINE_FILE)) {
     if (Array.isArray(outline.units) && outline.units.length > 0) {
       outlineText = '## 影片大綱（thought-units）\n\n';
       outlineText += outline.units.map(u => `- [${u.id}] ${u.topic} (${u.importance || 'normal'})`).join('\n');
-      outlineText += '\n\n讀文稿時請對照這個大綱，論點重複請優先刪。';
+      outlineText += '\n\n對照這個大綱理解整篇結構；但同一主題出現多次多半是刻意回扣，不要因此積極刪，仍以上面「只砍客觀假開始/殘句」為準。';
     }
   } catch (_) { /* ignore */ }
 }

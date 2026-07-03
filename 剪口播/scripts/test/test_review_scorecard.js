@@ -15,8 +15,12 @@ t('categoryOf 分類正確', () => {
   assert.strictEqual(categoryOf('疑似重錄(相似67%，講稿佐證)：刪「a」留「b」'), 'retake_fuzzy');
   assert.strictEqual(categoryOf('清喉(ML 信心80%)'), 'cough');
   assert.strictEqual(categoryOf('語意重複建議(嵌入92%…)'), 'semantic');
-  assert.strictEqual(categoryOf('reviewer: 「他只是壓垮」是截斷…'), 'ai');
-  assert.strictEqual(categoryOf(''), 'ai');
+  assert.strictEqual(categoryOf('reviewer: 「他只是壓垮」是截斷…'), 'reviewer');
+  assert.strictEqual(categoryOf('audit: 跨段冗餘…'), 'audit');
+  assert.strictEqual(categoryOf('放棄句首: 「所以」（連接詞開頭…）'), 'abandon');
+  assert.strictEqual(categoryOf('殘句: 「害我」'), 'residual');
+  assert.strictEqual(categoryOf('AI: 語意重複，保留後者（P1）'), 'aipair');
+  assert.strictEqual(categoryOf(''), 'aipair');
 });
 
 t('全接受：預選=最終 → acceptRate 1', () => {

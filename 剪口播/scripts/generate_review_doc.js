@@ -166,7 +166,11 @@ function catOf(r){r=r||'';
     var m=r.match(/\\u4fe1\\u5fc3(\\d+)%/);var c=m?+m[1]:0;
     return{k:'cough',label:'\\u54b3\\u55fd\\u6e05\\u5589',hi:c>=80};}
   if(r.indexOf('\\u8a9e\\u610f\\u91cd\\u8907')===0)return{k:'semantic',label:'\\u8a9e\\u610f\\u91cd\\u8907',hi:false}; // 語意重複
-  return{k:'ai',label:'AI \\u5224\\u65b7',hi:false};
+  // 舊「AI 判斷」是抓漏桶，混了整稿二讀(reviewer/audit)＋放棄句首(規則)＋殘句＋候選對，拆開才看得出誰誤刪
+  if(r.indexOf('reviewer')===0||r.indexOf('audit')===0)return{k:'reviewer',label:'整稿二讀',hi:false};
+  if(r.indexOf('放棄句首')===0)return{k:'abandon',label:'放棄句首',hi:false};
+  if(r.indexOf('殘句')===0)return{k:'residual',label:'殘句',hi:false};
+  return{k:'aipair',label:'AI候選對',hi:false};
 }
 
 // ── 把預選聚成決策卡：連續 index＋同 reason ＝ 一張卡 ──

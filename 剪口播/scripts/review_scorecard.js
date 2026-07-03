@@ -26,8 +26,13 @@ function categoryOf(reason) {
   if (r.startsWith('相鄰重複')) return 'rule_adjacent';
   if (r.startsWith('清喉') || r.startsWith('咳嗽')) return 'cough';
   if (r.startsWith('語意重複')) return 'semantic';
-  if (/^(reviewer|audit|AI|A只)/.test(r)) return 'ai';
-  if (!r) return 'ai'; // 無 reason 多為句級 aiDelete（含隨句的 gap）
+  // AI 層拆細（原本全歸 'ai'，看不出誰誤刪）：整稿二讀 reviewer/audit、候選對、放棄句首、殘句
+  if (r.startsWith('reviewer')) return 'reviewer';
+  if (r.startsWith('audit')) return 'audit';
+  if (r.startsWith('放棄句首')) return 'abandon';
+  if (r.startsWith('殘句')) return 'residual';
+  if (/^(AI|A「|A『|A只|B「)/.test(r)) return 'aipair';
+  if (!r) return 'aipair'; // 無 reason 多為句級 aiDelete
   return 'rule_other';
 }
 
@@ -104,7 +109,7 @@ function report() {
   }
   console.log(`審稿記分卡（${lines.length} 支影片累積）`);
   console.log('偵測器          預選字  被接受  被退回  接受率');
-  const NAMES = { retake_exact: '重錄(exact)', retake_fuzzy: '重錄(fuzzy)', rule_repeat: '重複Take規則', rule_adjacent: '相鄰重複規則', cough: '咳嗽/清喉', semantic: '語意重複', ai: 'AI 句級', rule_other: '其他規則' };
+  const NAMES = { retake_exact: '重錄(exact)', retake_fuzzy: '重錄(fuzzy)', rule_repeat: '重複Take規則', rule_adjacent: '相鄰重複規則', cough: '咳嗽/清喉', semantic: '語意重複', reviewer: '整稿二讀(reviewer)', audit: '嚴格二讀(audit)', aipair: 'AI候選對', abandon: '放棄句首', residual: '殘句', ai: 'AI(舊資料)', rule_other: '其他規則' };
   for (const [c, a] of Object.entries(agg).sort((x, y) => y[1].preselected - x[1].preselected)) {
     const rate = a.preselected ? Math.round(a.accepted / a.preselected * 100) + '%' : '—';
     console.log(`${(NAMES[c] || c).padEnd(12)}  ${String(a.preselected).padStart(5)}  ${String(a.accepted).padStart(5)}  ${String(a.rejected).padStart(5)}  ${rate.padStart(5)}`);
