@@ -1081,6 +1081,10 @@ const server = http.createServer((req, res) => {
           } catch (e) { console.warn(`[${videoName}] delete_indices 落檔失敗(SRT/TXT 退回發音區判斷):`, (e.message || '').split('\n')[0]); deleteIndicesFile = null; }
         }
 
+        // 字幕 LLM 意群斷行（config.subtitle_llm.enabled===true 才開，避免 config 缺檔時亂花 AI）→ 傳給 SRT 產生器
+        const _slc = readTrainingConfig().subtitle_llm || {};
+        const srtLlmArgs = (_slc.enabled === true) ? ['--llm-segment', '--llm-model', String(_slc.model || 'sonnet')] : [];
+
         // WYSIWYG：不再在匯出端併入重錄/咳嗽——它們已由 autoContentPreselect 進審核頁預選，
         // 使用者看到並核可的 deleteList 就是最終內容決策（refine 只做壓平/吸附等苦工）。
 
@@ -1210,7 +1214,8 @@ const server = http.createServer((req, res) => {
               const subsP = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
               jySrt = path.join(ctx.workDir, 'jianying_draft.srt');
               execFileSync('node', [srtScript, subsP, cutDeleteFile, jySrt, '--silences', _art.sil,
-                ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])], { stdio: 'pipe' });
+                ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : []), ...srtLlmArgs],
+                { stdio: 'pipe', maxBuffer: 20 * 1024 * 1024 });
             } catch (e) { console.warn(`[${videoName}] 草稿 SRT 失敗(草稿仍出、無字幕軌):`, (e.message || '').split('\n')[0]); jySrt = ''; }
             exportState.step = '寫入剪映草稿'; exportState.progress = 70;
             const jyCfg = (readTrainingConfig().jianying) || {};
@@ -1345,7 +1350,8 @@ const server = http.createServer((req, res) => {
                 srtFile = outputFile.replace(/\.[^/.]+$/, '.srt');
                 if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath))
                   execFileSync('node', [srtScript, subtitlesPath, cutDeleteFile, srtFile, '--silences', _art.sil,
-                    ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])], { stdio: 'pipe' });
+                    ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : []), ...srtLlmArgs],
+                    { stdio: 'pipe', maxBuffer: 20 * 1024 * 1024 });
               } catch (srtErr) { console.error(`⚠️ [${videoName}] SRT 失敗:`, srtErr.message); srtFile = null; }
             }
             // 純文字文稿 TXT（依標點分段，跟審核頁文稿一致；音檔匯出也產，文稿一樣有用）

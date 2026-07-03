@@ -67,7 +67,9 @@
    輸出: <成品名>/ 子資料夾（mp4 + srt + txt + timeline_map.json）
    ⭐ 三邊逐字一致：審核頁匯出帶 deletedIndices（字級選集），影片(refine Step C)、SRT、TXT 都以它為準——
    不再各自用「發音區 >50% 時間重疊」反推（重錄密集處會翻掉短邊界字：多「長」掉「病」）。
-   SRT 斷句照 domi-subtitle-format 橫式長片（目標 16 字、斷意群不斷虛詞）。
+   SRT 斷句：預設讓 Claude 依意群斷行（subtitle_segment_llm.js，只斷不改字、去換行後逐字比對原稿，
+   不符自動退回機械斷句；config.subtitle_llm.enabled=false 就純機械）；機械版照 domi-subtitle-format
+   橫式長片（短行、只斷標點、去行末標點、頓號清單不拆）。剪映草稿：srt/txt 另存到使用者輸出資料夾。
 
 5. 回饋閉環
    F1/自動優化層退役（2026-06-30）。輕量回饋：匯出時 user_corrections.js 把「AI 多刪你留(FP)/你補刪
@@ -92,6 +94,7 @@
 | `cut_video.sh` | ffmpeg 幀級精確剪輯，自動偵測原片參數；落地 timeline_map.json |
 | `verify_export.js` | 成品驗證（時長對帳/殘留靜音/逐字對帳） |
 | `seam_coldread.js` | 接縫冷讀：保留稿丟 Claude 冷讀剪接縫（指代斷裂/邏輯跳接/話題突兀）；純函式+CLI，審核頁 /api/seam-coldread 呼叫 |
+| `subtitle_segment_llm.js` | 字幕 LLM 意群斷行：保留稿丟 Claude 只斷行不改字（逐字驗證＝原稿才採用，不符退回機械）；generate_cut_srt `--llm-segment` 呼叫 |
 | `aggregate_reasons.js` | 跨影片聚合 auto_selected 的刪除理由 → 錄影前提詞紀律.md（你最常繞的幾種重複，附自己講過的例子）。非 pipeline，離線工具 |
 | `reason_taxonomy.js` | 刪除理由分類法（單一真相）：家族/是否繞圈/樣板正規化；aggregate_reasons 用 |
 | `user_corrections.js` | 匯出時把 AI 預選 vs 你最終勾選的落差(FP/FN)寫進 user_corrections.jsonl（few-shot 回饋迴路，2026-07-04 接回） |

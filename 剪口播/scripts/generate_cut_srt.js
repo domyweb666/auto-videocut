@@ -33,6 +33,13 @@ if (si >= 0) { silencesArg = args[si + 1]; args.splice(si, 2); }
 let deleteIdxArg = null;
 const di = args.indexOf('--delete-indices');
 if (di >= 0) { deleteIdxArg = args[di + 1]; args.splice(di, 2); }
+// --llm-segment [--llm-model <m>]：讓 Claude 依意群斷行（機械斷句抓不到語意邊界時）。
+// 逐字驗證＝原稿才採用，不符自動退回機械斷句。CLI 預設關；由 server 依 config 決定是否帶。
+let llmSegment = false, llmModel = 'sonnet';
+const ls = args.indexOf('--llm-segment');
+if (ls >= 0) { llmSegment = true; args.splice(ls, 1); }
+const lm = args.indexOf('--llm-model');
+if (lm >= 0) { llmModel = args[lm + 1]; args.splice(lm, 2); }
 const wordsFile = args[0];
 const deleteFile = args[1];
 const outputFile = args[2] || 'output_cut.srt';
@@ -179,7 +186,7 @@ flushAll();
 const stripTrail = t => t.replace(TRAIL_PUNCT, '');
 const isShort = cue => stripTrail(cue.text).length < 2 || (cue.end - cue.start) < 0.4;
 const endsSent = t => SENT_END.test(lastCh(t));
-const mergedCues = [];
+let mergedCues = [];
 let pend = null;
 for (let cue of cues) {
   if (pend) { cue = { text: pend.text + cue.text, start: pend.start, end: cue.end }; pend = null; }
@@ -196,6 +203,21 @@ if (pend) {
   const prev = mergedCues[mergedCues.length - 1];
   if (prev && (prev.text.length + pend.text.length) <= MAXLEN) { prev.text += pend.text; prev.end = pend.end; }
   else mergedCues.push(pend);
+}
+
+// ── LLM 斷行覆蓋（opt-in）：機械斷句永遠先算好當保底；啟用且 Claude 逐字驗證通過才取代 ──
+// Claude 只斷行不改字（驗證：去換行後＝原逐字稿，不符作廢）。時間戳逐字元對回。
+if (llmSegment) {
+  try {
+    const { segmentByLLM } = require('./subtitle_segment_llm');
+    const llmCues = segmentByLLM(keptWords, { model: llmModel });
+    if (llmCues && llmCues.length) {
+      mergedCues = llmCues.map(c => ({ text: c.text, start: c.start, end: c.end }));
+      console.error(`🤖 字幕斷行改用 Claude 意群斷句（${llmModel}，${mergedCues.length} 行，逐字驗證通過）`);
+    } else {
+      console.error('ℹ️ LLM 斷句未通過驗證/未啟用，維持機械斷句');
+    }
+  } catch (e) { console.error('⚠️ LLM 斷句失敗，維持機械斷句: ' + (e.message || '').split('\n')[0]); }
 }
 
 // ── 格式化 SRT ──

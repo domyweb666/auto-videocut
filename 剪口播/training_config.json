@@ -103,6 +103,11 @@
     "draft_folder": "",
     "_comment": "剪映草稿匯出：draft_folder 留空＝自動偵測 %LOCALAPPDATA%/JianyingPro（找不到時才需要手填剪映的草稿位置）"
   },
+  "subtitle_llm": {
+    "enabled": true,
+    "model": "sonnet",
+    "_note": "字幕斷行讓 Claude 依意群斷（subtitle_segment_llm.js）。機械斷句只斷標點＋避虛詞，抓不到「感受到｜自己」這種語意邊界；LLM 只斷行不改字（逐字驗證＝原稿才採用，不符自動退回機械斷句）。每次匯出多一次 AI 呼叫（SRT 用；TXT 文稿不走）。關掉＝enabled:false 就回純機械斷句。太長(>8000字)或有超長行自動退回。"
+  },
   "seam_coldread": {
     "enabled": true,
     "model": "sonnet",
