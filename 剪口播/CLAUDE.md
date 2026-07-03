@@ -65,9 +65,14 @@
 4. 匯出
    /api/cut/<name> → gap 橋接（bridge_gap_deletes）→ refine_segments（壓平/吸附/刀口原子化）→ cut_video.sh
    輸出: <成品名>/ 子資料夾（mp4 + srt + txt + timeline_map.json）
+   ⭐ 三邊逐字一致：審核頁匯出帶 deletedIndices（字級選集），影片(refine Step C)、SRT、TXT 都以它為準——
+   不再各自用「發音區 >50% 時間重疊」反推（重錄密集處會翻掉短邊界字：多「長」掉「病」）。
+   SRT 斷句照 domi-subtitle-format 橫式長片（目標 16 字、斷意群不斷虛詞）。
 
-5. （已退役 2026-06-30）訓練回饋閉環
-   F1/自動優化層退役；回饋改「口頭回報 → 規則檔（用户习惯/）」。退役腳本在 scripts/legacy/
+5. 回饋閉環
+   F1/自動優化層退役（2026-06-30）。輕量回饋：匯出時 user_corrections.js 把「AI 多刪你留(FP)/你補刪
+   AI 沒抓(FN)」寫進 training_output/user_corrections.jsonl，下支 ai_cut_pairs(few-shot)＋ai_polish_review(負例庫)
+   讀最近幾筆校準。另有口頭回報 → 規則檔（用户习惯/）。退役訓練腳本在 scripts/legacy/
 ```
 
 ---
@@ -89,6 +94,8 @@
 | `seam_coldread.js` | 接縫冷讀：保留稿丟 Claude 冷讀剪接縫（指代斷裂/邏輯跳接/話題突兀）；純函式+CLI，審核頁 /api/seam-coldread 呼叫 |
 | `aggregate_reasons.js` | 跨影片聚合 auto_selected 的刪除理由 → 錄影前提詞紀律.md（你最常繞的幾種重複，附自己講過的例子）。非 pipeline，離線工具 |
 | `reason_taxonomy.js` | 刪除理由分類法（單一真相）：家族/是否繞圈/樣板正規化；aggregate_reasons 用 |
+| `user_corrections.js` | 匯出時把 AI 預選 vs 你最終勾選的落差(FP/FN)寫進 user_corrections.jsonl（few-shot 回饋迴路，2026-07-04 接回） |
+| `kept_words.js` | 「哪些字算保留」單一真相：`keptWordsByIndex`(index 為準)＋`isWordKept`(發音區 >50%，退回用) |
 | `compare_transcriptions.js` | L2 回歸工具：對照兩份轉錄結果 |
 | `scripts/legacy/` | 退役訓練層腳本歸檔（batch_train、ai_evaluate_training 等，見其 README） |
 

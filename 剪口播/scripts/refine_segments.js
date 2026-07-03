@@ -28,12 +28,17 @@ const { speechIntervalsOf, intervalsTotal, overlapTotal, subtractIntervals, KEEP
   require(path.join(__dirname, 'kept_words.js'));
 
 // ── 參數 ──
-const wordsFile = process.argv[2];
-const deleteFile = process.argv[3];
-const rmsFile = process.argv[4];
-const silencesFile = process.argv[5];
-const outputFile = process.argv[6] || 'delete_segments.refined.json';
-const configFileArg = process.argv[7];
+const rawArgs = process.argv.slice(2);
+// --delete-indices <file>：審核頁字級刪除選集。給了就讓 Step C 刀口原子化以「index 為準」決定
+// 每個字要補刀刪完還是退刀保住（而非時間覆蓋率 >50%）——讓影片＝審核頁＝SRT 三邊逐字一致。
+let deleteIdxArg = null;
+{ const i = rawArgs.indexOf('--delete-indices'); if (i >= 0) { deleteIdxArg = rawArgs[i + 1]; rawArgs.splice(i, 2); } }
+const wordsFile = rawArgs[0];
+const deleteFile = rawArgs[1];
+const rmsFile = rawArgs[2];
+const silencesFile = rawArgs[3];
+const outputFile = rawArgs[4] || 'delete_segments.refined.json';
+const configFileArg = rawArgs[5];
 
 if (!wordsFile || !deleteFile) {
   console.error('用法: node refine_segments.js <subtitles_words.json> <delete_segments.json> <audio_rms.json> <silences.json> [out] [config.json]');
@@ -95,6 +100,16 @@ deleteSegs = deleteSegs
   .map(s => ({ start: s.start, end: s.end }));
 
 const duration = words.length ? words[words.length - 1].end : 0;
+
+// 審核頁字級刪除選集（Step C 用；沒給就退回覆蓋率 >50% 判斷＝舊行為）
+let deletedSet = null;
+if (deleteIdxArg) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(deleteIdxArg, 'utf8'));
+    const arr = Array.isArray(raw) ? raw : (raw.deletedIndices || raw.indices || []);
+    deletedSet = new Set(arr);
+  } catch (e) { console.error('⚠️ delete-indices 解析失敗，Step C 退回覆蓋率判斷: ' + e.message); }
+}
 
 // ── 靜音來源：優先音訊實測（silences.json），退回 isGap ──
 let silenceIntervals = [];
@@ -286,23 +301,33 @@ let atomExpanded = 0, atomShrunk = 0;
 if (WA_ENABLED) {
   const silForWords = silenceSource === 'audio' ? silenceIntervals : null;
   const expandIvs = [], shrinkIvs = [];
-  for (const w of words) {
-    if (w.isGap || !(Number.isFinite(w.start) && Number.isFinite(w.end) && w.end > w.start)) continue;
+  words.forEach((w, gi) => {
+    if (w.isGap || !(Number.isFinite(w.start) && Number.isFinite(w.end) && w.end > w.start)) return;
     const speech = speechIntervalsOf(w, silForWords);
     const sDur = intervalsTotal(speech);
-    if (sDur <= EPS) continue;
+    if (sDur <= EPS) return;
     const ov = overlapTotal(speech, workSegs);
-    if (ov <= WA_MIN_OVERLAP) continue;              // 刀沒碰到發音區
-    if (ov >= sDur - WA_MIN_OVERLAP) continue;       // 發音區已整段刪除，本來就原子
+    if (deletedSet) {
+      // index 為準：刪的字若還留著實質內容(>碎屑) → 補刀刪完；留的字若被刀吃到實質內容 → 退刀保住。
+      // WA_SLIVER 仍守門：≤碎屑(聽不見)的殘留/誤刪不動，免得跟 cut_snap 的波谷刀點互相拉扯。
+      if (deletedSet.has(gi)) {
+        if (sDur - ov > WA_SLIVER) { expandIvs.push(...speech); atomExpanded++; }
+      } else {
+        if (ov > WA_SLIVER) { shrinkIvs.push(...speech); atomShrunk++; }
+      }
+      return;
+    }
+    if (ov <= WA_MIN_OVERLAP) return;                // 刀沒碰到發音區
+    if (ov >= sDur - WA_MIN_OVERLAP) return;         // 發音區已整段刪除，本來就原子
     const kept = sDur - ov;
     if (ov / sDur > KEEP_THRESHOLD) {
-      if (kept <= WA_SLIVER) continue;               // 殘留只是碎屑（吸附波谷），聽不見，不補刀
+      if (kept <= WA_SLIVER) return;                 // 殘留只是碎屑（吸附波谷），聽不見，不補刀
       expandIvs.push(...speech); atomExpanded++;
     } else {
-      if (ov <= WA_SLIVER) continue;                 // 誤刪只是碎屑，不退刀
+      if (ov <= WA_SLIVER) return;                   // 誤刪只是碎屑，不退刀
       shrinkIvs.push(...speech); atomShrunk++;
     }
-  }
+  });
   if (expandIvs.length || shrinkIvs.length) {
     let segs = workSegs;
     if (shrinkIvs.length) {

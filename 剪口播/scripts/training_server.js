@@ -451,7 +451,7 @@ function prepareArtifacts(workDir, subsPath, audioPath, analysisDir, cb) {
 
 // 用 art（rms/silences）把「內容刪除段」精修成 refined 檔。同步、快。回傳路徑或 null（降級）。
 // 註：咳嗽已改由 autoContentPreselect 進審核頁預選（WYSIWYG），此處不再默默併入。
-function buildRefined(subsPath, contentSegments, art, workDir, outBase) {
+function buildRefined(subsPath, contentSegments, art, workDir, outBase, deleteIndicesFile) {
   try {
     if (!art.ok) return null;
     const content = (contentSegments || []).map(s => ({ start: s.start, end: s.end }));
@@ -459,7 +459,10 @@ function buildRefined(subsPath, contentSegments, art, workDir, outBase) {
     const contentFile = path.join(workDir, outBase.replace(/\.refined\.json$/, '.content.json'));
     fs.writeFileSync(contentFile, JSON.stringify(content, null, 2));
     const refined = path.join(workDir, outBase);
-    execFileSync('node', [path.join(SCRIPT_DIR, 'refine_segments.js'), subsPath, contentFile, art.rms, art.sil, refined], { stdio: 'pipe' });
+    // 有 index 選集就讓 Step C 刀口原子化以 index 為準（影片＝審核頁＝SRT）；沒有退回覆蓋率判斷
+    const refArgs = [path.join(SCRIPT_DIR, 'refine_segments.js'), subsPath, contentFile, art.rms, art.sil, refined];
+    if (deleteIndicesFile) refArgs.push('--delete-indices', deleteIndicesFile);
+    execFileSync('node', refArgs, { stdio: 'pipe' });
     return fs.existsSync(refined) ? refined : null;
   } catch (e) {
     console.warn('[8900 精修] refine 失敗，用原始切點:', (e.message || '').split('\n')[0]);
@@ -1095,6 +1098,18 @@ const server = http.createServer((req, res) => {
             appendScorecard(videoName, ctx.workDir, card);
             const rej = Object.values(card.categories).reduce((t, c) => t + c.rejected, 0);
             console.log(`📊 [${videoName}] 記分卡：退回 ${rej} 字、手動補刪 ${card.missed.words} 字（${card.missed.sec}s）`);
+
+            // 回饋迴路：把「AI 多刪你留(FP) / 你補刪 AI 沒抓(FN)」寫進 user_corrections.jsonl，
+            // 下支影片 ai_cut_pairs(few-shot) 與 ai_polish_review(負例庫) 會讀最近幾筆校準判斷。
+            // 用審核頁字級選集(deletedIndices)算，比時間重疊精確；沒帶就跳過（舊頁面）。
+            if (deletedIndices && deletedIndices.length) {
+              try {
+                const { buildCorrections, appendCorrections } = require('./user_corrections');
+                const corr = buildCorrections(_scWords, _scParsed.autoSelected, deletedIndices, _scParsed.autoReasons);
+                const wrote = appendCorrections(videoName, corr);
+                if (wrote) console.log(`🧠 [${videoName}] 回灌 user_corrections：AI多刪你留 ${corr.falsePositives.length} 例、你補刪 ${corr.falseNegatives.length} 例`);
+              } catch (e2) { console.warn(`[${videoName}] user_corrections 回灌失敗(略過):`, (e2.message || '').split('\n')[0]); }
+            }
           }
         } catch (e) { console.warn(`[${videoName}] 記分卡失敗(略過):`, (e.message || '').split('\n')[0]); }
 
@@ -1138,8 +1153,8 @@ const server = http.createServer((req, res) => {
           let hasAudioSil = false;
           try { const _s = JSON.parse(fs.readFileSync(_art.sil, 'utf8')); hasAudioSil = (Array.isArray(_s) ? _s : (_s.silences || [])).length > 0; } catch (_) {}
           if (hasAudioSil) {
-            const _refined = buildRefined(_subsPath, deleteList, _art, ctx.workDir, 'delete_segments.refined.json');
-            if (_refined) { cutDeleteFile = _refined; console.log(`✨ [${videoName}] 已套用停頓壓平/切點吸附/咳嗽（匯出用 refined）`); }
+            const _refined = buildRefined(_subsPath, deleteList, _art, ctx.workDir, 'delete_segments.refined.json', deleteIndicesFile);
+            if (_refined) { cutDeleteFile = _refined; console.log(`✨ [${videoName}] 已套用停頓壓平/切點吸附/刀口原子化(index 為準)`); }
           } else {
             console.log(`ℹ️ [${videoName}] 無音訊實測靜音，匯出維持原始切點（不套停頓壓平）`);
           }
