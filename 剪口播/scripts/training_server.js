@@ -1085,6 +1085,76 @@ const server = http.createServer((req, res) => {
           }
         }
 
+        // ── 剪映草稿匯出（真無損）：不跑 ffmpeg，生成剪映草稿引用原片＋剪點，SRT 掛字幕軌 ──
+        // 使用者成品本來就要進剪映後製 → 草稿路徑零重編碼、秒級完成、剪點還能微調。
+        if (exportOptions.jianying) {
+          const jyName = String(exportOptions.exportName || '').replace(/[\\/:*?"<>|]/g, '').trim()
+            || `${path.basename(ctx.videoPath).replace(/\.[^/.]+$/, '')}_剪`;
+          exportState = { running: true, progress: 10, step: '生成剪映草稿', videoName, result: null, error: null };
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+          try {
+            // 最終刪除清單（與 ffmpeg 落刀同一套 MERGE_GAP 合併）→ 取補集＝保留段
+            const { mergeDeleteSegments } = require('./merge_delete_segments');
+            const delRaw = JSON.parse(fs.readFileSync(cutDeleteFile, 'utf8'));
+            const merged = mergeDeleteSegments(Array.isArray(delRaw) ? delRaw : (delRaw.segments || []));
+            const probe = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0',
+              '-show_entries', 'stream=width,height,r_frame_rate', '-show_entries', 'format=duration',
+              '-of', 'json', 'file:' + ctx.videoPath], { encoding: 'utf8' });
+            const pj = JSON.parse(probe);
+            const vDur = parseFloat(pj.format.duration);
+            const vs = (pj.streams && pj.streams[0]) || {};
+            const fr = String(vs.r_frame_rate || '30/1').split('/');
+            const fps = Math.round((+fr[0] / (+fr[1] || 1)) || 30);
+            // 補集＝保留段；一律夾在 [0, vDur] 內（刪除清單若超出素材時長，剪映會拒收超界段）
+            const keeps = [];
+            let cur = 0;
+            for (const s of merged) {
+              if (cur >= vDur - 0.01) break;
+              if (s.start > cur + 0.01) keeps.push({ start: cur, end: Math.min(s.start, vDur) });
+              cur = Math.max(cur, s.end);
+            }
+            if (vDur > cur + 0.01) keeps.push({ start: cur, end: vDur });
+            for (const k of keeps) k.end = Math.min(k.end, vDur);
+            const keepsFile = path.join(ctx.workDir, 'jianying_keeps.json');
+            fs.writeFileSync(keepsFile, JSON.stringify(keeps, null, 2));
+            // SRT：理想時間軸（無 timeline_map），與草稿逐段拼接的時間軸完全一致
+            exportState.step = '產字幕'; exportState.progress = 40;
+            let jySrt = '';
+            try {
+              const srtScript = path.join(SCRIPT_DIR, 'generate_cut_srt.js');
+              const subsP = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
+              jySrt = path.join(ctx.workDir, 'jianying_draft.srt');
+              execFileSync('node', [srtScript, subsP, cutDeleteFile, jySrt, '--silences', _art.sil], { stdio: 'pipe' });
+            } catch (e) { console.warn(`[${videoName}] 草稿 SRT 失敗(草稿仍出、無字幕軌):`, (e.message || '').split('\n')[0]); jySrt = ''; }
+            exportState.step = '寫入剪映草稿'; exportState.progress = 70;
+            const jyCfg = (readTrainingConfig().jianying) || {};
+            const pyArgs = [path.join(SCRIPT_DIR, 'export_jianying_draft.py'),
+              '--video', ctx.videoPath, '--keeps', keepsFile, '--name', jyName,
+              '--width', String(vs.width || 1920), '--height', String(vs.height || 1080), '--fps', String(fps)];
+            if (jySrt && fs.existsSync(jySrt)) pyArgs.push('--srt', jySrt);
+            if (jyCfg.draft_folder) pyArgs.push('--draft-folder', jyCfg.draft_folder);
+            const out = execFileSync('python', pyArgs, { encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
+            const jr = JSON.parse(out.trim().split(/\r?\n/).pop());
+            if (!jr.ok) throw new Error(jr.error || '草稿生成失敗');
+            exportState.result = {
+              output: jr.draftPath, jianying: true, segments: jr.segments,
+              originalDuration: vDur.toFixed(1), newDuration: (jr.durationSec || 0).toFixed(1),
+              srt: jySrt || null, txt: null,
+            };
+            exportState.step = '完成'; exportState.progress = 100; exportState.running = false;
+            console.log(`🎬 [${videoName}] 剪映草稿完成 → ${jr.draftPath}（${jr.segments} 段）`);
+          } catch (err) {
+            const msg = (err.stdout || '') + (err.message || '');
+            let clean = msg;
+            try { const j = JSON.parse(String(err.stdout || '').trim().split(/\r?\n/).pop()); if (j && j.error) clean = j.error; } catch (_) {}
+            exportState.error = '剪映草稿失敗：' + clean.slice(0, 300);
+            exportState.running = false; exportState.progress = 100;
+            console.error(`❌ [${videoName}] 剪映草稿失敗:`, clean.split('\n')[0]);
+          }
+          return;
+        }
+
         const container = (exportOptions.container || 'mp4').toLowerCase();
         const mainExt = exportOptions.audioOnly ? 'mp3' : container;
         const baseName = path.basename(ctx.videoPath).replace(/\.[^/.]+$/, '');

@@ -132,8 +132,9 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
     <label>輸出資料夾（會在其下建「成品名稱」子資料夾，影片/字幕/文稿收攏一起）</label>
     <div class="ovrow"><input type="text" id="expDir" placeholder="留空＝存到影片原資料夾"><button onclick="pickDir()">瀏覽</button></div>
     <label>格式</label>
-    <select id="expFmt"><option value="mp4">MP4（H.264，通用）</option><option value="mov">MOV</option><option value="mkv">MKV</option><option value="mp3">只要音檔（MP3）</option></select>
-    <label class="ovchk"><input type="checkbox" id="expLossless"> 原畫質（近無損，檔案較大）</label>
+    <select id="expFmt" onchange="fmtChanged()"><option value="jydraft">剪映草稿（真無損・秒級完成・直接進剪映）</option><option value="mp4">MP4（H.264，通用）</option><option value="mov">MOV</option><option value="mkv">MKV</option><option value="mp3">只要音檔（MP3）</option></select>
+    <div id="jyHint" style="font-size:12px;color:#7a7770;margin-top:6px;line-height:1.6;">不重編碼：生成剪映草稿引用原始檔＋剪點，字幕掛在字幕軌。開剪映就看得到，剪點還能微調。</div>
+    <label class="ovchk" id="losslessRow"><input type="checkbox" id="expLossless"> 原畫質（近無損，檔案較大）</label>
     <div class="ovbtns"><button onclick="closeOv()">取消</button><button class="btn-export" onclick="runExport()">開始匯出</button></div>
   </div>
   <div id="ovProg" style="display:none;">
@@ -325,15 +326,21 @@ function rerunAI(){
     setTimeout(poll,1500);
   }).catch(function(){setTimeout(poll,2000);});}
 }
-function doExport(){document.getElementById('ovForm').style.display='block';document.getElementById('ovProg').style.display='none';document.getElementById('ov').style.display='flex';}
+function doExport(){document.getElementById('ovForm').style.display='block';document.getElementById('ovProg').style.display='none';document.getElementById('ov').style.display='flex';fmtChanged();}
 function closeOv(){document.getElementById('ov').style.display='none';}
 function pickDir(){fetch('/api/native-browse-folder').then(function(r){return r.json();}).then(function(d){if(d.path)document.getElementById('expDir').value=d.path;}).catch(function(e){alert('\\u9078\\u8cc7\\u6599\\u593e\\u5931\\u6557\\uff1a'+e.message);});}
 function setBar(p){document.getElementById('ovFill').style.width=p+'%';document.getElementById('ovPct').textContent=p+'%';}
 function expFail(m){document.getElementById('ovStep').textContent='\\u532f\\u51fa\\u5931\\u6557';var dn=document.getElementById('ovDone');dn.style.display='block';dn.innerHTML='\\u274c '+m+'<div style="margin-top:12px;text-align:right"><button onclick="closeOv()">\\u95dc\\u9589</button></div>';}
+function fmtChanged(){
+  var jy=document.getElementById('expFmt').value==='jydraft';
+  document.getElementById('jyHint').style.display=jy?'':'none';
+  document.getElementById('losslessRow').style.display=jy?'none':'flex';
+  document.getElementById('expDir').disabled=jy; // 草稿寫進剪映草稿資料夾，不用選輸出位置
+}
 function runExport(){
   var dl=segs().map(function(g){return{start:g.s,end:g.e};});
-  var fm=document.getElementById('expFmt').value;var audioOnly=(fm==='mp3');
-  var opt={outputDir:document.getElementById('expDir').value.trim(),exportName:document.getElementById('expName').value.trim(),container:audioOnly?'mp4':fm,audioOnly:audioOnly,lossless:document.getElementById('expLossless').checked};
+  var fm=document.getElementById('expFmt').value;var audioOnly=(fm==='mp3');var jy=(fm==='jydraft');
+  var opt={outputDir:document.getElementById('expDir').value.trim(),exportName:document.getElementById('expName').value.trim(),container:(audioOnly||jy)?'mp4':fm,audioOnly:audioOnly,jianying:jy,lossless:document.getElementById('expLossless').checked};
   document.getElementById('ovForm').style.display='none';document.getElementById('ovProg').style.display='block';
   document.getElementById('ovDone').style.display='none';document.getElementById('ovStep').textContent='\\u532f\\u51fa\\u4e2d\\u2026';setBar(0);
   fetch('${cutApiPath}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deleteList:dl,exportOptions:opt})}).then(function(r){return r.json();}).then(function(d){if(d&&d.error){expFail(d.error);return;}pollExport();}).catch(function(e){expFail(e.message);});
@@ -342,7 +349,15 @@ function pollExport(){fetch('/api/export-status').then(function(r){return r.json
   if(s.step)document.getElementById('ovStep').textContent=s.step;setBar(s.progress||0);
   if(s.error){expFail(s.error);return;}
   if(s.running===false){setBar(100);
-    if(s.result){var r=s.result;document.getElementById('ovStep').textContent='\\u532f\\u51fa\\u5b8c\\u6210 \\u2705';var dn=document.getElementById('ovDone');dn.style.display='block';dn.innerHTML='\\u8f38\\u51fa\\uff1a<code style="word-break:break-all">'+r.output+'</code><br>\\u539f '+fmt(parseFloat(r.originalDuration))+' \\u2192 \\u65b0 '+fmt(parseFloat(r.newDuration))+(r.srt?'<br>\\u5df2\\u9644\\u5b57\\u5e55 .srt':'')+(r.txt?'<br>\\u5df2\\u9644\\u6587\\u7a3f .txt':'')+'<div style="margin-top:14px;text-align:right"><button class="btn-export" onclick="closeOv()">\\u5b8c\\u6210</button></div>';}
+    if(s.result){var r=s.result;
+      document.getElementById('ovStep').textContent=(r.jianying?'\\u526a\\u6620\\u8349\\u7a3f\\u5df2\\u5efa\\u7acb ':'\\u532f\\u51fa\\u5b8c\\u6210 ')+'\\u2705';
+      var dn=document.getElementById('ovDone');dn.style.display='block';
+      var body=r.jianying
+        ? ('\\u8349\\u7a3f\\uff1a<code style="word-break:break-all">'+r.output+'</code><br>'+
+           '\\u539f '+fmt(parseFloat(r.originalDuration))+' \\u2192 \\u65b0 '+fmt(parseFloat(r.newDuration))+'\\uff08'+(r.segments||'?')+' \\u6bb5\\uff09<br>'+
+           '\\u958b\\u526a\\u6620\\u5c31\\u770b\\u5f97\\u5230\\uff1b\\u771f\\u7121\\u640d\\uff08\\u96f6\\u91cd\\u7de8\\u78bc\\uff09'+(r.srt?'\\uff0c\\u5b57\\u5e55\\u5df2\\u639b\\u5b57\\u5e55\\u8ecc':''))
+        : ('\\u8f38\\u51fa\\uff1a<code style="word-break:break-all">'+r.output+'</code><br>\\u539f '+fmt(parseFloat(r.originalDuration))+' \\u2192 \\u65b0 '+fmt(parseFloat(r.newDuration))+(r.srt?'<br>\\u5df2\\u9644\\u5b57\\u5e55 .srt':'')+(r.txt?'<br>\\u5df2\\u9644\\u6587\\u7a3f .txt':''));
+      dn.innerHTML=body+'<div style="margin-top:14px;text-align:right"><button class="btn-export" onclick="closeOv()">\\u5b8c\\u6210</button></div>';}
     return;}
   setTimeout(pollExport,1000);
 }).catch(function(){setTimeout(pollExport,1500);});}

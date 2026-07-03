@@ -23,3 +23,8 @@ scripts/.env
 
 # 臨時測試 fixture
 scripts/_t_merge/
+
+# 審稿記分卡累積資料（每次匯出記帳，per-user 不進 git）
+scripts/scorecard.jsonl
+scripts/cut_work/_uploads/
+cut_work/_uploads/

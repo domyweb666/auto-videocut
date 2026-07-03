@@ -98,5 +98,9 @@
     "min_len": 10,
     "max_pairs": 8,
     "_note": "語意重複建議（嵌入向量，低信心層）。prepareArtifacts 背景跑 detect_redundancy.py（sentence-transformers paraphrase-multilingual-MiniLM-L12-v2，缺依賴退 3-gram），結果快取 2_分析/semantic_pairs.json；autoContentPreselect 只讀快取（審核頁載入不現算）。抓字面差異大但語意相同的遠距重複，刪較短句、理由標「低信心請確認」。threshold 0.9=只抓近乎確定的重講；實測 0.80 會把「文章結構前後呼應」這類合法重述也撈進來，別亂降。max_pairs 上限避免灌爆審核頁。"
+  },
+  "jianying": {
+    "draft_folder": "",
+    "_comment": "剪映草稿匯出：draft_folder 留空＝自動偵測 %LOCALAPPDATA%/JianyingPro（找不到時才需要手填剪映的草稿位置）"
   }
 }
