@@ -19,7 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 const { mergeDeleteSegments } = require(path.join(__dirname, 'merge_delete_segments.js'));
-const { isWordKept, loadSilences } = require(path.join(__dirname, 'kept_words.js'));
+const { isWordKept, keptWordsByIndex, loadSilences } = require(path.join(__dirname, 'kept_words.js'));
 
 const args = process.argv.slice(2);
 let mapArg = null;
@@ -28,6 +28,11 @@ if (mi >= 0) { mapArg = args[mi + 1]; args.splice(mi, 2); }
 let silencesArg = null;
 const si = args.indexOf('--silences');
 if (si >= 0) { silencesArg = args[si + 1]; args.splice(si, 2); }
+// --delete-indices <file>：審核頁確認的字級刪除 index（JSON 陣列）。有給就用它決定「哪些字保留」，
+// 與審核頁文稿逐字一致；沒給退回 kept_words.js 的發音區 >50% 判斷（向下相容）。
+let deleteIdxArg = null;
+const di = args.indexOf('--delete-indices');
+if (di >= 0) { deleteIdxArg = args[di + 1]; args.splice(di, 2); }
 const wordsFile = args[0];
 const deleteFile = args[1];
 const outputFile = args[2] || 'output_cut.srt';
@@ -89,14 +94,24 @@ function getDeletedTimeBefore(time) {
 const silences = loadSilences(silencesArg || path.join(path.dirname(wordsFile), '..', '2_分析', 'silences.json'));
 if (silences) console.error(`🔇 發音區判斷使用音訊實測靜音（${silences.length} 段）`);
 
-// ── 篩選保留的文字並重映射時間 ──
-// start/end 各自用「該時間點之前被刪的累積量」映射，
-// 字內若有被刪的停頓，end 會被自然拉近，字幕不會多停留。
-const keptWords = [];
-for (const w of words) {
-  if (w.isGap) continue;
-  if (!isWordKept(w, deleteSegments, silences)) continue;   // 發音區主體被刪才丟
+// 審核頁字級刪除 index（有給就以它為準）
+let deletedSet = null;
+if (deleteIdxArg) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(deleteIdxArg, 'utf8'));
+    const arr = Array.isArray(raw) ? raw : (raw.deletedIndices || raw.indices || []);
+    deletedSet = new Set(arr);
+    console.error(`🎯 文字面依審核頁字級選集（刪 ${deletedSet.size} 個 index），與審核頁文稿逐字一致`);
+  } catch (e) { console.error(`⚠️ delete-indices 解析失敗，退回發音區判斷: ${e.message}`); }
+}
 
+// ── 篩選保留的文字並重映射時間 ──
+// 文字面：有 index 選集就照它（審核頁真相）；否則退回發音區 >50% 判斷。
+// 時間面一律走 timeline_map / 累積刪除量映射（字內被刪的停頓會把 end 自然拉近，字幕不多停留）。
+const srcKept = deletedSet ? keptWordsByIndex(words, deletedSet)
+                           : words.filter(w => !w.isGap && isWordKept(w, deleteSegments, silences));
+const keptWords = [];
+for (const w of srcKept) {
   const newStart = timelineMap ? mapTime(w.start) : w.start - getDeletedTimeBefore(w.start);
   let newEnd = timelineMap ? mapTime(w.end) : w.end - getDeletedTimeBefore(w.end);
   if (newEnd <= newStart) newEnd = newStart + 0.05;       // 防呆
@@ -109,32 +124,56 @@ for (const w of words) {
 
 console.error(`📝 保留字數: ${keptWords.length}/${words.filter(w => !w.isGap).length}`);
 
-// ── 分句：跟文稿一樣「照標點斷」——優先句末（。！？），長句才在逗號斷；不硬切固定字數、不斷在意群中間 ──
-const SENT_END = /[。！？!?…]["」』）)]?$/;    // 句末標點
-const CLAUSE_END = /[，、；：,;:]["」』）)]?$/;  // 子句標點
-const SOFT_MAX = 18;   // 累積到這長度且遇逗號才斷（螢幕可讀）
-const HARD_MAX = 34;   // 極長且無標點時，在字邊界強制斷（罕見）
-const BIG_GAP = 0.8;   // 明顯停頓也視為斷點
+// ── 斷句：橫式長片字幕（照 domi-subtitle-format）──
+// 目標每行 ~16 字（14–18），單行優先；斷在意群邊界、優先標點；不把行末掛在虛詞/連接詞/數字上；
+// 長句在最近的次佳邊界斷，不硬塞成文字牆（原本 HARD_MAX 34＋「湊滿 18 才斷逗號」會斷在意群中間）。
+const SENT_END = /[。！？!?…]/;                       // 句末
+const CLAUSE   = /[，、；：,;:]/;                      // 子句停頓（天然斷點）
+const NO_END = new Set((
+  '的地得了著嗎呢吧啊喔呀哦嘛' +                       // 結構/語助詞
+  '和與及而但就把被向從對為跟也還並且或因所讓使將給由在於之以' + // 連詞/介詞（屬下一句）
+  '這那它每'                                           // 指示詞（多半修飾後文）
+).split(''));
+const DIGIT   = /[0-9０-９]/;
+const TARGET   = 16;  // 目標行長（到這長度就想辦法斷）
+const MAXLEN   = 22;  // 硬上限
+const MINLEN   = 4;   // 句末標點要斷的最小長度（避免碎成一兩字）
+const MIN_HEAD = 6;   // 回頭斷在逗號時，前段至少要這麼長才值得（否則寧可斷在目標處）
+const BIG_GAP  = 0.8; // 明顯停頓也視為斷點
+
+const lastCh = s => (s ? s[s.length - 1] : '');
+const cLen = buf => buf.reduce((n, w) => n + (w.text || '').length, 0);
+const mkCue = buf => ({ text: buf.map(w => w.text).join(''), start: buf[0].start, end: buf[buf.length - 1].end });
+// 字尾能不能當行末：標點可以、一般內容字可以；虛詞/數字不行（會掛在下一句頭上）
+const safeEnd = ch => SENT_END.test(ch) || CLAUSE.test(ch) || (!NO_END.has(ch) && !DIGIT.test(ch));
 
 const cues = [];
-let cur = null;
+let buf = [], lastClause = -1, lastSafe = -1;   // lastClause/lastSafe＝可斷位置（buf 內 word 數）
+function recalc() { lastClause = -1; lastSafe = -1; for (let k = 0; k < buf.length; k++) { const c = lastCh(buf[k].text); if (CLAUSE.test(c)) lastClause = k + 1; else if (safeEnd(c)) lastSafe = k + 1; } }
+function flushAll() { if (buf.length) { cues.push(mkCue(buf)); buf = []; lastClause = lastSafe = -1; } }
+function flushAt(cut) { if (cut > 0) cues.push(mkCue(buf.slice(0, cut))); buf = buf.slice(cut); recalc(); }
+
 for (let i = 0; i < keptWords.length; i++) {
   const w = keptWords[i];
-  if (cur && (w.start - cur.end) >= BIG_GAP) { cues.push(cur); cur = null; } // 大停頓先斷
-  if (!cur) cur = { text: w.text, start: w.start, end: w.end };
-  else { cur.text += w.text; cur.end = w.end; }
-  const t = w.text, len = cur.text.length;
-  if ((SENT_END.test(t) && len >= 4) || (CLAUSE_END.test(t) && len >= SOFT_MAX) || len >= HARD_MAX) {
-    cues.push(cur); cur = null;
-  }
-}
-if (cur) cues.push(cur);
+  if (buf.length && (w.start - buf[buf.length - 1].end) >= BIG_GAP) flushAll(); // 大停頓先斷
+  buf.push(w);
+  const c = lastCh(w.text), len = cLen(buf);
+  if (CLAUSE.test(c)) lastClause = buf.length; else if (safeEnd(c)) lastSafe = buf.length;
 
-// ── 合併太短的殘句（<0.5s 或 <2字）到前一句，但不讓前句超過 HARD_MAX ──
+  if (SENT_END.test(c) && len >= MINLEN) { flushAll(); continue; }   // 句末：整句 ≤ 目標就完整一條
+  if (len < TARGET) continue;                                        // 還沒到目標：先累積（讓整句/整意群留在一起）
+  // 到目標長度：優先回到最近的逗號斷（斷得乾淨），其次在當前非虛詞邊界斷，都不行才拖到上限硬斷
+  if (lastClause > 0 && cLen(buf.slice(0, lastClause)) >= MIN_HEAD) { flushAt(lastClause); }
+  else if (safeEnd(c)) { flushAll(); }
+  else if (len >= MAXLEN) { flushAt(lastSafe > 0 ? lastSafe : buf.length - 1); }
+}
+flushAll();
+
+// 合併過短殘片（<2 字或 <0.4s）到前句，但不讓前句超過 MAXLEN
 const mergedCues = [];
 for (const cue of cues) {
   const prev = mergedCues[mergedCues.length - 1];
-  if (prev && (cue.end - cue.start < 0.5 || cue.text.length < 2) && (prev.text.length + cue.text.length) <= HARD_MAX) {
+  if (prev && (cue.text.length < 2 || (cue.end - cue.start) < 0.4) && (prev.text.length + cue.text.length) <= MAXLEN) {
     prev.text += cue.text;
     prev.end = cue.end;
   } else {

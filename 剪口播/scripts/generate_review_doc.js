@@ -399,7 +399,7 @@ function runExport(){
   var opt={outputDir:document.getElementById('expDir').value.trim(),exportName:document.getElementById('expName').value.trim(),container:(audioOnly||jy)?'mp4':fm,audioOnly:audioOnly,jianying:jy,lossless:document.getElementById('expLossless').checked};
   document.getElementById('ovForm').style.display='none';document.getElementById('ovProg').style.display='block';
   document.getElementById('ovDone').style.display='none';document.getElementById('ovStep').textContent='\\u532f\\u51fa\\u4e2d\\u2026';setBar(0);
-  fetch('${cutApiPath}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deleteList:dl,exportOptions:opt})}).then(function(r){return r.json();}).then(function(d){if(d&&d.error){expFail(d.error);return;}pollExport();}).catch(function(e){expFail(e.message);});
+  fetch('${cutApiPath}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deleteList:dl,exportOptions:opt,deletedIndices:Array.from(selected)})}).then(function(r){return r.json();}).then(function(d){if(d&&d.error){expFail(d.error);return;}pollExport();}).catch(function(e){expFail(e.message);});
 }
 function pollExport(){fetch('/api/export-status').then(function(r){return r.json();}).then(function(s){
   if(s.step)document.getElementById('ovStep').textContent=s.step;setBar(s.progress||0);

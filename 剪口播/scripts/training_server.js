@@ -1059,12 +1059,23 @@ const server = http.createServer((req, res) => {
         }
 
         const parsed = JSON.parse(body || '{}');
-        let deleteList, exportOptions;
+        let deleteList, exportOptions, deletedIndices = null;
         if (Array.isArray(parsed)) {
           deleteList = parsed; exportOptions = {};
         } else {
           deleteList = parsed.deleteList || parsed.segments || [];
           exportOptions = parsed.exportOptions || {};
+          if (Array.isArray(parsed.deletedIndices)) deletedIndices = parsed.deletedIndices;
+        }
+
+        // 審核頁的字級刪除選集 → 落檔，供 SRT/TXT 用「index 選字」對齊審核頁文稿（避免時間重疊 >50%
+        // 反推在重錄 take 密集處翻掉短邊界字：多一個「長」、掉一個「病」）。沒帶就退回舊發音區判斷。
+        let deleteIndicesFile = null;
+        if (deletedIndices && deletedIndices.length) {
+          try {
+            deleteIndicesFile = path.join(ctx.workDir, 'delete_indices.json');
+            fs.writeFileSync(deleteIndicesFile, JSON.stringify(deletedIndices));
+          } catch (e) { console.warn(`[${videoName}] delete_indices 落檔失敗(SRT/TXT 退回發音區判斷):`, (e.message || '').split('\n')[0]); deleteIndicesFile = null; }
         }
 
         // WYSIWYG：不再在匯出端併入重錄/咳嗽——它們已由 autoContentPreselect 進審核頁預選，
@@ -1174,7 +1185,8 @@ const server = http.createServer((req, res) => {
               const srtScript = path.join(SCRIPT_DIR, 'generate_cut_srt.js');
               const subsP = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
               jySrt = path.join(ctx.workDir, 'jianying_draft.srt');
-              execFileSync('node', [srtScript, subsP, cutDeleteFile, jySrt, '--silences', _art.sil], { stdio: 'pipe' });
+              execFileSync('node', [srtScript, subsP, cutDeleteFile, jySrt, '--silences', _art.sil,
+                ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])], { stdio: 'pipe' });
             } catch (e) { console.warn(`[${videoName}] 草稿 SRT 失敗(草稿仍出、無字幕軌):`, (e.message || '').split('\n')[0]); jySrt = ''; }
             exportState.step = '寫入剪映草稿'; exportState.progress = 70;
             const jyCfg = (readTrainingConfig().jianying) || {};
@@ -1296,7 +1308,8 @@ const server = http.createServer((req, res) => {
                 const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
                 srtFile = outputFile.replace(/\.[^/.]+$/, '.srt');
                 if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath))
-                  execFileSync('node', [srtScript, subtitlesPath, cutDeleteFile, srtFile, '--silences', _art.sil], { stdio: 'pipe' });
+                  execFileSync('node', [srtScript, subtitlesPath, cutDeleteFile, srtFile, '--silences', _art.sil,
+                    ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])], { stdio: 'pipe' });
               } catch (srtErr) { console.error(`⚠️ [${videoName}] SRT 失敗:`, srtErr.message); srtFile = null; }
             }
             // 純文字文稿 TXT（依標點分段，跟審核頁文稿一致；音檔匯出也產，文稿一樣有用）
@@ -1306,7 +1319,8 @@ const server = http.createServer((req, res) => {
               const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
               txtFile = outputFile.replace(/\.[^/.]+$/, '.txt');
               if (fs.existsSync(txtScript) && fs.existsSync(subtitlesPath))
-                execFileSync('node', [txtScript, subtitlesPath, cutDeleteFile, txtFile], { stdio: 'pipe' });
+                execFileSync('node', [txtScript, subtitlesPath, cutDeleteFile, txtFile,
+                  ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])], { stdio: 'pipe' });
             } catch (txtErr) { console.error(`⚠️ [${videoName}] TXT 失敗:`, txtErr.message); txtFile = null; }
             const originalDuration = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + ctx.videoPath], { encoding: 'utf8' }).trim());
             const newDuration = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + outputFile], { encoding: 'utf8' }).trim());

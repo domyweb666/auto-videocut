@@ -1,0 +1,62 @@
+#!/usr/bin/env node
+/* generate_cut_srt.test.js — SRT 文字面(index 對齊) + 斷句(橫式 16 字) 整合測試 */
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { execFileSync } = require('child_process');
+
+let pass = 0, fail = 0;
+function ok(name, cond) { if (cond) { console.log('  ✅ ' + name); pass++; } else { console.log('  ❌ ' + name); fail++; } }
+function eq(name, got, want) { const g = JSON.stringify(got), w = JSON.stringify(want); if (g === w) { console.log('  ✅ ' + name); pass++; } else { console.log('  ❌ ' + name + '\n     got:  ' + g + '\n     want: ' + w); fail++; } }
+
+const SCRIPT = path.join(__dirname, 'generate_cut_srt.js');
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'srttest-'));
+const W = (text, start, end) => ({ text, start, end, isGap: false });
+function run(words, segs, outName, delIdx) {
+  const wf = path.join(TMP, 'w.json'), df = path.join(TMP, 'd.json'), of = path.join(TMP, outName);
+  fs.writeFileSync(wf, JSON.stringify(words));
+  fs.writeFileSync(df, JSON.stringify(segs));
+  const args = [SCRIPT, wf, df, of];
+  if (delIdx) { const idf = path.join(TMP, 'idx.json'); fs.writeFileSync(idf, JSON.stringify(delIdx)); args.push('--delete-indices', idf); }
+  execFileSync('node', args, { stdio: 'pipe' });
+  return fs.readFileSync(of, 'utf8');
+}
+function cueTexts(srt) { return srt.split(/\r?\n\r?\n/).filter(Boolean).map(b => b.split(/\r?\n/).slice(2).join('')).filter(Boolean); }
+
+console.log('文字面：index 選集覆蓋 >50% 時間重疊（修「多一個字／掉一個字」）:');
+// 乙[1.0,1.2] 被使用者依 index 刪除；但精修後刪除段只蓋到 [1.11,1.2]（45%）→ 舊 isWordKept 會「保留」乙（多字）
+const words = [W('甲', 0, 1), W('乙', 1.0, 1.2), W('丙', 2, 3)];
+const segsPartial = [{ start: 1.11, end: 1.2 }];
+const withIdx = cueTexts(run(words, segsPartial, 'a.srt', [1])).join('');
+const withoutIdx = cueTexts(run(words, segsPartial, 'b.srt')).join('');
+eq('--delete-indices：文字＝審核頁選集（乙被刪，不多字）', withIdx, '甲丙');
+ok('不給 index 時舊發音區判斷會把邊界字「乙」留下（重現 bug）', withoutIdx.includes('乙'));
+
+console.log('斷句：橫式 16 字上限、優先逗號、不斷在虛詞:');
+// 造一段長句（逐字，標點黏在前字上，跟 byteplus 逐字稿一致），無被刪
+function toWords(str, t0) {
+  const els = []; let t = t0 || 0;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (/[，。！？、；：]/.test(ch) && els.length) { els[els.length - 1].text += ch; els[els.length - 1].end = t; }
+    else { els.push(W(ch, t, t + 0.3)); t += 0.3; }
+  }
+  return els;
+}
+const longWords = toWords('這個世界很危險我要先確保不犯錯而且以後也絕對不能再犯任何一個錯誤了。', 0);
+const srt = run(longWords, [], 'c.srt');
+const cues = cueTexts(srt);
+ok('每條 ≤ 22 字（不再文字牆）', cues.every(c => c.length <= 22));
+ok('至少斷成多條（長句有被切）', cues.length >= 2);
+const NO_END = new Set('的地得了著嗎呢吧啊喔呀哦嘛和與及而但就把被向從對為跟也還並且或因所讓使將給由在於之以這那它每'.split(''));
+// 非句末條目的行末不掛裸虛詞（句末「了。」這種帶標點的算正常）
+const badHang = cues.filter(c => !/[。！？]$/.test(c) && NO_END.has(c.replace(/[，、；：]$/, '').slice(-1)));
+ok('非句末行末不掛裸虛詞', badHang.length === 0);
+
+console.log('句末完整短句不被硬切:');
+const shortSent = run(toWords('我不能退。', 0), [], 'd.srt');
+eq('短完整句自成一條', cueTexts(shortSent), ['我不能退。']);
+
+try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (_) {}
+console.log(`\n${pass} 過 / ${fail} 失敗`);
+process.exit(fail ? 1 : 0);

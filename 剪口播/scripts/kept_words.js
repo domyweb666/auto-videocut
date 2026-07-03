@@ -77,6 +77,21 @@ function computeKeptWords(words, deleteSegs, silences) {
   return words.filter(w => !w.isGap && isWordKept(w, deleteSegs, silences));
 }
 
+// 依審核頁的「字級刪除 index 集合」選保留字（跳過 isGap）——文字面唯一事實來源。
+// 審核頁決定去留是用 word index；匯出把 index 選集轉成時間段給影片落刀，但字幕/文稿的
+// 「哪些字保留」不該再用時間重疊 >50% 反推（重錄 take 密集處會翻掉短邊界字：多一個「長」、
+// 掉一個「病」）。有 index 選集就直接照它選字，時間戳仍走 timeline_map / 累積刪除量映射。
+function keptWordsByIndex(words, deletedSet) {
+  const out = [];
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (!w || w.isGap) continue;
+    if (deletedSet && deletedSet.has(i)) continue;
+    out.push(w);
+  }
+  return out;
+}
+
 // 讀 silences.json（[{start,end}] 或 {silences:[...]}），失敗回 null（呼叫端降級）
 function loadSilences(file) {
   const fs = require('fs');
@@ -100,5 +115,6 @@ module.exports = {
   deletedFractionSpeech,
   isWordKept,
   computeKeptWords,
+  keptWordsByIndex,
   loadSilences,
 };

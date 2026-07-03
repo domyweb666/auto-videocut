@@ -11,11 +11,16 @@
 const fs = require('fs');
 const path = require('path');
 const { mergeDeleteSegments } = require(path.join(__dirname, 'merge_delete_segments.js'));
-const { computeKeptWords, loadSilences } = require(path.join(__dirname, 'kept_words.js'));
+const { computeKeptWords, keptWordsByIndex, loadSilences } = require(path.join(__dirname, 'kept_words.js'));
 
-const wordsFile = process.argv[2];
-const deleteFile = process.argv[3];
-const outputFile = process.argv[4] || 'output_cut.txt';
+const argv = process.argv.slice(2);
+// --delete-indices <file>：審核頁字級刪除選集（與 SRT 同）；有給就以它決定保留哪些字。
+let deleteIdxArg = null;
+const di = argv.indexOf('--delete-indices');
+if (di >= 0) { deleteIdxArg = argv[di + 1]; argv.splice(di, 2); }
+const wordsFile = argv[0];
+const deleteFile = argv[1];
+const outputFile = argv[2] || 'output_cut.txt';
 
 if (!wordsFile || !deleteFile) {
   console.error('用法: node generate_cut_txt.js <subtitles_words.json> <delete_segments.json> [output.txt]');
@@ -27,13 +32,21 @@ const words = JSON.parse(fs.readFileSync(wordsFile, 'utf8'));
 // 被吞掉的短保留區裡的字不進文稿（那些字在成品裡已被剪掉）
 const deleteSegments = mergeDeleteSegments(JSON.parse(fs.readFileSync(deleteFile, 'utf8')));
 
-// 字的去留判斷走 kept_words.js（與 SRT / verify_export / 刀口原子化同源）：
-// 發音區被刪 >50% 才丟，字尾靜音被壓不算
+// 字的去留判斷：有審核頁字級選集就照它（與審核頁文稿逐字一致）；否則退回發音區 >50% 判斷。
 const silences = loadSilences(path.join(path.dirname(wordsFile), '..', '2_分析', 'silences.json'));
+let deletedSet = null;
+if (deleteIdxArg) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(deleteIdxArg, 'utf8'));
+    const arr = Array.isArray(raw) ? raw : (raw.deletedIndices || raw.indices || []);
+    deletedSet = new Set(arr);
+  } catch (e) { console.error(`⚠️ delete-indices 解析失敗，退回發音區判斷: ${e.message}`); }
+}
 
 // 串起保留文字
 let text = '';
-for (const w of computeKeptWords(words, deleteSegments, silences)) {
+const keptSrc = deletedSet ? keptWordsByIndex(words, deletedSet) : computeKeptWords(words, deleteSegments, silences);
+for (const w of keptSrc) {
   text += (w.text || '');
 }
 
