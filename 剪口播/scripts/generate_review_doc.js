@@ -74,6 +74,7 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
   .word.suspect{box-shadow:inset 0 -3px 0 #E24B4A;}
   .word.ring{outline:2px solid #185FA5;outline-offset:2px;}
   .word.pairhl{background:#DDEBF7;box-shadow:inset 0 -3px 0 #185FA5;}
+  .word.seam{text-decoration:underline wavy #D68A1A;text-decoration-thickness:2px;text-underline-offset:3px;cursor:pointer;}
   .hint{max-width:640px;margin:12px auto 48px;font-size:12px;color:#9a988f;padding:0 12px;line-height:1.7;}
   /* 聚焦決策的底部裁決列 */
   #dbar{display:none;position:fixed;left:0;right:0;bottom:0;background:#2c2c2a;color:#eee;z-index:40;}
@@ -103,6 +104,7 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
   <span style="flex:1"></span>
   <span class="stat">原 <span id="statOrig">0:00</span> &rarr; 剪後 <b id="statAfter">0:00</b><span id="silHint" style="color:#9a988f;font-size:12px;margin-left:6px;"></span></span>
   <button class="btn-risk" onclick="nextRisk()">下一疑點 <span id="riskCount"></span></button>
+  <button class="btn-risk" onclick="seamBtn()" title="把目前保留的稿子丟給 Claude 冷讀，標出接不順的剪接縫">🔍 接縫冷讀 <span id="seamCount"></span></button>
   <button class="btn-risk" onclick="rerunAI()">🔄 重新 AI</button>
   <button class="btn-export" onclick="doExport()">匯出</button>
 </div>
@@ -112,17 +114,21 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
   <span><span style="text-decoration:line-through;color:#A32D2D">刪字</span> 你刪除</span>
   <span><span style="background:#DDEBF7;padding:0 3px;">藍底</span> 對照：保留的那個 take</span>
   <span><span style="box-shadow:inset 0 -3px 0 #E24B4A;padding:0 3px;">紅線</span> 疑似聽錯</span>
+  <span><span style="text-decoration:underline wavy #D68A1A;padding:0 3px;">波浪</span> 接縫疑慮（冷讀後標出）</span>
 </div>
 <div id="doc"></div>
-<div class="hint">點字＝切換刪除，拖曳＝整段標記。<b>N</b> 下一疑點（只排低信心決策＋疑似聽錯）；聚焦時 <b>Y</b>＝照刪、<b>X</b>＝留下、<b>P</b>＝試聽刪除段、<b>O</b>＝試聽保留段。上方面板可按類別跳轉或一鍵全收/全退。</div>
+<div class="hint">點字＝切換刪除，拖曳＝整段標記。<b>N</b> 下一疑點（只排低信心決策＋疑似聽錯）；聚焦時 <b>Y</b>＝照刪、<b>X</b>＝留下、<b>P</b>＝試聽刪除段、<b>O</b>＝試聽保留段。<b>🔍 接縫冷讀</b>＝把目前保留稿丟給 Claude，標出剪接後接不順的地方（波浪線）；聚焦接縫時 <b>R</b>＝救回被剪句、<b>A</b>＝接受、<b>P</b>＝聽接縫。上方面板可按類別跳轉或一鍵全收/全退。</div>
 <audio id="aud" preload="none"></audio>
 <div id="dbar"><div id="dbarIn">
   <span id="dbarCat"></span>
   <span id="dbarTxt"></span>
   <button onclick="playFocused(false)" id="dbarPlay">▶ 試聽 P</button>
   <button onclick="playFocused(true)" id="dbarPair">▶ 保留版 O</button>
-  <button onclick="resolveFocused(false)">留下 X</button>
-  <button class="primary" onclick="resolveFocused(true)">照刪 Y</button>
+  <button onclick="resolveFocused(false)" id="dbarKeep">留下 X</button>
+  <button class="primary" onclick="resolveFocused(true)" id="dbarDel">照刪 Y</button>
+  <button onclick="playSeam()" id="dbarSeamPlay" style="display:none">▶ 聽接縫 P</button>
+  <button onclick="acceptSeam()" id="dbarAccept" style="display:none">接受 A</button>
+  <button class="primary" onclick="rescueSeam()" id="dbarRescue" style="display:none">救回被剪句 R</button>
 </div></div>
 <div id="ov"><div class="ovbox">
   <div id="ovForm">
@@ -147,6 +153,8 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
 <script>
 var words=${DATA},autoSelected=new Set(${AUTO}),autoReasons=${REASONS},PAIRS=${PAIRS},AUDIO=${AUDIO};
 var SIL_REMOVE=${silRemove};
+var seamApi=('${cutApiPath}'.indexOf('/api/cut/')===0)?'${cutApiPath}'.replace('/api/cut/','/api/seam-coldread/'):'/api/seam-coldread';
+var seamConcerns=[],seamPos=-1,seamStale=true,focusedSeam=null,seamPlayNext=null;
 var selected=new Set(autoSelected),doc=document.getElementById('doc'),wordEl=[];
 
 // ── 決策分類：reason 前綴 → 類別＋信心層（hi=true 高信心，預設不進疑點佇列）──
@@ -191,8 +199,8 @@ var decisions=[],idx2dec={};
 function cls(i){var w=words[i];if(w.isGap)return '';var c='word',sel=selected.has(i),ai=autoSelected.has(i);
   if(sel&&ai){c+=' aidel';var d=decisions[idx2dec[i]];if(d&&!d.cat.hi)c+=' lowconf';}
   else if(sel)c+=' del';else if(ai)c+=' aikeep';
-  if(w._suspect)c+=' suspect';return c;}
-function render(){doc.innerHTML='';wordEl=[];var para=document.createElement('p');para.className='para';var plen=0;function flush(){if(para.childNodes.length)doc.appendChild(para);para=document.createElement('p');para.className='para';plen=0;}for(var i=0;i<words.length;i++){var w=words[i];if(w.isGap){wordEl[i]=null;continue;}var el=document.createElement('span');el.className=cls(i);el.dataset.idx=i;el.textContent=w.text;var tip=autoReasons[i]||'';if(w._suspect)tip=(tip?tip+' | ':'')+'\\u26a0 \\u7591\\u4f3c\\u807d\\u932f\\uff0c\\u8b1b\\u7a3f\\u662f\\u300c'+(w._refHint||'?')+'\\u300d';if(tip)el.title=tip;para.appendChild(el);wordEl[i]=el;var t=w.text||'';plen+=t.length;if(/[\\u3002\\uff01\\uff1f][\\u300d\\u300f"']?$/.test(t)){if(plen>=16)flush();}else if(plen>=48&&/[\\uff0c\\u3001\\uff1b]$/.test(t))flush();}flush();updateStats();renderPanel();}
+  if(w._suspect)c+=' suspect';if(w._seam)c+=' seam';return c;}
+function render(){doc.innerHTML='';wordEl=[];var para=document.createElement('p');para.className='para';var plen=0;function flush(){if(para.childNodes.length)doc.appendChild(para);para=document.createElement('p');para.className='para';plen=0;}for(var i=0;i<words.length;i++){var w=words[i];if(w.isGap){wordEl[i]=null;continue;}var el=document.createElement('span');el.className=cls(i);el.dataset.idx=i;el.textContent=w.text;var tip=autoReasons[i]||'';if(w._suspect)tip=(tip?tip+' | ':'')+'\\u26a0 \\u7591\\u4f3c\\u807d\\u932f\\uff0c\\u8b1b\\u7a3f\\u662f\\u300c'+(w._refHint||'?')+'\\u300d';if(w._seam)tip=(tip?tip+' | ':'')+'接縫疑慮·'+w._seam.type+'：'+w._seam.concern;if(tip)el.title=tip;para.appendChild(el);wordEl[i]=el;var t=w.text||'';plen+=t.length;if(/[\\u3002\\uff01\\uff1f][\\u300d\\u300f"']?$/.test(t)){if(plen>=16)flush();}else if(plen>=48&&/[\\uff0c\\u3001\\uff1b]$/.test(t))flush();}flush();updateStats();renderPanel();}
 
 // ── 決策摘要面板 ──
 function renderPanel(){
@@ -229,7 +237,7 @@ function setCategory(k,on){
   decisions.forEach(function(d){if(d.cat.k!==k)return;
     for(var j=d.from;j<=d.to;j++){if(!words[j])continue;if(on)selected.add(j);else selected.delete(j);if(wordEl[j])wordEl[j].className=cls(j);}
     d.state=on?'y':'x';});
-  clearFocus();updateStats();renderPanel();
+  seamStale=true;clearFocus();updateStats();renderPanel();
 }
 
 // ── 聚焦與裁決 ──
@@ -244,7 +252,7 @@ function focusDecision(id){
   if(d.pair){words.forEach(function(w,i){if(!w||w.isGap||!wordEl[i])return;
     var ov=Math.min(w.end,d.pair.end)-Math.max(w.start,d.pair.start);
     if(ov>0&&ov/Math.max(w.end-w.start,0.01)>=0.4){wordEl[i].classList.add('pairhl');pairEls.push(i);}});}
-  var bar=document.getElementById('dbar');bar.style.display='block';
+  var bar=document.getElementById('dbar');bar.style.display='block';setDbarMode('decision');
   document.getElementById('dbarCat').textContent=d.cat.label+(d.cat.hi?'':' \\u26a0');
   document.getElementById('dbarTxt').textContent=(d.reason||('\\u522a\\u300c'+d.text.slice(0,20)+'\\u300d'))+'\\u3000['+fmt(d.start)+']';
   document.getElementById('dbarPlay').style.display=AUDIO?'':'none';
@@ -253,18 +261,19 @@ function focusDecision(id){
 function clearFocus(){
   if(focusedId>=0){var d=decisions[focusedId];if(d)for(var j=d.from;j<=d.to;j++)if(wordEl[j])wordEl[j].classList.remove('ring');}
   pairEls.forEach(function(i){if(wordEl[i])wordEl[i].classList.remove('pairhl');});pairEls=[];
+  if(focusedSeam){for(var s=focusedSeam.beforeIdx;s<=focusedSeam.afterIdx;s++)if(wordEl[s])wordEl[s].classList.remove('ring');focusedSeam=null;}
   focusedId=-1;document.getElementById('dbar').style.display='none';
 }
 function resolveFocused(keep){
   var d=decisions[focusedId];if(!d)return;
   for(var j=d.from;j<=d.to;j++){if(!words[j])continue;if(keep)selected.add(j);else selected.delete(j);if(wordEl[j])wordEl[j].className=cls(j);}
-  d.state=keep?'y':'x';
+  d.state=keep?'y':'x';seamStale=true;
   updateStats();renderPanel();nextRisk();
 }
 var aud=document.getElementById('aud'),audStop=0;
 if(AUDIO)aud.src=AUDIO;
 function playSeg(s,e){if(!AUDIO)return;audStop=e;aud.currentTime=Math.max(0,s);aud.play();}
-aud.addEventListener('timeupdate',function(){if(audStop&&aud.currentTime>=audStop){aud.pause();audStop=0;}});
+aud.addEventListener('timeupdate',function(){if(audStop&&aud.currentTime>=audStop){aud.pause();audStop=0;if(seamPlayNext){var n=seamPlayNext;seamPlayNext=null;playSeg(n.s,n.e);}}});
 function playFocused(pair){
   var d=decisions[focusedId];if(!d)return;
   if(pair&&d.pair)playSeg(Math.max(0,d.pair.start-0.15),d.pair.end+0.15);
@@ -276,7 +285,7 @@ var dragActive=false,dragStart=0,dragMode='add';
 doc.addEventListener('mousedown',function(e){var t=e.target.closest('[data-idx]');if(!t)return;e.preventDefault();var i=+t.dataset.idx;dragActive=true;dragStart=i;dragMode=selected.has(i)?'remove':'add';apply(i,i);});
 doc.addEventListener('mousemove',function(e){if(!dragActive)return;var t=e.target.closest('[data-idx]');if(!t)return;apply(dragStart,+t.dataset.idx);});
 document.addEventListener('mouseup',function(){if(dragActive){dragActive=false;updateStats();renderPanel();}});
-function apply(a,b){var lo=Math.min(a,b),hi=Math.max(a,b);for(var j=lo;j<=hi;j++){if(!words[j])continue;if(dragMode==='add')selected.add(j);else selected.delete(j);if(wordEl[j])wordEl[j].className=cls(j);}}
+function apply(a,b){seamStale=true;var lo=Math.min(a,b),hi=Math.max(a,b);for(var j=lo;j<=hi;j++){if(!words[j])continue;if(dragMode==='add')selected.add(j);else selected.delete(j);if(wordEl[j])wordEl[j].className=cls(j);}}
 function segs(){var arr=Array.from(selected).sort(function(a,b){return a-b}).map(function(i){return{s:words[i].start,e:words[i].end}});var m=[];arr.forEach(function(g){if(!m.length||g.s-m[m.length-1].e>=0.05)m.push({s:g.s,e:g.e});else m[m.length-1].e=g.e;});return m;}
 function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+('0'+(s%60)).slice(-2);}
 function updateStats(){var total=words.length?words[words.length-1].end:0;var del=segs().reduce(function(a,g){return a+(g.e-g.s)},0);var after=Math.max(0,total-del-SIL_REMOVE);document.getElementById('statOrig').textContent=fmt(total);document.getElementById('statAfter').textContent=(SIL_REMOVE>0?'\\u2248 ':'')+fmt(after);var sh=document.getElementById('silHint');if(sh)sh.textContent=SIL_REMOVE>0?('\\uff08\\u542b\\u58d3\\u975c\\u97f3 \\u2212'+fmt(SIL_REMOVE)+'\\uff09'):'';buildRiskSpots();}
@@ -309,8 +318,55 @@ document.addEventListener('keydown',function(e){
   else if(k==='x'&&focusedId>=0){e.preventDefault();resolveFocused(false);}
   else if(k==='p'&&focusedId>=0){e.preventDefault();playFocused(false);}
   else if(k==='o'&&focusedId>=0){e.preventDefault();playFocused(true);}
+  else if(k==='r'&&focusedSeam){e.preventDefault();rescueSeam();}
+  else if(k==='a'&&focusedSeam){e.preventDefault();acceptSeam();}
+  else if(k==='p'&&focusedSeam){e.preventDefault();playSeam();}
+  else if(k==='s'){e.preventDefault();seamBtn();}
   else if(k==='escape'){clearFocus();}
 });
+
+// ── 接縫冷讀（審核後保留稿的連貫性體檢；純建議層，只叫你救回或接受，不自動刪）──
+function setDbarMode(m){var dec=(m==='decision');
+  ['dbarPlay','dbarPair','dbarKeep','dbarDel'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=dec?'':'none';});
+  ['dbarSeamPlay','dbarAccept','dbarRescue'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=dec?'none':'';});}
+function seamBtn(){if(seamStale||!seamConcerns.length)runSeamColdRead();else nextSeam();}
+function runSeamColdRead(){
+  var c=document.getElementById('seamCount');if(c)c.textContent='\\u2026'; // …
+  fetch(seamApi,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deletedIndices:Array.from(selected)})})
+    .then(function(r){return r.json();}).then(function(d){
+      seamConcerns.forEach(function(s){if(words[s.afterIdx])delete words[s.afterIdx]._seam;});
+      seamConcerns=(d&&d.seams)||[];seamStale=false;seamPos=-1;
+      seamConcerns.forEach(function(s){if(words[s.afterIdx])words[s.afterIdx]._seam=s;});
+      render();
+      if(!seamConcerns.length){document.getElementById('seamCount').textContent='\\u2713'; // ✓
+        if(d&&d.meta&&d.meta.error)alert('接縫冷讀失敗：'+d.meta.error);
+        else alert('接縫冷讀：掃了 '+((d&&d.meta&&d.meta.totalSeams)||0)+' 個剪接縫，都讀得順，沒有標記。');
+        return;}
+      nextSeam();
+    }).catch(function(e){var c2=document.getElementById('seamCount');if(c2)c2.textContent='';alert('接縫冷讀錯誤：'+e.message);});
+}
+function focusSeam(s){clearFocus();focusedSeam=s;
+  var el=wordEl[s.afterIdx]||wordEl[s.beforeIdx];if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
+  for(var j=s.beforeIdx;j<=s.afterIdx;j++)if(wordEl[j])wordEl[j].classList.add('ring');
+  var bar=document.getElementById('dbar');bar.style.display='block';setDbarMode('seam');
+  document.getElementById('dbarCat').textContent='接縫疑慮·'+s.type;
+  document.getElementById('dbarTxt').textContent=s.concern+'\\u3000（\\u2026'+(s.beforeText||'')+' \\u250a '+(s.afterText||'')+'\\u2026）';
+  document.getElementById('dbarSeamPlay').style.display=AUDIO?'':'none';}
+function nextSeam(){if(!seamConcerns.length){document.getElementById('seamCount').textContent='\\u2713';return;}
+  seamPos=(seamPos+1)%seamConcerns.length;focusSeam(seamConcerns[seamPos]);
+  document.getElementById('seamCount').textContent=(seamPos+1)+'/'+seamConcerns.length;}
+function removeFocusedSeam(){var k=seamConcerns.indexOf(focusedSeam);if(k>=0)seamConcerns.splice(k,1);
+  if(focusedSeam&&words[focusedSeam.afterIdx]){delete words[focusedSeam.afterIdx]._seam;if(wordEl[focusedSeam.afterIdx])wordEl[focusedSeam.afterIdx].className=cls(focusedSeam.afterIdx);}
+  return k;}
+function afterResolveSeam(k){if(!seamConcerns.length){clearFocus();document.getElementById('seamCount').textContent='\\u2713';return;}
+  seamPos=((k>=0?k:0)-1);nextSeam();}
+function rescueSeam(){if(!focusedSeam)return;var s=focusedSeam;
+  s.delIdxs.forEach(function(i){selected.delete(i);if(wordEl[i])wordEl[i].className=cls(i);});
+  var k=removeFocusedSeam();updateStats();renderPanel();afterResolveSeam(k);}
+function acceptSeam(){if(!focusedSeam)return;var k=removeFocusedSeam();afterResolveSeam(k);}
+function playSeam(){if(!focusedSeam||!AUDIO)return;var s=focusedSeam;
+  var bEnd=words[s.beforeIdx]?words[s.beforeIdx].end:0;var aStart=words[s.afterIdx]?words[s.afterIdx].start:bEnd;
+  playSeg(Math.max(0,bEnd-1.0),bEnd);seamPlayNext={s:aStart,e:aStart+1.5};}
 
 function rerunAI(){
   var cp='${cutApiPath}';var rp=cp.indexOf('/api/cut/')===0?cp.replace('/api/cut/','/api/rerun-ai/'):'/api/rerun-ai';

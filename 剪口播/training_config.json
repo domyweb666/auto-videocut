@@ -102,5 +102,12 @@
   "jianying": {
     "draft_folder": "",
     "_comment": "剪映草稿匯出：draft_folder 留空＝自動偵測 %LOCALAPPDATA%/JianyingPro（找不到時才需要手填剪映的草稿位置）"
+  },
+  "seam_coldread": {
+    "enabled": true,
+    "model": "sonnet",
+    "min_seam_sec": 0.4,
+    "min_seam_chars": 4,
+    "_note": "接縫冷讀（seam_coldread.js）：審核頁按『🔍 接縫冷讀』時，把當前保留稿串起丟 Claude 冷讀，標出剪接後接不順的縫（指代斷裂/邏輯跳接/話題突兀）＝黃色波浪線。純建議層，只叫使用者救回被剪句或接受，絕不自動刪（不寫回 auto_selected，避免被 mtime 重產覆蓋、也不污染 WYSIWYG 匯出）。min_seam_sec/min_seam_chars＝一個剪接縫要刪掉多少才值得冷讀（低於此＝只刪零星口水字、不會斷句意，跳過）。model 用 sonnet（連貫性判斷是推理任務，haiku 不夠）。關掉＝enabled:false。"
   }
 }

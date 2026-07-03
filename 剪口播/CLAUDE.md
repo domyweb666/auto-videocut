@@ -59,6 +59,8 @@
    generate_review_doc.js + training_server.js（port 8900，路由 /review/<name>）
    輸入: subtitles_words.json + auto_selected.json
    輸出: 純白文稿審核頁（使用者在瀏覽器確認/修改後匯出）
+   審核頁「🔍 接縫冷讀」按鈕：POST /api/seam-coldread/<name> → seam_coldread.js 把當前保留稿丟 Claude
+   冷讀，標出剪接後接不順的縫（黃色波浪線）。純建議層＝只叫使用者救回被剪句或接受，絕不自動刪。
 
 4. 匯出
    /api/cut/<name> → gap 橋接（bridge_gap_deletes）→ refine_segments（壓平/吸附/刀口原子化）→ cut_video.sh
@@ -84,6 +86,9 @@
 | `merge_delete_segments.js` | MERGE_GAP 合併唯一實作（ffmpeg/SRT/TXT/verify 四方共用） |
 | `cut_video.sh` | ffmpeg 幀級精確剪輯，自動偵測原片參數；落地 timeline_map.json |
 | `verify_export.js` | 成品驗證（時長對帳/殘留靜音/逐字對帳） |
+| `seam_coldread.js` | 接縫冷讀：保留稿丟 Claude 冷讀剪接縫（指代斷裂/邏輯跳接/話題突兀）；純函式+CLI，審核頁 /api/seam-coldread 呼叫 |
+| `aggregate_reasons.js` | 跨影片聚合 auto_selected 的刪除理由 → 錄影前提詞紀律.md（你最常繞的幾種重複，附自己講過的例子）。非 pipeline，離線工具 |
+| `reason_taxonomy.js` | 刪除理由分類法（單一真相）：家族/是否繞圈/樣板正規化；aggregate_reasons 用 |
 | `compare_transcriptions.js` | L2 回歸工具：對照兩份轉錄結果 |
 | `scripts/legacy/` | 退役訓練層腳本歸檔（batch_train、ai_evaluate_training 等，見其 README） |
 

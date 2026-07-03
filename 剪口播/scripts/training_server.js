@@ -984,6 +984,55 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // POST /api/seam-coldread/<videoName> — 接縫冷讀（審核頁按需觸發）
+  // 收前端「當前保留狀態」（deletedIndices＝目前勾選要刪的字），把保留稿串起丟 Claude 冷讀，
+  // 回傳接縫疑慮清單給前端當黃色波浪線覆蓋層。純建議：不寫回 auto_selected（避免被 mtime 重產
+  // 覆蓋，也不會誤導 WYSIWYG 匯出）；只落一份 seam_coldread.json 供診斷。
+  if (req.method === 'POST' && req.url.startsWith('/api/seam-coldread/')) {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const videoName = decodeURIComponent(req.url.replace('/api/seam-coldread/', '').split('?')[0]);
+        const ctx = findVideoForName(videoName);
+        if (!ctx) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: '影片未註冊：' + videoName })); return; }
+        const cfg = readTrainingConfig().seam_coldread || {};
+        if (cfg.enabled === false) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ seams: [], meta: { disabled: true } })); return; }
+        const subsPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
+        if (!fs.existsSync(subsPath)) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: '缺字幕檔' })); return; }
+        const parsed = JSON.parse(body || '{}');
+        const deletedIndices = Array.isArray(parsed) ? parsed : (parsed.deletedIndices || parsed.indices || []);
+        const analysisDir = path.join(ctx.workDir, '2_分析');
+        fs.mkdirSync(analysisDir, { recursive: true });
+        const inputPath = path.join(analysisDir, 'seam_input.json');
+        fs.writeFileSync(inputPath, JSON.stringify(deletedIndices));
+        const args = [path.join(SCRIPT_DIR, 'seam_coldread.js'), subsPath, inputPath, '--json', '--model', String(cfg.model || 'sonnet')];
+        if (cfg.min_seam_sec != null) args.push('--min-sec', String(cfg.min_seam_sec));
+        if (cfg.min_seam_chars != null) args.push('--min-chars', String(cfg.min_seam_chars));
+        console.log(`🔍 [${videoName}] 接縫冷讀（保留字 ${deletedIndices.length} 刪，Claude ${cfg.model || 'sonnet'}）...`);
+        const { execFile } = require('child_process');
+        execFile('node', args, { maxBuffer: 20 * 1024 * 1024, timeout: 320000, env: { ...process.env } }, (err, stdout) => {
+          let out = null;
+          try { out = JSON.parse(stdout); } catch (_) {}
+          if (err && !out) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ seams: [], meta: { error: (err.message || '').split('\n')[0] } }));
+            return;
+          }
+          out = out || { seams: [], meta: {} };
+          try { fs.writeFileSync(path.join(analysisDir, 'seam_coldread.json'), JSON.stringify(out, null, 2)); } catch (_) {}
+          console.log(`🔍 [${videoName}] 接縫冷讀完成：接縫 ${(out.meta || {}).totalSeams || 0}、疑慮 ${(out.seams || []).length}`);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(out));
+        });
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
   // POST /api/cut/<videoName> — 對指定影片執行剪輯
   if (req.method === 'POST' && req.url.startsWith('/api/cut/')) {
     let body = '';
