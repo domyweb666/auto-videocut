@@ -32,8 +32,8 @@ const withoutIdx = cueTexts(run(words, segsPartial, 'b.srt')).join('');
 eq('--delete-indices：文字＝審核頁選集（乙被刪，不多字）', withIdx, '甲丙');
 ok('不給 index 時舊發音區判斷會把邊界字「乙」留下（重現 bug）', withoutIdx.includes('乙'));
 
-console.log('斷句：橫式 16 字上限、優先逗號、不斷在虛詞:');
-// 造一段長句（逐字，標點黏在前字上，跟 byteplus 逐字稿一致），無被刪
+console.log('斷句：橫式短行、只斷標點、去行末標點、不掛虛詞:');
+// 造一段逐字稿（標點黏在前字上，跟 byteplus 逐字稿一致）
 function toWords(str, t0) {
   const els = []; let t = t0 || 0;
   for (let i = 0; i < str.length; i++) {
@@ -43,19 +43,21 @@ function toWords(str, t0) {
   }
   return els;
 }
-const longWords = toWords('這個世界很危險我要先確保不犯錯而且以後也絕對不能再犯任何一個錯誤了。', 0);
-const srt = run(longWords, [], 'c.srt');
-const cues = cueTexts(srt);
-ok('每條 ≤ 22 字（不再文字牆）', cues.every(c => c.length <= 22));
-ok('至少斷成多條（長句有被切）', cues.length >= 2);
-const NO_END = new Set('的地得了著嗎呢吧啊喔呀哦嘛和與及而但就把被向從對為跟也還並且或因所讓使將給由在於之以這那它每'.split(''));
-// 非句末條目的行末不掛裸虛詞（句末「了。」這種帶標點的算正常）
-const badHang = cues.filter(c => !/[。！？]$/.test(c) && NO_END.has(c.replace(/[，、；：]$/, '').slice(-1)));
-ok('非句末行末不掛裸虛詞', badHang.length === 0);
+const longWords = toWords('這個世界很危險，我要先確保不犯錯，而且以後也絕對不能再犯任何一個錯誤了。', 0);
+const cues = cueTexts(run(longWords, [], 'c.srt'));
+ok('每條 ≤ 18 字（橫式上限）', cues.every(c => c.length <= 18));
+ok('至少斷成多條（長句有被切）', cues.length >= 3);
+ok('行末不留標點（字幕不顯示，斷行即停頓）', cues.every(c => !/[，。！？、；：]$/.test(c)));
+ok('逗號不會被擠到下一行行首', cues.every(c => !/^[，。！？、；：]/.test(c)));
+// 無標點長串硬斷時不掛虛詞（句末「了。」這種帶標點的合理不算）：造 的 在第 17 字的無標點長串
+const forced = cueTexts(run(toWords('一二三四五六七八九十甲乙丙丁戊己的庚辛壬癸。', 0), [], 'f.srt'));
+ok('無標點硬斷不掛虛詞（斷點避開「的」）', forced.every(c => c.slice(-1) !== '的'));
 
-console.log('句末完整短句不被硬切:');
-const shortSent = run(toWords('我不能退。', 0), [], 'd.srt');
-eq('短完整句自成一條', cueTexts(shortSent), ['我不能退。']);
+console.log('短完整句 + 去標點:');
+eq('句末標點去掉、整句一條', cueTexts(run(toWords('我不能退。', 0), [], 'd.srt')), ['我不能退']);
+// 頓號清單不從中間斷開（整串留一行，≤ 上限時）
+const listCues = cueTexts(run(toWords('就是生存、安全、歸屬、地位、成就。', 0), [], 'e.srt'));
+ok('頓號清單不從中間斷（整串留一行）', listCues.some(c => c.includes('生存、安全、歸屬')));
 
 try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (_) {}
 console.log(`\n${pass} 過 / ${fail} 失敗`);

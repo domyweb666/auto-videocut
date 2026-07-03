@@ -1165,6 +1165,15 @@ const server = http.createServer((req, res) => {
         if (exportOptions.jianying) {
           const jyName = String(exportOptions.exportName || '').replace(/[\\/:*?"<>|]/g, '').trim()
             || `${path.basename(ctx.videoPath).replace(/\.[^/.]+$/, '')}_剪`;
+          // 草稿本身一定進剪映草稿資料夾（剪映要在那裡才打得開），但字幕 .srt / 文稿 .txt 收攏到
+          // 使用者指定的輸出資料夾（過去這條路徑完全沒理會 outputDir，也沒出 srt/txt）。
+          let jyOutBase = ctx.workDir;
+          if (exportOptions.outputDir && typeof exportOptions.outputDir === 'string') {
+            const od = exportOptions.outputDir.trim();
+            try { if (od && fs.existsSync(od) && fs.statSync(od).isDirectory()) jyOutBase = od; } catch (_) {}
+          }
+          const jyOutDir = path.join(jyOutBase, jyName);
+          try { fs.mkdirSync(jyOutDir, { recursive: true }); } catch (_) {}
           exportState = { running: true, progress: 10, step: '生成剪映草稿', videoName, result: null, error: null };
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: true }));
@@ -1213,13 +1222,25 @@ const server = http.createServer((req, res) => {
             const out = execFileSync('python', pyArgs, { encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
             const jr = JSON.parse(out.trim().split(/\r?\n/).pop());
             if (!jr.ok) throw new Error(jr.error || '草稿生成失敗');
+            // 字幕 .srt 複製、文稿 .txt 生成 → 使用者輸出資料夾（跟 mp4 匯出一樣收攏在成品名子資料夾）
+            let jyOutSrt = null, jyOutTxt = null;
+            try { if (jySrt && fs.existsSync(jySrt)) { jyOutSrt = path.join(jyOutDir, jyName + '.srt'); fs.copyFileSync(jySrt, jyOutSrt); } } catch (e) { jyOutSrt = null; }
+            try {
+              const txtScript = path.join(SCRIPT_DIR, 'generate_cut_txt.js');
+              const subsP2 = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
+              if (fs.existsSync(txtScript) && fs.existsSync(subsP2)) {
+                jyOutTxt = path.join(jyOutDir, jyName + '.txt');
+                execFileSync('node', [txtScript, subsP2, cutDeleteFile, jyOutTxt,
+                  ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])], { stdio: 'pipe' });
+              }
+            } catch (e) { jyOutTxt = null; }
             exportState.result = {
               output: jr.draftPath, jianying: true, segments: jr.segments,
               originalDuration: vDur.toFixed(1), newDuration: (jr.durationSec || 0).toFixed(1),
-              srt: jySrt || null, txt: null,
+              srt: jyOutSrt || jySrt || null, txt: jyOutTxt || null, outputDir: jyOutDir,
             };
             exportState.step = '完成'; exportState.progress = 100; exportState.running = false;
-            console.log(`🎬 [${videoName}] 剪映草稿完成 → ${jr.draftPath}（${jr.segments} 段）`);
+            console.log(`🎬 [${videoName}] 剪映草稿完成 → ${jr.draftPath}（${jr.segments} 段）；字幕/文稿 → ${jyOutDir}`);
           } catch (err) {
             const msg = (err.stdout || '') + (err.message || '');
             let clean = msg;

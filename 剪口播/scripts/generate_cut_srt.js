@@ -125,32 +125,32 @@ for (const w of srcKept) {
 console.error(`📝 保留字數: ${keptWords.length}/${words.filter(w => !w.isGap).length}`);
 
 // ── 斷句：橫式長片字幕（照 domi-subtitle-format）──
-// 目標每行 ~16 字（14–18），單行優先；斷在意群邊界、優先標點；不把行末掛在虛詞/連接詞/數字上；
-// 長句在最近的次佳邊界斷，不硬塞成文字牆（原本 HARD_MAX 34＋「湊滿 18 才斷逗號」會斷在意群中間）。
+// 只斷在「真正的標點」上：句末（。！？）一定斷、逗號（子句夠長就斷、每個逗號都斷＝行短好讀），
+// 頓號「、」是清單分隔不斷。沒標點的長串撐到 MAXLEN 才在「最近一個標點」硬斷（不硬切內容字，
+// 免得把詞切兩半、逗號被擠到下一行行首）。行末標點最後在輸出時去掉（字幕不顯示，斷行即停頓）。
 const SENT_END = /[。！？!?…]/;                       // 句末
-const CLAUSE   = /[，、；：,;:]/;                      // 子句停頓（天然斷點）
+const CLAUSE   = /[，；：,;:]/;                        // 子句停頓（斷點）；頓號「、」是清單分隔，不斷
+const PUNCT    = /[，。！？、；：,.!?;:]/;             // 任何標點（MAXLEN 硬斷時回退到最近標點）
+const TRAIL_PUNCT = /[，。！？、；：,.!?;:]+$/;         // 行末標點 → 去掉
 const NO_END = new Set((
   '的地得了著嗎呢吧啊喔呀哦嘛' +                       // 結構/語助詞
   '和與及而但就把被向從對為跟也還並且或因所讓使將給由在於之以' + // 連詞/介詞（屬下一句）
   '這那它每'                                           // 指示詞（多半修飾後文）
 ).split(''));
-const DIGIT   = /[0-9０-９]/;
-const TARGET   = 16;  // 目標行長（到這長度就想辦法斷）
-const MAXLEN   = 22;  // 硬上限
-const MINLEN   = 4;   // 句末標點要斷的最小長度（避免碎成一兩字）
-const MIN_HEAD = 6;   // 回頭斷在逗號時，前段至少要這麼長才值得（否則寧可斷在目標處）
-const BIG_GAP  = 0.8; // 明顯停頓也視為斷點
+const MINLEN     = 4;  // 句末最小斷長（避免碎成一兩字）
+const CLAUSE_MIN = 4;  // 逗號斷點的最小子句長
+const MAXLEN     = 18; // 無標點長串硬上限（頓號清單容得下）
+const MAXHEAD_MIN = 5; // MAXLEN 硬斷時，用最近標點當斷點的最小前段長
+const BIG_GAP    = 0.8;
 
 const lastCh = s => (s ? s[s.length - 1] : '');
 const cLen = buf => buf.reduce((n, w) => n + (w.text || '').length, 0);
 const mkCue = buf => ({ text: buf.map(w => w.text).join(''), start: buf[0].start, end: buf[buf.length - 1].end });
-// 字尾能不能當行末：標點可以、一般內容字可以；虛詞/數字不行（會掛在下一句頭上）
-const safeEnd = ch => SENT_END.test(ch) || CLAUSE.test(ch) || (!NO_END.has(ch) && !DIGIT.test(ch));
 
 const cues = [];
-let buf = [], lastClause = -1, lastSafe = -1;   // lastClause/lastSafe＝可斷位置（buf 內 word 數）
-function recalc() { lastClause = -1; lastSafe = -1; for (let k = 0; k < buf.length; k++) { const c = lastCh(buf[k].text); if (CLAUSE.test(c)) lastClause = k + 1; else if (safeEnd(c)) lastSafe = k + 1; } }
-function flushAll() { if (buf.length) { cues.push(mkCue(buf)); buf = []; lastClause = lastSafe = -1; } }
+let buf = [], lastPunct = -1;   // lastPunct＝最近一個標點後的位置（buf 內 word 數）
+function recalc() { lastPunct = -1; for (let k = 0; k < buf.length; k++) if (PUNCT.test(lastCh(buf[k].text))) lastPunct = k + 1; }
+function flushAll() { if (buf.length) { cues.push(mkCue(buf)); buf = []; lastPunct = -1; } }
 function flushAt(cut) { if (cut > 0) cues.push(mkCue(buf.slice(0, cut))); buf = buf.slice(cut); recalc(); }
 
 for (let i = 0; i < keptWords.length; i++) {
@@ -158,27 +158,44 @@ for (let i = 0; i < keptWords.length; i++) {
   if (buf.length && (w.start - buf[buf.length - 1].end) >= BIG_GAP) flushAll(); // 大停頓先斷
   buf.push(w);
   const c = lastCh(w.text), len = cLen(buf);
-  if (CLAUSE.test(c)) lastClause = buf.length; else if (safeEnd(c)) lastSafe = buf.length;
-
-  if (SENT_END.test(c) && len >= MINLEN) { flushAll(); continue; }   // 句末：整句 ≤ 目標就完整一條
-  if (len < TARGET) continue;                                        // 還沒到目標：先累積（讓整句/整意群留在一起）
-  // 到目標長度：優先回到最近的逗號斷（斷得乾淨），其次在當前非虛詞邊界斷，都不行才拖到上限硬斷
-  if (lastClause > 0 && cLen(buf.slice(0, lastClause)) >= MIN_HEAD) { flushAt(lastClause); }
-  else if (safeEnd(c)) { flushAll(); }
-  else if (len >= MAXLEN) { flushAt(lastSafe > 0 ? lastSafe : buf.length - 1); }
+  if (PUNCT.test(c)) lastPunct = buf.length;
+  if (SENT_END.test(c) && len >= MINLEN) { flushAll(); continue; }
+  else if (CLAUSE.test(c) && len >= CLAUSE_MIN) { flushAll(); continue; }
+  else if (len >= MAXLEN) {
+    // 撐太長：當前字若本身是標點（多半是頓號）→ 直接斷在它後面（保住整個詞，不切「快樂」）；
+    // 否則回退到最近的標點斷；真的整段無標點才在當前字前硬斷。
+    if (PUNCT.test(c)) { flushAll(); continue; }
+    let cut = (lastPunct > 0 && cLen(buf.slice(0, lastPunct)) >= MAXHEAD_MIN) ? lastPunct : buf.length - 1;
+    if (cut <= 0) cut = buf.length - 1;
+    // 無標點硬斷時避免行末掛虛詞（skill 規則）：往前挪到非虛詞字尾
+    if (lastPunct <= 0) while (cut > 1 && NO_END.has(lastCh(buf[cut - 1].text))) cut--;
+    flushAt(cut);
+  }
 }
 flushAll();
 
-// 合併過短殘片（<2 字或 <0.4s）到前句，但不讓前句超過 MAXLEN
+// ── 合併過短殘片：往前併，但不跨句末（「否定。」後面的「啊」不該黏回上一句）；
+//    黏不回去就往後併到下一句開頭（如句首「啊」→「啊雖然…」）。──
+const stripTrail = t => t.replace(TRAIL_PUNCT, '');
+const isShort = cue => stripTrail(cue.text).length < 2 || (cue.end - cue.start) < 0.4;
+const endsSent = t => SENT_END.test(lastCh(t));
 const mergedCues = [];
-for (const cue of cues) {
+let pend = null;
+for (let cue of cues) {
+  if (pend) { cue = { text: pend.text + cue.text, start: pend.start, end: cue.end }; pend = null; }
   const prev = mergedCues[mergedCues.length - 1];
-  if (prev && (cue.text.length < 2 || (cue.end - cue.start) < 0.4) && (prev.text.length + cue.text.length) <= MAXLEN) {
-    prev.text += cue.text;
-    prev.end = cue.end;
+  if (prev && isShort(cue) && !endsSent(prev.text) && (prev.text.length + cue.text.length) <= MAXLEN) {
+    prev.text += cue.text; prev.end = cue.end;                 // 往前併（前句非句末）
+  } else if (isShort(cue)) {
+    pend = cue;                                                // 黏不回去 → 往後併到下一句
   } else {
     mergedCues.push({ ...cue });
   }
+}
+if (pend) {
+  const prev = mergedCues[mergedCues.length - 1];
+  if (prev && (prev.text.length + pend.text.length) <= MAXLEN) { prev.text += pend.text; prev.end = pend.end; }
+  else mergedCues.push(pend);
 }
 
 // ── 格式化 SRT ──
@@ -191,11 +208,15 @@ function formatTime(seconds) {
 }
 
 let srt = '';
-mergedCues.forEach((cue, i) => {
-  srt += `${i + 1}\n`;
+let cueNo = 0;
+mergedCues.forEach((cue) => {
+  const line = cue.text.replace(TRAIL_PUNCT, '');   // 去行末標點（字幕不顯示）；頓號清單的中間頓號保留
+  if (!line) return;                                 // 純標點行（罕見）→ 跳過
+  cueNo++;
+  srt += `${cueNo}\n`;
   srt += `${formatTime(cue.start)} --> ${formatTime(cue.end)}\n`;
-  srt += `${cue.text}\n\n`;
+  srt += `${line}\n\n`;
 });
 
 fs.writeFileSync(outputFile, srt, 'utf8');
-console.error(`✅ 已產出 SRT: ${outputFile} (${mergedCues.length} 條字幕)`);
+console.error(`✅ 已產出 SRT: ${outputFile} (${cueNo} 條字幕)`);

@@ -139,7 +139,7 @@ function buildReviewDoc(words, autoSet, autoReasons, opts) {
     <div class="ovrow"><input type="text" id="expDir" placeholder="留空＝存到影片原資料夾"><button onclick="pickDir()">瀏覽</button></div>
     <label>格式</label>
     <select id="expFmt" onchange="fmtChanged()"><option value="jydraft">剪映草稿（真無損・秒級完成・直接進剪映）</option><option value="mp4">MP4（H.264，通用）</option><option value="mov">MOV</option><option value="mkv">MKV</option><option value="mp3">只要音檔（MP3）</option></select>
-    <div id="jyHint" style="font-size:12px;color:#7a7770;margin-top:6px;line-height:1.6;">不重編碼：生成剪映草稿引用原始檔＋剪點，字幕掛在字幕軌。開剪映就看得到，剪點還能微調。</div>
+    <div id="jyHint" style="font-size:12px;color:#7a7770;margin-top:6px;line-height:1.6;">不重編碼：草稿引用原始檔＋剪點，寫進剪映草稿資料夾（開剪映就看得到、剪點還能微調）。字幕 .srt 與文稿 .txt 會另存到你上面選的輸出資料夾。</div>
     <label class="ovchk" id="losslessRow"><input type="checkbox" id="expLossless"> 原畫質（近無損，檔案較大）</label>
     <div class="ovbtns"><button onclick="closeOv()">取消</button><button class="btn-export" onclick="runExport()">開始匯出</button></div>
   </div>
@@ -391,7 +391,7 @@ function fmtChanged(){
   var jy=document.getElementById('expFmt').value==='jydraft';
   document.getElementById('jyHint').style.display=jy?'':'none';
   document.getElementById('losslessRow').style.display=jy?'none':'flex';
-  document.getElementById('expDir').disabled=jy; // 草稿寫進剪映草稿資料夾，不用選輸出位置
+  document.getElementById('expDir').disabled=false; // 草稿進剪映，但字幕/文稿放這個輸出資料夾
 }
 function runExport(){
   var dl=segs().map(function(g){return{start:g.s,end:g.e};});
@@ -411,7 +411,7 @@ function pollExport(){fetch('/api/export-status').then(function(r){return r.json
       var body=r.jianying
         ? ('\\u8349\\u7a3f\\uff1a<code style="word-break:break-all">'+r.output+'</code><br>'+
            '\\u539f '+fmt(parseFloat(r.originalDuration))+' \\u2192 \\u65b0 '+fmt(parseFloat(r.newDuration))+'\\uff08'+(r.segments||'?')+' \\u6bb5\\uff09<br>'+
-           '\\u958b\\u526a\\u6620\\u5c31\\u770b\\u5f97\\u5230\\uff1b\\u771f\\u7121\\u640d\\uff08\\u96f6\\u91cd\\u7de8\\u78bc\\uff09'+(r.srt?'\\uff0c\\u5b57\\u5e55\\u5df2\\u639b\\u5b57\\u5e55\\u8ecc':''))
+           '\\u958b\\u526a\\u6620\\u5c31\\u770b\\u5f97\\u5230\\uff1b\\u771f\\u7121\\u640d\\uff08\\u96f6\\u91cd\\u7de8\\u78bc\\uff09'+(r.srt?'\\uff0c\\u5b57\\u5e55\\u5df2\\u639b\\u5b57\\u5e55\\u8ecc':'')+(r.outputDir?'<br>\\u5b57\\u5e55/\\u6587\\u7a3f \\u2192 <code style="word-break:break-all">'+r.outputDir+'</code>':''))
         : ('\\u8f38\\u51fa\\uff1a<code style="word-break:break-all">'+r.output+'</code><br>\\u539f '+fmt(parseFloat(r.originalDuration))+' \\u2192 \\u65b0 '+fmt(parseFloat(r.newDuration))+(r.srt?'<br>\\u5df2\\u9644\\u5b57\\u5e55 .srt':'')+(r.txt?'<br>\\u5df2\\u9644\\u6587\\u7a3f .txt':''));
       dn.innerHTML=body+'<div style="margin-top:14px;text-align:right"><button class="btn-export" onclick="closeOv()">\\u5b8c\\u6210</button></div>';}
     return;}
