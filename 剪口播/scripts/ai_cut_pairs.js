@@ -366,11 +366,26 @@ if (!cacheHit && (candidatePairs.length > 0 || soloCandidates.length > 0) && fai
   }
 }
 
+// 遠距硬煞車：間隔超過 max_auto_gap_sec 的對，AI 判 delete 也不自動刪。
+// 黃金集實測：60s+ 的「簡略版 vs 完整版」多為講者有意的前後呼應（使用者兩段都留），
+// prompt 的「>60 秒必須非常確定」擋不住模型，改程式硬規則。
+let MAX_AUTO_GAP = 60;
+try {
+  const { loadTrainingConfig } = require('./rule_utils');
+  MAX_AUTO_GAP = parseFloat(loadTrainingConfig(__dirname).candidate_pair?.max_auto_gap_sec ?? 60);
+} catch (_) {}
+let gapGuarded = 0;
+
 // 合併 AI 對判決
 for (const pair of candidatePairs) {
   const v = verdicts[pair.id];
   if (!v) continue;
   const verdict = (v.verdict || '').toLowerCase().trim();
+
+  if (verdict.startsWith('delete') && MAX_AUTO_GAP > 0 && (pair.timeGap ?? 0) > MAX_AUTO_GAP) {
+    gapGuarded++;
+    continue;
+  }
 
   if (verdict === 'delete_earlier') {
     const p = output[pair.earlier.phraseIdx];
@@ -412,6 +427,8 @@ for (const s of soloCandidates) {
 }
 if (soloCandidates.length > 0)
   console.log(`📊 solo 判決：刪除 ${soloDeleteCount} 句，保留 ${soloKeepCount} 句（候選 ${soloCandidates.length}）`);
+if (gapGuarded > 0)
+  console.log(`🛑 遠距煞車：${gapGuarded} 對 AI 判 delete 但間隔 >${MAX_AUTO_GAP}s，不自動刪`);
 
 console.log(`\n📊 AI 判決彙整：刪除 ${aiDeleteCount} 個，保留雙方 ${keepBothCount} 個，批次失敗 ${failedBatches}/${batches.length}`);
 console.log(`📊 總計刪除：規則 ${ruleDeletions.length} + AI ${aiDeleteCount} + solo ${soloDeleteCount} = ${ruleDeletions.length + aiDeleteCount + soloDeleteCount} 個`);
