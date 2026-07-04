@@ -15,7 +15,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { execFileSync, spawn } = require('child_process');
+const { execFile, execFileSync, spawn } = require('child_process');
 const { parseAutoSelected } = require('./parse_auto_selected'); // 從退役 generate_review.js 抽出（audit #12）
 const buildReviewDoc = require('./generate_review_doc'); // 純白文稿版審核頁（取代深色版，舊版保留備援）
 const convertAiToIndices = require('./convert_ai_to_indices'); // 句級 sentences.json → 字級 {indices,reasons}
@@ -533,6 +533,15 @@ let cutState = {
 // 匯出進度狀態（審核頁匯出改成非同步，讓前端輪詢百分比）
 let exportState = { running: false, progress: 0, step: '', videoName: '', result: null, error: null };
 
+// 匯出路徑專用的非同步子程序 runner：execFileSync 會凍住整個事件迴圈，
+// 匯出中 /api/export-status 輪詢全數逾時 → 前端進度永遠卡 0%。改 await 讓輪詢照常回應。
+const runExportCmd = (cmd, args, opts = {}) => new Promise((resolve, reject) => {
+  execFile(cmd, args, { maxBuffer: 50 * 1024 * 1024, ...opts }, (err, stdout, stderr) => {
+    if (err) { err.stdout = err.stdout || stdout; reject(err); }
+    else resolve({ stdout, stderr });
+  });
+});
+
 // Git Bash 路徑偵測：env 覆寫 → 常見安裝路徑 → 由 git.exe 位置反推。
 // 不可用 PATH 上的裸 'bash'（Windows 會解析成 System32 的 WSL bash，吃不了 C:/ 路徑）。
 let _bashBinCache = null;
@@ -715,7 +724,7 @@ function startCutProcess(videoPath, referenceText) {
           cutState.progress = 76;
           cutState.log.push('🗺️ [2/5] Claude 整集大綱分析中（Sonnet）...');
           try {
-            await runCmd('node', [path.join(SCRIPT_DIR, 'ai_outline.js'), polishedPath, outlinePath], { timeout: 180000 });
+            await runCmd('node', [path.join(SCRIPT_DIR, 'ai_outline.js'), '--model', 'sonnet', polishedPath, outlinePath], { timeout: 180000 });
             cutState.progress = 80;
           } catch (outlineErr) {
             cutState.log.push('⚠️ 意圖層分析失敗（繼續執行）: ' + outlineErr.message);
@@ -735,8 +744,8 @@ function startCutProcess(videoPath, referenceText) {
           cutState.progress = 83;
 
           // 4b-2: AI 候選對判斷
-          cutState.log.push('✂️ [3/5b] Claude 候選對 AI 判斷中（Sonnet）...');
-          const pairsArgs = [path.join(SCRIPT_DIR, 'ai_cut_pairs.js'), cutInputPath, cutState.sentencesPath];
+          cutState.log.push('✂️ [3/5b] Claude 候選對 AI 判斷中（Opus）...');
+          const pairsArgs = [path.join(SCRIPT_DIR, 'ai_cut_pairs.js'), '--model', 'opus', cutInputPath, cutState.sentencesPath];
           if (fs.existsSync(outlinePath)) pairsArgs.push('--outline-file', outlinePath);
           await runCmd('node', pairsArgs, { timeout: 600000 });
           cutState.progress = 86;
@@ -1040,7 +1049,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url.startsWith('/api/cut/')) {
     let body = '';
     req.on('data', c => body += c);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         // 並發防護：一次只允許一個匯出（兩個分頁/連按兩次會寫同一輸出檔，成品損壞）
         if (exportState.running) {
@@ -1151,7 +1160,7 @@ const server = http.createServer((req, res) => {
           try {
             fs.mkdirSync(_analysisDir, { recursive: true });
             if (!fs.existsSync(_art.sil))
-              require('child_process').execFileSync('node', [path.join(SCRIPT_DIR, 'detect_silences.js'), _audioPath, _art.sil], { stdio: 'pipe', maxBuffer: 50 * 1024 * 1024 });
+              await runExportCmd('node', [path.join(SCRIPT_DIR, 'detect_silences.js'), _audioPath, _art.sil]);
           } catch (e) { console.warn(`[${videoName}] detect_silences 失敗，匯出不套停頓壓平:`, (e.message || '').split('\n')[0]); }
           // 只有拿到「非空的音訊實測靜音」才套精修；否則維持原始切點（不讓 refine 內部退回 STT gap）
           let hasAudioSil = false;
@@ -1213,9 +1222,9 @@ const server = http.createServer((req, res) => {
               const srtScript = path.join(SCRIPT_DIR, 'generate_cut_srt.js');
               const subsP = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
               jySrt = path.join(ctx.workDir, 'jianying_draft.srt');
-              execFileSync('node', [srtScript, subsP, cutDeleteFile, jySrt, '--silences', _art.sil,
+              await runExportCmd('node', [srtScript, subsP, cutDeleteFile, jySrt, '--silences', _art.sil,
                 ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : []), ...srtLlmArgs],
-                { stdio: 'pipe', maxBuffer: 20 * 1024 * 1024 });
+                { maxBuffer: 20 * 1024 * 1024 });
             } catch (e) { console.warn(`[${videoName}] 草稿 SRT 失敗(草稿仍出、無字幕軌):`, (e.message || '').split('\n')[0]); jySrt = ''; }
             exportState.step = '寫入剪映草稿'; exportState.progress = 70;
             const jyCfg = (readTrainingConfig().jianying) || {};
@@ -1224,7 +1233,7 @@ const server = http.createServer((req, res) => {
               '--width', String(vs.width || 1920), '--height', String(vs.height || 1080), '--fps', String(fps)];
             if (jySrt && fs.existsSync(jySrt)) pyArgs.push('--srt', jySrt);
             if (jyCfg.draft_folder) pyArgs.push('--draft-folder', jyCfg.draft_folder);
-            const out = execFileSync('python', pyArgs, { encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
+            const { stdout: out } = await runExportCmd('python', pyArgs, { encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8' } });
             const jr = JSON.parse(out.trim().split(/\r?\n/).pop());
             if (!jr.ok) throw new Error(jr.error || '草稿生成失敗');
             // 字幕 .srt 複製、文稿 .txt 生成 → 使用者輸出資料夾（跟 mp4 匯出一樣收攏在成品名子資料夾）
@@ -1235,8 +1244,8 @@ const server = http.createServer((req, res) => {
               const subsP2 = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
               if (fs.existsSync(txtScript) && fs.existsSync(subsP2)) {
                 jyOutTxt = path.join(jyOutDir, jyName + '.txt');
-                execFileSync('node', [txtScript, subsP2, cutDeleteFile, jyOutTxt,
-                  ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])], { stdio: 'pipe' });
+                await runExportCmd('node', [txtScript, subsP2, cutDeleteFile, jyOutTxt,
+                  ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])]);
               }
             } catch (e) { jyOutTxt = null; }
             exportState.result = {
@@ -1336,7 +1345,7 @@ const server = http.createServer((req, res) => {
           }
         });
         child.on('error', e => { exportState.error = 'cut_video.sh 啟動失敗：' + e.message; exportState.running = false; exportState.progress = 100; });
-        child.on('close', code => {
+        child.on('close', async code => {
           try {
             if (code !== 0) { exportState.error = (cutErr.slice(-300) || ('exit ' + code)); exportState.running = false; exportState.progress = 100; return; }
             const outputFile = fs.existsSync(finalOutputFile) ? finalOutputFile : shellOutputFile;
@@ -1349,9 +1358,9 @@ const server = http.createServer((req, res) => {
                 const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
                 srtFile = outputFile.replace(/\.[^/.]+$/, '.srt');
                 if (fs.existsSync(srtScript) && fs.existsSync(subtitlesPath))
-                  execFileSync('node', [srtScript, subtitlesPath, cutDeleteFile, srtFile, '--silences', _art.sil,
+                  await runExportCmd('node', [srtScript, subtitlesPath, cutDeleteFile, srtFile, '--silences', _art.sil,
                     ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : []), ...srtLlmArgs],
-                    { stdio: 'pipe', maxBuffer: 20 * 1024 * 1024 });
+                    { maxBuffer: 20 * 1024 * 1024 });
               } catch (srtErr) { console.error(`⚠️ [${videoName}] SRT 失敗:`, srtErr.message); srtFile = null; }
             }
             // 純文字文稿 TXT（依標點分段，跟審核頁文稿一致；音檔匯出也產，文稿一樣有用）
@@ -1361,8 +1370,8 @@ const server = http.createServer((req, res) => {
               const subtitlesPath = path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json');
               txtFile = outputFile.replace(/\.[^/.]+$/, '.txt');
               if (fs.existsSync(txtScript) && fs.existsSync(subtitlesPath))
-                execFileSync('node', [txtScript, subtitlesPath, cutDeleteFile, txtFile,
-                  ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])], { stdio: 'pipe' });
+                await runExportCmd('node', [txtScript, subtitlesPath, cutDeleteFile, txtFile,
+                  ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])]);
             } catch (txtErr) { console.error(`⚠️ [${videoName}] TXT 失敗:`, txtErr.message); txtFile = null; }
             const originalDuration = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + ctx.videoPath], { encoding: 'utf8' }).trim());
             const newDuration = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + outputFile], { encoding: 'utf8' }).trim());
