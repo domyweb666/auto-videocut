@@ -665,6 +665,81 @@ if (candidatePairs.length > PAIR_MAX) {
 
 log(`候選對: ${candidatePairs.length} 對（門檻 sim≥${PAIR_SIM_THRESHOLD} OR lcs≥${PAIR_LCS_THRESHOLD}，窗口 ${PAIR_WINDOW}）`);
 
+// ── 碎念/放棄句 solo 候選 ──
+// 候選對模式的結構性盲區：沒有「另一句」可配對的爛句（填充詞堆疊、講到一半丟棄換路）
+// 永遠進不了 AI 視野（黃金集實測：這類漏刪佔機械性 FN 的大宗）。
+// 這裡只做低門檻初篩（寧多勿漏），終判交給 ai_cut_pairs 的 AI（帶前後文，保守判 keep）。
+const SOLO_CFG          = trainConfig.solo_candidate || {};
+const SOLO_ENABLED      = SOLO_CFG.enabled !== false;
+const SOLO_MIN_LEN      = parseInt(SOLO_CFG.min_len ?? 6, 10);
+const SOLO_FILLER_RATIO = parseFloat(SOLO_CFG.filler_ratio ?? 0.45);
+const SOLO_WEAK_RATIO   = parseFloat(SOLO_CFG.weak_ratio ?? 0.7);
+const SOLO_DANGLE_GAP   = parseFloat(SOLO_CFG.dangle_gap_sec ?? 0.6);
+const SOLO_MAX          = parseInt(SOLO_CFG.max_candidates ?? 30, 10);
+
+const FILLER_TOKENS = ['你知道','然後','就是','那個','這個','所以','等等','其實','反正','的話',
+                       '那','就','嗯','呃','欸','啊','喔','嘛','對'].sort((a, b) => b.length - a.length);
+// 弱詞＝填充詞＋代詞＋不承載內容的口語動詞/虛詞。碎念句幾乎全由弱詞構成
+// （實測「然後你就會發現說我加上了你就是說你可能會然後呢」純填充詞只蓋 30%，加弱詞蓋 ~87%），
+// 正常內容句的弱詞覆蓋率遠低於此。
+const WEAK_TOKENS = [...FILLER_TOKENS,
+  '我們','你們','他們','比如說','比如','例如','什麼','這樣','那樣','一個','沒有','好像',
+  '可能','覺得','發現','知道','是說','你','我','他','她','它','說','會','要','很','有',
+  '是','的','了','呢','吧','喔','嗯','去','到','跟','和'].sort((a, b) => b.length - a.length);
+// 放棄句句尾訊號：連接詞/語尾懸空（標點不可靠——ai_polish 每句都補「。」，一律忽略標點）
+const DANGLING_TAILS = ['或是','或者','然後','就是','因為','而且','但是','可是','所以','以及',
+                        '是說','然後呢','等等','跟','和','而','會','要','去','把','讓','很','呢'];
+
+// 覆蓋率：貪婪長詞優先掃描，算 token 表佔全句字數比例
+function tokenCoverage(text, tokens) {
+  let covered = 0, i = 0;
+  while (i < text.length) {
+    const tok = tokens.find(t => text.startsWith(t, i));
+    if (tok) { covered += tok.length; i += tok.length; } else i++;
+  }
+  return covered / Math.max(1, text.length);
+}
+
+const soloCandidates = [];
+if (SOLO_ENABLED) {
+  // 注意：不排除已在候選對裡的句子——碎念句填充詞多、彼此相似，幾乎都會配成對，
+  // 但對判斷只回答「兩句是否重複」（keep_both 放走爛句），solo 判斷回答「這句本身值不值得留」。
+  // 兩路互補；套用時 pairs 先、solo 後（!p.aiDelete 防重複標記）。
+  const scored = [];
+  for (let i = 0; i < phrases.length; i++) {
+    if (deletedSet.has(i)) continue;
+    const text = getText(phrases[i]);
+    if (text.length < SOLO_MIN_LEN) continue;
+    const ratio = tokenCoverage(text, FILLER_TOKENS);
+    const weak  = tokenCoverage(text, WEAK_TOKENS);
+    const gapAfter = phrases[i].gapAfter
+      ?? (phrases[i + 1] && phrases[i].endTime != null ? Math.max(0, phrases[i + 1].startTime - phrases[i].endTime) : 0);
+    const display  = getDisplay(phrases[i]);
+    const dangling = DANGLING_TAILS.some(t => text.endsWith(t));
+    const isRamble = ratio >= SOLO_FILLER_RATIO || weak >= SOLO_WEAK_RATIO;
+    const isDangle = dangling && gapAfter >= SOLO_DANGLE_GAP;
+    if (!isRamble && !isDangle) continue;
+    scored.push({
+      score: weak + (isDangle ? 0.35 : 0),
+      cand: {
+        id: '',
+        phraseIdx: i,
+        displayText: display,
+        prevText: i > 0 ? getDisplay(phrases[i - 1]).slice(0, 40) : null,
+        nextText: i < phrases.length - 1 ? getDisplay(phrases[i + 1]).slice(0, 40) : null,
+        startTime: phrases[i].startTime,
+        fillerRatio: Math.round(ratio * 100) / 100,
+        weakRatio: Math.round(weak * 100) / 100,
+        gapAfter: Math.round(gapAfter * 100) / 100,
+        hint: isRamble && isDangle ? 'ramble+dangle' : (isRamble ? 'ramble' : 'dangle'),
+      },
+    });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  scored.slice(0, SOLO_MAX).forEach((s, k) => { s.cand.id = `S${k + 1}`; soloCandidates.push(s.cand); });
+  log(`solo 候選: ${soloCandidates.length} 句（filler≥${SOLO_FILLER_RATIO} 或 弱詞≥${SOLO_WEAK_RATIO} 或 懸空句尾+gap≥${SOLO_DANGLE_GAP}s，上限 ${SOLO_MAX}）`);
+}
+
 // ── 輸出 ──
 const usedConfig = {
   silence_threshold: SILENCE_THRESHOLD,
@@ -682,12 +757,14 @@ const output = {
   ruleDeletions,
   gapDeletions,
   candidatePairs,
+  soloCandidates,
   config: usedConfig,
   stats: {
     totalPhrases:    phrases.length,
     ruleDeleted:     ruleDeletions.length,
     gapMarked:       gapDeletions.length,
     candidatePairs:  candidatePairs.length,
+    soloCandidates:  soloCandidates.length,
   },
 };
 

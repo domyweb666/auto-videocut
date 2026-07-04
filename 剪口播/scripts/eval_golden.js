@@ -79,6 +79,33 @@ async function runPool(tasks, n) {
 }
 const mtime = f => fs.existsSync(f) ? fs.statSync(f).mtimeMs : 0;
 
+// ── FN 分帳：機械性（碎念/短碎片，AI 該追）vs 編輯性（整段內容取捨，只做建議層）──
+const FILLERS = ['你知道', '然後', '就是', '那個', '這個', '所以', '等等', '其實', '反正', '的話',
+                 '那', '就', '嗯', '呃', '欸', '啊', '喔', '嘛', '對'].sort((a, b) => b.length - a.length);
+function fillerCoverage(text) {
+  let covered = 0, i = 0;
+  while (i < text.length) {
+    const tok = FILLERS.find(t => text.startsWith(t, i));
+    if (tok) { covered += tok.length; i += tok.length; } else i++;
+  }
+  return covered / Math.max(1, text.length);
+}
+function splitFN(report) {
+  const fns = (report.falseNegatives || []).filter(x => !x.isGap && x.text !== '[靜音]');
+  const spans = [];
+  let cur = null;
+  for (const w of fns.sort((a, b) => a.idx - b.idx)) {
+    if (cur && w.idx - cur.lastIdx <= 2) { cur.text += w.text; cur.lastIdx = w.idx; cur.n++; }
+    else { if (cur) spans.push(cur); cur = { text: w.text, lastIdx: w.idx, n: 1 }; }
+  }
+  if (cur) spans.push(cur);
+  let mech = 0, edit = 0;
+  for (const s of spans) {
+    if (s.n <= 12 || fillerCoverage(s.text) >= 0.4) mech += s.n; else edit += s.n;
+  }
+  return { mechFN: mech, editFN: edit };
+}
+
 async function processVideo(video, slot) {
   const { name, subsPath, editedPath, analysisDir } = video;
   const polishedPath   = path.join(analysisDir, 'polished_A.json');
@@ -147,9 +174,10 @@ async function processVideo(video, slot) {
     const report = JSON.parse(stdout.trim());
     fs.writeFileSync(diffPath, JSON.stringify(report, null, 2));
     const a = report.accuracy_filtered || report.accuracy || {};
-    log(`📊 F1=${(a.f1 * 100).toFixed(1)}% P=${(a.precision * 100).toFixed(1)}% R=${(a.recall * 100).toFixed(1)}% FP=${a.fp} FN=${a.fn}`);
+    const { mechFN, editFN } = splitFN(report);
+    log(`📊 F1=${(a.f1 * 100).toFixed(1)}% P=${(a.precision * 100).toFixed(1)}% R=${(a.recall * 100).toFixed(1)}% FP=${a.fp} FN=${a.fn}（機械 ${mechFN}／編輯 ${editFN}）`);
     return { name, f1: a.f1 || 0, precision: a.precision || 0, recall: a.recall || 0,
-             fp: a.fp || 0, fn: a.fn || 0, categoryStats: report.categoryStats || {} };
+             fp: a.fp || 0, fn: a.fn || 0, mechFN, editFN, categoryStats: report.categoryStats || {} };
   } catch (err) {
     log('❌ 失敗: ' + String(err.message).split('\n')[0]);
     return null;
@@ -160,11 +188,11 @@ async function processVideo(video, slot) {
   const results = (await runPool(videos.map(v => s => processVideo(v, s)), CONCURRENCY)).filter(Boolean);
   if (!results.length) { console.error('❌ 全數失敗'); process.exit(1); }
 
-  let TP = 0, FP = 0, FN = 0;
+  let TP = 0, FP = 0, FN = 0, MECH = 0, EDIT = 0;
   const cats = {};
   for (const r of results) {
     TP += r.precision > 0 ? Math.round(r.fp / (1 / r.precision - 1)) : 0;
-    FP += r.fp; FN += r.fn;
+    FP += r.fp; FN += r.fn; MECH += r.mechFN || 0; EDIT += r.editFN || 0;
     for (const [c, s] of Object.entries(r.categoryStats)) {
       if (!cats[c]) cats[c] = { tp: 0, fp: 0, fn: 0 };
       cats[c].tp += s.tp || 0; cats[c].fp += s.fp || 0; cats[c].fn += s.fn || 0;
@@ -177,6 +205,7 @@ async function processVideo(video, slot) {
   console.log(`📊 黃金集彙總（${results.length} 支, pairs=${PAIRS_MODEL}${SKIP_REVIEW ? ', 無review' : ''}）`);
   console.log(`   F1=${(F1 * 100).toFixed(2)}%  精確率=${(P * 100).toFixed(2)}%（誤刪率 ${(100 - P * 100).toFixed(2)}%）  召回率=${(R * 100).toFixed(2)}%`);
   console.log(`   FP(AI刪你留)=${FP} 字  FN(你刪AI沒抓)=${FN} 字`);
+  console.log(`   FN 分帳（非靜音）：機械性 ${MECH} 字（AI 該追的 KPI）／編輯性 ${EDIT} 字（整段取捨，建議層即可）`);
   const catRows = Object.entries(cats).filter(([, s]) => s.tp + s.fp + s.fn > 0);
   if (catRows.length) {
     console.log('   ── 分類細分 ──');
@@ -189,14 +218,14 @@ async function processVideo(video, slot) {
   const report = {
     timestamp: new Date().toISOString(), pairsModel: PAIRS_MODEL, skipReview: SKIP_REVIEW,
     videos: results.length,
-    overall: { f1: F1, precision: P, recall: R, fp: FP, fn: FN },
+    overall: { f1: F1, precision: P, recall: R, fp: FP, fn: FN, mechFN: MECH, editFN: EDIT },
     categoryStats: cats,
     perVideo: results.sort((a, b) => a.f1 - b.f1),
   };
   fs.writeFileSync(path.join(TRAINING_DIR, 'eval_golden_report.json'), JSON.stringify(report, null, 2));
   fs.appendFileSync(path.join(TRAINING_DIR, 'eval_golden_history.jsonl'), JSON.stringify({
     ts: report.timestamp, pairsModel: PAIRS_MODEL, skipReview: SKIP_REVIEW, videos: results.length,
-    f1: F1, p: P, r: R, fp: FP, fn: FN,
+    f1: F1, p: P, r: R, fp: FP, fn: FN, mechFN: MECH, editFN: EDIT,
   }) + '\n');
   console.log('\n📄 報告: training_output/eval_golden_report.json（FP/FN 明細在各影片 2_分析/eval_diff_report.json）');
 })();

@@ -210,9 +210,9 @@ function hashPairs(pairs) {
 
 // ── 主程式 ──
 const cutInput = JSON.parse(fs.readFileSync(inputFile, 'utf8'));
-const { phrases, ruleDeletions = [], gapDeletions = [], candidatePairs = [] } = cutInput;
+const { phrases, ruleDeletions = [], gapDeletions = [], candidatePairs = [], soloCandidates = [] } = cutInput;
 
-console.log(`📂 cut_input: ${phrases.length} phrases, ${ruleDeletions.length} rule deletions, ${candidatePairs.length} candidate pairs`);
+console.log(`📂 cut_input: ${phrases.length} phrases, ${ruleDeletions.length} rule deletions, ${candidatePairs.length} candidate pairs, ${soloCandidates.length} solo candidates`);
 
 // 初始化輸出 phrases（複製完整 polished 欄位）
 const output = phrases.map(p => ({
@@ -254,10 +254,10 @@ for (let i = 0; i < candidatePairs.length; i += BATCH_SIZE) {
 
 // ── 快取 ──
 const cacheFile = outputFile.replace(/\.json$/, '_pairs_cache.json');
-const pairsHash = hashPairs(candidatePairs);
+const pairsHash = hashPairs({ pairs: candidatePairs, solos: soloCandidates });
 let cacheHit = false;
 
-if (candidatePairs.length > 0 && fs.existsSync(cacheFile)) {
+if ((candidatePairs.length > 0 || soloCandidates.length > 0) && fs.existsSync(cacheFile)) {
   try {
     const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
     if (cached.hash === pairsHash && cached.model === (MODEL || 'default')) {
@@ -298,8 +298,66 @@ for (let bi = 0; bi < batches.length; bi++) {
   }
 }
 
+// ── solo 候選（碎念/放棄句）批次判決 ──
+// 與候選對分開送：判斷性質不同（單句好壞 vs 兩句異同），混在一起會互相干擾。
+function buildSoloPrompt(soloSection) {
+  return `你是影片文稿剪輯助手。下面是演算法初篩出的「疑似碎念／放棄句」——口播時的填充詞堆疊、或講到一半放棄換路的句子。逐條判斷該不該刪。
+${notesSection}
+## 判斷原則
+
+- \`delete\`：(1) 碎念——整句幾乎只有填充詞（然後/就是/那個/等等），拿掉不損失任何資訊；(2) 放棄句——講到一半丟棄，後文換了說法或話題，留著會讓成品聽起來卡住
+- \`keep\`：句子雖口語但承載實際內容；或後文接著把這句講完（它是必要開頭）
+- **寧可保守：不確定 → keep**（誤刪的成本高於漏刪）
+
+## 候選句
+
+${soloSection}
+
+## 輸出格式
+
+JSON only，key 為句 ID：
+
+\`\`\`json
+{
+  "S1": { "verdict": "delete", "reason": "碎念：填充詞堆疊無資訊" },
+  "S2": { "verdict": "keep", "reason": "後文接著講完這句" }
+}
+\`\`\`
+
+只回傳 JSON，不要其他文字。`;
+}
+
+function formatSolo(s) {
+  let out = `[${s.id}]（句後停頓 ${s.gapAfter}s，填充詞 ${Math.round(s.fillerRatio * 100)}%／弱詞 ${Math.round((s.weakRatio ?? s.fillerRatio) * 100)}%）\n`;
+  if (s.prevText) out += `  前文: …${s.prevText}\n`;
+  out += `  句子: ${s.displayText}\n`;
+  if (s.nextText) out += `  後文: ${s.nextText}…\n`;
+  return out;
+}
+
+if (!cacheHit) {
+  const soloBatches = [];
+  for (let i = 0; i < soloCandidates.length; i += BATCH_SIZE) {
+    soloBatches.push(soloCandidates.slice(i, i + BATCH_SIZE));
+  }
+  for (let bi = 0; bi < soloBatches.length; bi++) {
+    const batch = soloBatches[bi];
+    const prompt = buildSoloPrompt(batch.map(formatSolo).join('\n---\n\n'));
+    console.log(`\n🤖 solo 判斷批次 ${bi + 1}/${soloBatches.length}（${batch.length} 句）[模型: ${MODEL || 'default'}]`);
+    try {
+      const json = parseJSON(callClaude(prompt));
+      if (!json) { console.warn(`  ⚠️ solo 批次 ${bi + 1} 回傳無法解析，跳過`); failedBatches++; continue; }
+      for (const [id, v] of Object.entries(json)) verdicts[id] = v;
+      console.log(`  ✅ solo 批次 ${bi + 1} 完成（${Object.keys(json).length} 個判決）`);
+    } catch (e) {
+      console.warn(`  ⚠️ solo 批次 ${bi + 1} Claude 呼叫失敗: ${e.message.slice(0, 80)}`);
+      failedBatches++;
+    }
+  }
+}
+
 // 儲存快取（僅在非快取命中且無失敗批次時）
-if (!cacheHit && candidatePairs.length > 0 && failedBatches === 0) {
+if (!cacheHit && (candidatePairs.length > 0 || soloCandidates.length > 0) && failedBatches === 0) {
   try {
     fs.writeFileSync(cacheFile, JSON.stringify({ hash: pairsHash, model: MODEL || 'default', ts: new Date().toISOString(), verdicts }, null, 2));
     console.log(`💾 快取已儲存（hash=${pairsHash}）`);
@@ -335,8 +393,28 @@ for (const pair of candidatePairs) {
   }
 }
 
+// 合併 solo 判決（碎念/放棄句）
+let soloDeleteCount = 0, soloKeepCount = 0;
+for (const s of soloCandidates) {
+  const v = verdicts[s.id];
+  if (!v) continue;
+  if ((v.verdict || '').toLowerCase().trim() === 'delete') {
+    const p = output[s.phraseIdx];
+    if (p && !p.aiDelete) {
+      p.aiDelete       = true;
+      p.deleteReason   = v.reason ? `碎念/放棄句：${v.reason}` : `碎念/放棄句（${s.id}）`;
+      p.deleteCategory = 'solo_ramble';
+      soloDeleteCount++;
+    }
+  } else {
+    soloKeepCount++;
+  }
+}
+if (soloCandidates.length > 0)
+  console.log(`📊 solo 判決：刪除 ${soloDeleteCount} 句，保留 ${soloKeepCount} 句（候選 ${soloCandidates.length}）`);
+
 console.log(`\n📊 AI 判決彙整：刪除 ${aiDeleteCount} 個，保留雙方 ${keepBothCount} 個，批次失敗 ${failedBatches}/${batches.length}`);
-console.log(`📊 總計刪除：規則 ${ruleDeletions.length} + AI ${aiDeleteCount} = ${ruleDeletions.length + aiDeleteCount} 個`);
+console.log(`📊 總計刪除：規則 ${ruleDeletions.length} + AI ${aiDeleteCount} + solo ${soloDeleteCount} = ${ruleDeletions.length + aiDeleteCount + soloDeleteCount} 個`);
 
 // 寫 log 到 2_分析/ai_cut_pairs_log.txt（落地，讓使用者能診斷第二層 AI 真的有跑）
 try {
@@ -363,10 +441,15 @@ try {
     `- keep_both（都保留）：${keepBoth}`,
     `- 其他/缺判決：${other}`,
     ``,
+    `## solo 候選（碎念/放棄句）`,
+    `- 候選：${soloCandidates.length}`,
+    `- 刪除：${soloDeleteCount}／保留：${soloKeepCount}`,
+    ``,
     `## 套用結果`,
     `- 規則刪除：${ruleDeletions.length}`,
     `- AI 刪除：${aiDeleteCount}`,
-    `- 總刪除：${ruleDeletions.length + aiDeleteCount}`,
+    `- solo 刪除：${soloDeleteCount}`,
+    `- 總刪除：${ruleDeletions.length + aiDeleteCount + soloDeleteCount}`,
     ``,
   ].join('\n');
   const logPath = path.join(path.dirname(outputFile), 'ai_cut_pairs_log.txt');
