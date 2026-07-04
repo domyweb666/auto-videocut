@@ -20,6 +20,27 @@ const { parseAutoSelected } = require('./parse_auto_selected'); // 從退役 gen
 const buildReviewDoc = require('./generate_review_doc'); // 純白文稿版審核頁（取代深色版，舊版保留備援）
 const convertAiToIndices = require('./convert_ai_to_indices'); // 句級 sentences.json → 字級 {indices,reasons}
 
+// 叫出 Windows 原生選檔/選資料夾對話框，強制拉到瀏覽器前面（詳見 pick_file.ps1）。
+// 為什麼獨立成 pick_file.ps1 + 用 -Command 的 & 呼叫：node 是背景進程，開的對話框會被
+// Windows 前景鎖定壓在瀏覽器後面（實測使用者按了「沒反應」，其實是對話框躲在後面）；
+// pick_file.ps1 用背景執行緒 + AttachThreadInput 搶前景解掉。用 -Command "& '路徑'" 而非
+// -File，是因為 node 在 Windows 對 -File 的路徑參數會吃掉反斜線。
+// mode: 'file' | 'folder'；cb 收 trim 過的選取路徑（取消或失敗回空字串）。
+function runNativePicker(initDir, mode, cb) {
+  const script = path.join(__dirname, 'pick_file.ps1');
+  const q = s => String(s).replace(/'/g, "''"); // PS 單引號字串內的單引號要 double
+  // pick_file.ps1 刻意保持純 ASCII（避免 PS 5.1 用 Big5 讀檔導致中文解析錯誤）；
+  // 中文對話框標題從這裡當參數傳進去（本檔是 UTF-8，-Command 字串裡的中文 PS 收得到）。
+  let cmd = "& '" + q(script) + "' -InitialDir '" + q(initDir) + "' -Mode " + (mode === 'folder' ? 'folder' : 'file');
+  if (mode === 'folder') {
+    cmd += " -Title '走進要匯出的資料夾後按「開啟」' -FolderLabel '選擇此資料夾'";
+  }
+  execFile('powershell', ['-STA', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', cmd],
+    { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      cb((stdout || '').trim());
+    });
+}
+
 // 把 AI 句級結果（sentences.json）轉成審核頁吃的字級 auto_selected.json 並寫檔。
 // 8900 流程的 AI 判斷寫在句級 sentences.json，但審核頁 / 匯出讀字級 auto_selected.json，
 // 缺這一步會導致「AI 跑了但審核頁零標記」。另外把重錄（exact/fuzzy）與咳嗽併進預選（見下），
@@ -900,20 +921,13 @@ const server = http.createServer((req, res) => {
 
   // GET /api/native-browse — 跳出 Windows 原生選檔視窗，回傳選到的影片路徑
   if (req.method === 'GET' && req.url === '/api/native-browse') {
-    const { execFile } = require('child_process');
     // 指定初始目錄到本機的 cut_work（挑片的地方），讓對話框直接開在本機快速路徑，
     // 避免預設去枚舉「最近/網路位置」而卡十幾二十秒。找不到就退回 cwd。
-    // 註：不設 AutoUpgradeEnabled=$false，保留現代 Explorer 風格對話框（速度靠 InitialDirectory）。
-    // TopMost owner：node 是背景進程，由瀏覽器（前景）觸發時 Windows 前景鎖定會擋住對話框搶焦點，
-    // 導致對話框開在瀏覽器「後面」，使用者以為沒反應。掛一個離屏 TopMost 的 owner form 當母視窗，
-    // 讓對話框以 ShowDialog($ow) 繼承 topmost z-order，強制浮在瀏覽器之上。
     let initDir = path.join(process.cwd(), 'cut_work');
     if (!fs.existsSync(initDir)) initDir = process.cwd();
-    const initDirPs = initDir.replace(/'/g, "''"); // PS 單引號字串內的單引號要 double
-    const ps = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $ow=New-Object System.Windows.Forms.Form; $ow.TopMost=$true; $ow.ShowInTaskbar=$false; $ow.StartPosition='Manual'; $ow.Location=New-Object System.Drawing.Point(-3000,-3000); $ow.Size=New-Object System.Drawing.Size(1,1); $ow.Show(); $ow.Activate(); $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='Select video'; $f.InitialDirectory='" + initDirPs + "'; $f.RestoreDirectory=$true; $f.Filter='Video|*.mp4;*.mov;*.mkv;*.avi;*.flv;*.webm;*.m4v|All files|*.*'; $r=$f.ShowDialog($ow); $ow.Close(); $ow.Dispose(); if($r -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write($f.FileName) }";
-    execFile('powershell', ['-STA', '-NoProfile', '-Command', ps], { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
+    runNativePicker(initDir, 'file', (selected) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ path: (stdout || '').trim() }));
+      res.end(JSON.stringify({ path: selected }));
     });
     return;
   }
@@ -1421,17 +1435,11 @@ const server = http.createServer((req, res) => {
 
   // GET /api/native-browse-folder — 跳出 Windows 原生選資料夾視窗，回傳選到的資料夾
   if (req.method === 'GET' && req.url === '/api/native-browse-folder') {
-    const { execFile } = require('child_process');
     let initDir = path.join(process.cwd(), 'output');
     if (!fs.existsSync(initDir)) initDir = process.cwd();
-    const initDirPs = initDir.replace(/'/g, "''");
-    // OpenFileDialog + ValidateNames=false = 檔案總管式介面選資料夾（FolderBrowserDialog 是老樹狀 UI，難用）：
-    // 使用者走進目標資料夾按「開啟」，取 FileName 的 dirname 當結果
-    // TopMost owner：同 /api/native-browse，避免背景進程開的對話框躲在瀏覽器後面。
-    const ps = "Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $ow=New-Object System.Windows.Forms.Form; $ow.TopMost=$true; $ow.ShowInTaskbar=$false; $ow.StartPosition='Manual'; $ow.Location=New-Object System.Drawing.Point(-3000,-3000); $ow.Size=New-Object System.Drawing.Size(1,1); $ow.Show(); $ow.Activate(); $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='走進要匯出的資料夾後按「開啟」'; $f.InitialDirectory='" + initDirPs + "'; $f.ValidateNames=$false; $f.CheckFileExists=$false; $f.CheckPathExists=$true; $f.FileName='選擇此資料夾'; $r=$f.ShowDialog($ow); $ow.Close(); $ow.Dispose(); if($r -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write([System.IO.Path]::GetDirectoryName($f.FileName)) }";
-    execFile('powershell', ['-STA', '-NoProfile', '-Command', ps], { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
+    runNativePicker(initDir, 'folder', (selected) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ path: (stdout || '').trim() }));
+      res.end(JSON.stringify({ path: selected }));
     });
     return;
   }
