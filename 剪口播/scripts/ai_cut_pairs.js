@@ -254,7 +254,8 @@ for (let i = 0; i < candidatePairs.length; i += BATCH_SIZE) {
 
 // ── 快取 ──
 const cacheFile = outputFile.replace(/\.json$/, '_pairs_cache.json');
-const pairsHash = hashPairs({ pairs: candidatePairs, solos: soloCandidates });
+// prompt 納入 hash：改判斷原則後舊快取必須失效，否則 prompt 調優會默默吃到舊判決
+const pairsHash = hashPairs({ pairs: candidatePairs, solos: soloCandidates, prompt: PROMPT_RAW });
 let cacheHit = false;
 
 if ((candidatePairs.length > 0 || soloCandidates.length > 0) && fs.existsSync(cacheFile)) {
