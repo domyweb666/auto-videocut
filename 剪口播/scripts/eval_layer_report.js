@@ -63,6 +63,12 @@ for (const name of names) {
       let cat = p.aiDelete ? (p.deleteCategory || 'ai_unknown') : 'silence_gap';
       if (!rawDel) cat = 'review_audit(加刪)';
       for (const wi of (p.wordIndices || [])) wordCat.set(wi, cat);
+    } else if (Array.isArray(p.wordDeleteIdx) && p.wordDeleteIdx.length > 0) {
+      // 部分刪除（二段手術 ai_pair_part / 規則G）：reason 前綴＝層別
+      const cat = String(p.wordDeleteReason || 'word_partial').split(':')[0].trim() + '(部分)';
+      const wis = p.wordIndices || [];
+      for (const li of p.wordDeleteIdx) { if (wis[li] != null) wordCat.set(wis[li], cat); }
+      if (rawDel) revoked.del += Math.max(0, (r.wordIndices || []).length - p.wordDeleteIdx.length);
     } else if (rawDel) {
       revoked.del += (r.wordIndices || []).length;
     }

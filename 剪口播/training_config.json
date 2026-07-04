@@ -65,6 +65,11 @@
     "max_candidates": 30,
     "_note": "碎念/放棄句 solo 候選（phrase_prefilter 初篩 → ai_cut_pairs AI 終判，deleteCategory=solo_ramble）。候選對模式只看相似句「對」，無配對的爛句（填充詞堆疊/講一半丟棄）是結構性盲區——黃金集 2026-07-04 實測這類佔機械性漏刪大宗。filler_ratio=填充詞覆蓋率門檻；dangle_gap_sec=懸空句尾（無句末標點+連接詞結尾）後停頓多久視為放棄句。AI 判決指示為保守（不確定→keep），誤刪成本高於漏刪。"
   },
+  "pair_surgery": {
+    "enabled": true,
+    "min_len": 15,
+    "_note": "二段手術（ai_cut_pairs 內建第三批次）：對已判刪的 ai_pair 長句(≥min_len字)再問一次『整句刪還是只刪重複的那段』，part 判決降級成 wordDeleteIdx 部分刪除。黃金集 2026-07 實測長句誤刪 59% 是顆粒度錯（AI 判斷半對但整句刪、使用者只剪半句）。cut_text 逐字驗證，驗證失敗維持整句刪。需要 --words-file，沒給自動停用。"
+  },
   "use_pair_mode": true,
   "pause_flatten": {
     "enabled": true,

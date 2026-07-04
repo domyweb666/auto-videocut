@@ -140,7 +140,8 @@ async function processVideo(video, slot) {
     const needCut = FORCE || mtime(rawSentPath) < mtime(cutInputPath) || !fs.existsSync(rawSentPath);
     if (needCut) {
       log(`✂️ 候選對（${PAIRS_MODEL}）...`);
-      const pa = [path.join(SCRIPT_DIR, 'ai_cut_pairs.js'), '--model', PAIRS_MODEL, cutInputPath, rawSentPath];
+      const pa = [path.join(SCRIPT_DIR, 'ai_cut_pairs.js'), '--model', PAIRS_MODEL, cutInputPath, rawSentPath,
+                  '--words-file', subsPath];
       if (fs.existsSync(outlinePath)) pa.push('--outline-file', outlinePath);
       await run('node', pa);
     } else log('⚡ 候選對快取命中');

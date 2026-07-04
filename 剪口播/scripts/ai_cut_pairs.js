@@ -19,6 +19,7 @@ const { execSync } = require('child_process');
 let MODEL        = '';
 let SKILLS_FILE  = '';
 let OUTLINE_FILE = '';
+let WORDS_FILE   = '';
 const positional = [];
 for (let i = 2; i < process.argv.length; i++) {
   const a = process.argv[i];
@@ -28,6 +29,8 @@ for (let i = 2; i < process.argv.length; i++) {
     SKILLS_FILE = process.argv[++i];
   } else if (a === '--outline-file' && process.argv[i + 1]) {
     OUTLINE_FILE = process.argv[++i];
+  } else if (a === '--words-file' && process.argv[i + 1]) {
+    WORDS_FILE = process.argv[++i];
   } else {
     positional.push(a);
   }
@@ -214,6 +217,22 @@ const { phrases, ruleDeletions = [], gapDeletions = [], candidatePairs = [], sol
 
 console.log(`📂 cut_input: ${phrases.length} phrases, ${ruleDeletions.length} rule deletions, ${candidatePairs.length} candidate pairs, ${soloCandidates.length} solo candidates`);
 
+// ── 全域設定（遠距煞車 + 二段手術）──
+let trainCfgFull = {};
+try { trainCfgFull = require('./rule_utils').loadTrainingConfig(__dirname); } catch (_) {}
+const MAX_AUTO_GAP = parseFloat(trainCfgFull.candidate_pair?.max_auto_gap_sec ?? 0);
+const SURG_CFG     = trainCfgFull.pair_surgery || {};
+const SURG_ENABLED = SURG_CFG.enabled !== false;
+const SURG_MIN_LEN = parseInt(SURG_CFG.min_len ?? 15, 10);
+const SURG_VERSION = 'v1'; // 手術 prompt 版本，變更時納入快取 hash 讓舊判決失效
+
+// 二段手術需要字級文字（subtitles_words）把子串映射回 word indices；沒給就退回整句刪
+let WORDS = null;
+if (WORDS_FILE && fs.existsSync(WORDS_FILE)) {
+  try { WORDS = JSON.parse(fs.readFileSync(WORDS_FILE, 'utf8')); } catch (_) { WORDS = null; }
+}
+const normZh = s => String(s || '').replace(/[，。！？、：；,.!?:;\s…「」『』（）()]/g, '');
+
 // 初始化輸出 phrases（複製完整 polished 欄位）
 const output = phrases.map(p => ({
   ...p,
@@ -255,7 +274,8 @@ for (let i = 0; i < candidatePairs.length; i += BATCH_SIZE) {
 // ── 快取 ──
 const cacheFile = outputFile.replace(/\.json$/, '_pairs_cache.json');
 // prompt 納入 hash：改判斷原則後舊快取必須失效，否則 prompt 調優會默默吃到舊判決
-const pairsHash = hashPairs({ pairs: candidatePairs, solos: soloCandidates, prompt: PROMPT_RAW });
+const pairsHash = hashPairs({ pairs: candidatePairs, solos: soloCandidates, prompt: PROMPT_RAW,
+                              surgery: (SURG_ENABLED && WORDS) ? SURG_VERSION : 'off' });
 let cacheHit = false;
 
 if ((candidatePairs.length > 0 || soloCandidates.length > 0) && fs.existsSync(cacheFile)) {
@@ -357,6 +377,74 @@ if (!cacheHit) {
   }
 }
 
+// ── 二段手術：長句部分刪除 ──
+// 黃金集 2026-07 實測：ai_pair 長句(≥15字)誤刪 59% 是「顆粒度錯」——AI 判斷半對（句裡確實有重複），
+// 但整句刪、使用者只剪半句。對「已判刪的長句」多問一次：整句刪還是只刪哪一段。
+const surgTargets = new Map(); // phraseIdx → { text, counterpart, reason, prevText, nextText }
+if (SURG_ENABLED && WORDS) {
+  for (const pair of candidatePairs) {
+    const v = verdicts[pair.id];
+    if (!v) continue;
+    const verdict = (v.verdict || '').toLowerCase().trim();
+    if (!verdict.startsWith('delete')) continue;
+    if (MAX_AUTO_GAP > 0 && (pair.timeGap ?? 0) > MAX_AUTO_GAP) continue;
+    const delSide  = verdict === 'delete_earlier' ? pair.earlier : pair.later;
+    const keepSide = verdict === 'delete_earlier' ? pair.later : pair.earlier;
+    if (normZh(delSide.displayText).length < SURG_MIN_LEN) continue;
+    if (!surgTargets.has(delSide.phraseIdx)) {
+      surgTargets.set(delSide.phraseIdx, {
+        text: delSide.displayText, counterpart: keepSide.displayText,
+        reason: v.reason || '', prevText: delSide.prevText, nextText: delSide.nextText,
+      });
+    }
+  }
+  const pending = [...surgTargets.entries()].filter(([pi]) => !(`G${pi}` in verdicts));
+  if (pending.length > 0 && !cacheHit) {
+    for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+      const batch = pending.slice(i, i + BATCH_SIZE);
+      const section = batch.map(([pi, t]) => {
+        let out = `[G${pi}]（判刪理由: ${t.reason.slice(0, 60)}）\n`;
+        if (t.prevText) out += `  前文: …${t.prevText}\n`;
+        out += `  句子: ${t.text}\n`;
+        if (t.nextText) out += `  後文: ${t.nextText}…\n`;
+        out += `  與它重複、將保留的句子: ${t.counterpart}\n`;
+        return out;
+      }).join('\n---\n\n');
+      const prompt = `你是影片文稿剪輯助手。下列句子已被判定「與另一句重複」而要刪除，但整句刪可能過切。逐句判斷：整句刪，還是只刪其中重複的那一段。
+
+## 判斷原則
+
+- \`all\`：整句都在重講同一件事（完整重錄）→ 整句刪
+- \`part\`：句子只有一部分與保留句重複，其餘是有效內容 → 只刪重複的那段，cut_text 給出應刪的原文
+- **cut_text 必須是「句子」欄位的連續逐字子串，一個字都不能改寫、不能跳接**
+- 拿不準邊界 → \`all\`（維持原判）
+
+## 待判句
+
+${section}
+
+## 輸出格式
+
+JSON only：
+\`\`\`json
+{ "G12": {"cut":"all"}, "G34": {"cut":"part","cut_text":"應刪的那段原文"} }
+\`\`\`
+
+只回傳 JSON，不要其他文字。`;
+      console.log(`\n🔪 手術批次（${batch.length} 句長句）[模型: ${MODEL || 'default'}]`);
+      try {
+        const json = parseJSON(callClaude(prompt));
+        if (!json) { console.warn('  ⚠️ 手術批次回傳無法解析，維持整句刪'); failedBatches++; continue; }
+        for (const [id, v] of Object.entries(json)) verdicts[id] = v;
+        console.log(`  ✅ 手術批次完成（${Object.keys(json).length} 個判決）`);
+      } catch (e) {
+        console.warn(`  ⚠️ 手術批次 Claude 呼叫失敗: ${e.message.slice(0, 80)}`);
+        failedBatches++;
+      }
+    }
+  }
+}
+
 // 儲存快取（僅在非快取命中且無失敗批次時）
 if (!cacheHit && (candidatePairs.length > 0 || soloCandidates.length > 0) && failedBatches === 0) {
   try {
@@ -367,14 +455,7 @@ if (!cacheHit && (candidatePairs.length > 0 || soloCandidates.length > 0) && fai
   }
 }
 
-// 遠距硬煞車：間隔超過 max_auto_gap_sec 的對，AI 判 delete 也不自動刪。
-// 黃金集實測：60s+ 的「簡略版 vs 完整版」多為講者有意的前後呼應（使用者兩段都留），
-// prompt 的「>60 秒必須非常確定」擋不住模型，改程式硬規則。
-let MAX_AUTO_GAP = 60;
-try {
-  const { loadTrainingConfig } = require('./rule_utils');
-  MAX_AUTO_GAP = parseFloat(loadTrainingConfig(__dirname).candidate_pair?.max_auto_gap_sec ?? 60);
-} catch (_) {}
+// 遠距硬煞車（config candidate_pair.max_auto_gap_sec，0=關閉）
 let gapGuarded = 0;
 
 // 合併 AI 對判決
@@ -430,6 +511,47 @@ if (soloCandidates.length > 0)
   console.log(`📊 solo 判決：刪除 ${soloDeleteCount} 句，保留 ${soloKeepCount} 句（候選 ${soloCandidates.length}）`);
 if (gapGuarded > 0)
   console.log(`🛑 遠距煞車：${gapGuarded} 對 AI 判 delete 但間隔 >${MAX_AUTO_GAP}s，不自動刪`);
+
+// 套用二段手術：part 判決 → 整句刪降級為「只刪句內那一段」（wordDeleteIdx 機制，convert 端已支援）
+let surgPart = 0, surgAll = 0, surgInvalid = 0;
+function applySurgeryPartial(p, cutText, reason) {
+  const wis = p.wordIndices || [];
+  if (!wis.length || !WORDS) return false;
+  const tokens = wis.map(wi => normZh((WORDS[wi] && (WORDS[wi].text || WORDS[wi].word)) || ''));
+  const full = tokens.join('');
+  const target = normZh(cutText);
+  if (target.length < 2 || target.length >= full.length) return false;
+  const pos = full.indexOf(target);
+  if (pos < 0) return false; // 子串驗證失敗（AI 改寫了字）→ 維持整句刪
+  const localIdx = [];
+  let off = 0;
+  for (let li = 0; li < tokens.length; li++) {
+    const st = off, en = off + tokens[li].length;
+    off = en;
+    if (tokens[li] && en > pos && st < pos + target.length) localIdx.push(li);
+  }
+  if (!localIdx.length || localIdx.length === tokens.length) return false;
+  p.aiDelete       = false;
+  p.deleteReason   = null;
+  p.deleteCategory = null;
+  p.wordDeleteIdx    = localIdx;
+  p.wordDeleteReason = `ai_pair_part: ${reason}`;
+  return true;
+}
+for (const [pi, t] of surgTargets) {
+  const v = verdicts[`G${pi}`];
+  if (!v) continue;
+  const p = output[pi];
+  if (!p || !p.aiDelete || p.deleteCategory !== 'ai_pair') continue;
+  if ((v.cut || '').toLowerCase().trim() === 'part' && v.cut_text) {
+    if (applySurgeryPartial(p, v.cut_text, t.reason)) surgPart++;
+    else surgInvalid++;
+  } else {
+    surgAll++;
+  }
+}
+if (surgTargets.size > 0)
+  console.log(`🔪 手術結果：整句刪 ${surgAll}、部分刪 ${surgPart}、子串驗證失敗維持整句 ${surgInvalid}（目標 ${surgTargets.size} 句）`);
 
 console.log(`\n📊 AI 判決彙整：刪除 ${aiDeleteCount} 個，保留雙方 ${keepBothCount} 個，批次失敗 ${failedBatches}/${batches.length}`);
 console.log(`📊 總計刪除：規則 ${ruleDeletions.length} + AI ${aiDeleteCount} + solo ${soloDeleteCount} = ${ruleDeletions.length + aiDeleteCount + soloDeleteCount} 個`);

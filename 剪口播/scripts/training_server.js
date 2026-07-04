@@ -747,6 +747,8 @@ function startCutProcess(videoPath, referenceText) {
           cutState.log.push('✂️ [3/5b] Claude 候選對 AI 判斷中（Opus）...');
           const pairsArgs = [path.join(SCRIPT_DIR, 'ai_cut_pairs.js'), '--model', 'opus', cutInputPath, cutState.sentencesPath];
           if (fs.existsSync(outlinePath)) pairsArgs.push('--outline-file', outlinePath);
+          if (cutState.subtitlesPath && fs.existsSync(cutState.subtitlesPath))
+            pairsArgs.push('--words-file', cutState.subtitlesPath); // 二段手術需要字級文字
           await runCmd('node', pairsArgs, { timeout: 600000 });
           cutState.progress = 86;
 
