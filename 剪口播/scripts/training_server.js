@@ -904,10 +904,13 @@ const server = http.createServer((req, res) => {
     // 指定初始目錄到本機的 cut_work（挑片的地方），讓對話框直接開在本機快速路徑，
     // 避免預設去枚舉「最近/網路位置」而卡十幾二十秒。找不到就退回 cwd。
     // 註：不設 AutoUpgradeEnabled=$false，保留現代 Explorer 風格對話框（速度靠 InitialDirectory）。
+    // TopMost owner：node 是背景進程，由瀏覽器（前景）觸發時 Windows 前景鎖定會擋住對話框搶焦點，
+    // 導致對話框開在瀏覽器「後面」，使用者以為沒反應。掛一個離屏 TopMost 的 owner form 當母視窗，
+    // 讓對話框以 ShowDialog($ow) 繼承 topmost z-order，強制浮在瀏覽器之上。
     let initDir = path.join(process.cwd(), 'cut_work');
     if (!fs.existsSync(initDir)) initDir = process.cwd();
     const initDirPs = initDir.replace(/'/g, "''"); // PS 單引號字串內的單引號要 double
-    const ps = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='Select video'; $f.InitialDirectory='" + initDirPs + "'; $f.RestoreDirectory=$true; $f.Filter='Video|*.mp4;*.mov;*.mkv;*.avi;*.flv;*.webm;*.m4v|All files|*.*'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write($f.FileName) }";
+    const ps = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $ow=New-Object System.Windows.Forms.Form; $ow.TopMost=$true; $ow.ShowInTaskbar=$false; $ow.StartPosition='Manual'; $ow.Location=New-Object System.Drawing.Point(-3000,-3000); $ow.Size=New-Object System.Drawing.Size(1,1); $ow.Show(); $ow.Activate(); $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='Select video'; $f.InitialDirectory='" + initDirPs + "'; $f.RestoreDirectory=$true; $f.Filter='Video|*.mp4;*.mov;*.mkv;*.avi;*.flv;*.webm;*.m4v|All files|*.*'; $r=$f.ShowDialog($ow); $ow.Close(); $ow.Dispose(); if($r -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write($f.FileName) }";
     execFile('powershell', ['-STA', '-NoProfile', '-Command', ps], { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ path: (stdout || '').trim() }));
@@ -1424,7 +1427,8 @@ const server = http.createServer((req, res) => {
     const initDirPs = initDir.replace(/'/g, "''");
     // OpenFileDialog + ValidateNames=false = 檔案總管式介面選資料夾（FolderBrowserDialog 是老樹狀 UI，難用）：
     // 使用者走進目標資料夾按「開啟」，取 FileName 的 dirname 當結果
-    const ps = "Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='走進要匯出的資料夾後按「開啟」'; $f.InitialDirectory='" + initDirPs + "'; $f.ValidateNames=$false; $f.CheckFileExists=$false; $f.CheckPathExists=$true; $f.FileName='選擇此資料夾'; if($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write([System.IO.Path]::GetDirectoryName($f.FileName)) }";
+    // TopMost owner：同 /api/native-browse，避免背景進程開的對話框躲在瀏覽器後面。
+    const ps = "Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $ow=New-Object System.Windows.Forms.Form; $ow.TopMost=$true; $ow.ShowInTaskbar=$false; $ow.StartPosition='Manual'; $ow.Location=New-Object System.Drawing.Point(-3000,-3000); $ow.Size=New-Object System.Drawing.Size(1,1); $ow.Show(); $ow.Activate(); $f=New-Object System.Windows.Forms.OpenFileDialog; $f.Title='走進要匯出的資料夾後按「開啟」'; $f.InitialDirectory='" + initDirPs + "'; $f.ValidateNames=$false; $f.CheckFileExists=$false; $f.CheckPathExists=$true; $f.FileName='選擇此資料夾'; $r=$f.ShowDialog($ow); $ow.Close(); $ow.Dispose(); if($r -eq [System.Windows.Forms.DialogResult]::OK){ [Console]::Out.Write([System.IO.Path]::GetDirectoryName($f.FileName)) }";
     execFile('powershell', ['-STA', '-NoProfile', '-Command', ps], { encoding: 'utf8', maxBuffer: 1024 * 1024 }, (err, stdout) => {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ path: (stdout || '').trim() }));
