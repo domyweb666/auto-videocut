@@ -46,7 +46,10 @@
   },
   "wide_repeat": {},
   "cough_detection": {},
-  "abandoned_start": {},
+  "abandoned_start": {
+    "enabled": false,
+    "_note": "2026-07-05 關閉：規則 F2『放棄句首』實戰記分卡 0/7 全退（黃金集也僅 56%），且『碎念/放棄句』已有 solo_ramble AI 層帶前後文用 opus 判、精度更高。這條純規則無守門，抓的全是使用者不想刪的連接詞開頭句，零 recall 貢獻只增加審核點擊。要復原改回 true。"
+  },
   "incomplete_sentence": {},
   "candidate_pair": {
     "similarity": 0.26,
