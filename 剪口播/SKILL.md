@@ -351,26 +351,24 @@ node "$SKILL_DIR/scripts/validate_selection.js" \
 
 ### 步驟 6: 審核
 
+審核頁由**唯一服務器 `training_server.js`（port 8900）動態產生**，不需要另外跑 `generate_review.js`——伺服器讀 `subtitles_words.json` + `auto_selected.json` 即時渲染 `/review/<影片名>`。
+
 ```bash
-cd ../3_審核
-
-# 生成審核網頁（傳入影片檔案，自動建立符號鏈接）
-node "$SKILL_DIR/scripts/generate_review.js" ../1_轉錄/subtitles_words.json ../2_分析/auto_selected.json "$VIDEO_PATH"
-# 輸出: review.html, video.mp4(符號鏈接)
-
-# 啟動審核服務器
-node "$SKILL_DIR/scripts/review_server.js" 4000 "$VIDEO_PATH"
-# 開啟 http://localhost:4000
+# 啟動服務器（預設 8900；可傳埠號覆寫）
+node "$SKILL_DIR/scripts/training_server.js"
+# 剪輯頁:   http://localhost:8900/
+# 審核頁:   http://localhost:8900/review/<影片名>
 ```
 
-> ⚠️ **必須用 review_server.js**，不能用 `python3 -m http.server` 替代。
-> 原因：影片播放依賴 HTTP Range 請求（206），python 簡易服務器不支援。
+> 捷徑：直接跑 `E:\自動剪輯\啟動_訓練看板.bat` 會 set cwd 到 scripts 並開瀏覽器。
 > 啟動時不要在命令末尾加 `&`（shell 後台），用 `run_in_background` 參數即可。
+> ⚠️ 舊的 `review_server.js`（port 4000）與 8899 深色審核頁已退役移除，一律走 8900。
 
-使用者在網頁中：
-- 播放影片畫面確認
-- 拖曳選取批量標記刪除
-- 點擊「執行剪輯」
+使用者在審核頁中：
+- 讀純白文稿確認（被刪字灰掉、hover 看理由）
+- 拖曳選取批量標記／救回刪除
+- （可選）按「🔍 接縫冷讀」讓 Claude 標出剪接後接不順的縫（純建議，不自動刪）
+- 按「執行剪輯」→ 前端 `POST /api/cut/<影片名>` 觸發匯出（見步驟 7）
 
 ### 步驟 7: 生成文稿（剪輯完成後）
 
