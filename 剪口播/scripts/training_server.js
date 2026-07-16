@@ -303,6 +303,11 @@ const CUT_DOC_HTML = `<!DOCTYPE html>
   #done{display:none;margin-top:22px;text-align:center;}
   .btn-review{background:#185FA5;color:#fff;border:none;padding:12px 28px;font-weight:600;font-size:15px;}
   .err{color:#A32D2D;font-size:13px;margin-top:14px;white-space:pre-wrap;}
+  .coffee{display:flex;align-items:center;gap:12px;margin-top:14px;background:#fff;border:1px solid #e3e1d9;border-radius:12px;padding:14px 18px;text-decoration:none;transition:background .15s;}
+  .coffee:hover{background:#f1efe8;}
+  .coffee-title{display:block;font-size:14px;font-weight:600;color:#2c2c2a;}
+  .coffee-sub{display:block;font-size:12.5px;color:#888;margin-top:2px;}
+  .coffee-icon{margin-left:auto;color:#9a988f;font-size:15px;}
 </style></head><body>
 <div class="wrap">
   <h1>剪輯影片</h1>
@@ -326,6 +331,10 @@ const CUT_DOC_HTML = `<!DOCTYPE html>
     <div id="done"><button id="rerunBtn" onclick="rerunAI()" style="margin-right:8px;">🔄 重新 AI 分析</button><button class="btn-review" onclick="openReview()">前往審核 →</button></div>
     <div class="err" id="err"></div>
   </div>
+  <a class="coffee" href="https://portaly.cc/domyweb/support" target="_blank" rel="noopener">
+    <span><span class="coffee-title">請多米喝杯咖啡 ☕</span><span class="coffee-sub">這套剪輯工具是多米做的。喜歡的話，請我喝杯咖啡，是我繼續做下去的動力。</span></span>
+    <span class="coffee-icon" aria-hidden="true">↗</span>
+  </a>
 </div>
 <script>
 var baseName='';
