@@ -191,11 +191,42 @@ function autoContentPreselect(workDir, words, indices, reasons, pairs) {
       }
     }
 
+    // 4) VAD 幻覺守門（arkiv 式四層：VAD 語音區 → 字級覆蓋率 → 黑名單/重複過濾 → 信心閘門）
+    //    抓「音訊層根本沒人說話、轉錄卻出字」的 STT 幻覺。只讀 prepareArtifacts 背景產出的
+    //    vad_regions.json 快取，缺檔＝跳過。conf 閘門內建於 flagHallucinations（寧漏勿誤）。
+    const vg = cfg.vad_guard || {};
+    if (vg.enabled !== false) {
+      const vadPath = path.join(workDir, '2_分析', 'vad_regions.json');
+      if (fs.existsSync(vadPath)) {
+        try {
+          const { flagHallucinations } = require('./vad_hallucination.js');
+          let blacklist = [];
+          try { blacklist = JSON.parse(fs.readFileSync(path.join(SCRIPT_DIR, 'hallucination_blacklist.json'), 'utf8')).phrases || []; } catch (_) {}
+          const regions = (JSON.parse(fs.readFileSync(vadPath, 'utf8')).speech) || [];
+          const flags = flagHallucinations(words, regions, {
+            overlapMax: vg.overlap_max ?? 0.25,
+            edgePadSec: vg.edge_pad_sec ?? 0.12,
+            minConfidence: vg.min_confidence ?? 0.6,
+            blacklist,
+          });
+          let n = 0;
+          for (const f of flags) {
+            if (f.indices.every(i => sel.has(i))) continue; // 已被其他偵測器標過
+            f.indices.forEach(i => sel.add(i));
+            const key = `${f.startIdx}-${f.endIdx}`;
+            if (!reasons[key]) reasons[key] = `幻覺守門(VAD)：「${f.text.slice(0, 12)}」語音活動僅 ${Math.round(f.coverage * 100)}%${f.evidence ? '，' + f.evidence : ''}，疑似轉錄幻覺`;
+            n++; added += 1;
+          }
+          if (n) console.log(`👻 VAD 幻覺守門預選 ${n} 段`);
+        } catch (e) { console.warn('[VAD 幻覺守門] 失敗(略過):', (e.message || '').split('\n')[0]); }
+      }
+    }
+
     if (added) {
       const sorted = [...sel].sort((a, b) => a - b);
       indices.length = 0;
       sorted.forEach(i => indices.push(i));
-      console.log(`🏷️ 自動內容預選 ${added} 段（重錄/咳嗽；審核頁可取消，匯出端不再自動併入）`);
+      console.log(`🏷️ 自動內容預選 ${added} 段（重錄/咳嗽/幻覺；審核頁可取消，匯出端不再自動併入）`);
     }
     return added;
   } catch (e) {
@@ -412,6 +443,7 @@ function prepareArtifacts(workDir, subsPath, audioPath, analysisDir, cb) {
     sil: path.join(analysisDir, 'silences.json'),
     cough: path.join(analysisDir, 'cough_ml.json'),
     sem: path.join(analysisDir, 'semantic_pairs.json'),
+    vad: path.join(analysisDir, 'vad_regions.json'),
     ok: false,
   };
   try { fs.mkdirSync(analysisDir, { recursive: true }); } catch (_) {}
@@ -426,6 +458,12 @@ function prepareArtifacts(workDir, subsPath, audioPath, analysisDir, cb) {
     steps.push(['node', [path.join(SCRIPT_DIR, 'detect_silences.js'), audioPath, art.sil]]);
   if (coughEnabled && !fs.existsSync(art.cough))
     steps.push(['python', [path.join(SCRIPT_DIR, 'detect_coughs_ml.py'), audioPath, art.cough, '--thr', '0.2']]);
+  // VAD 語音活動偵測（反幻覺守門 L1，vad_guard.py / silero-vad onnx）：結果快取 vad_regions.json，
+  // autoContentPreselect 讀它跟轉錄字交叉比對抓「靜音區出字」的 STT 幻覺。CPU 數秒級，放背景鏈。
+  const vadCfg = cfg.vad_guard || {};
+  if (vadCfg.enabled !== false && !fs.existsSync(art.vad))
+    steps.push(['python', [path.join(SCRIPT_DIR, 'vad_guard.py'), audioPath, art.vad,
+      '--threshold', String(vadCfg.threshold ?? 0.5)]]);
   // 語意重複建議（嵌入向量，低信心層）：從 AI 保留句建 sentences.txt →
   // detect_redundancy.py（sentence-transformers，缺依賴自動退 3-gram）→ 快取 semantic_pairs.json。
   // 放這裡（背景）而非 autoContentPreselect（審核頁載入會同步觸發）——模型編碼可達數十秒。
@@ -961,6 +999,7 @@ const server = http.createServer((req, res) => {
           _mt(path.join(ctx.workDir, '1_轉錄', 'sentences.json')),
           _mt(path.join(ctx.workDir, '2_分析', 'cough_ml.json')),
           _mt(path.join(ctx.workDir, '2_分析', 'semantic_pairs.json')),
+          _mt(path.join(ctx.workDir, '2_分析', 'vad_regions.json')),
           _mt(subsPath));
         if (!autoM || autoM < upstream) writeAutoSelectedFromSentences(ctx.workDir);
       } catch (_) {}
@@ -1267,10 +1306,22 @@ const server = http.createServer((req, res) => {
                   ...(deleteIndicesFile ? ['--delete-indices', deleteIndicesFile] : [])]);
               }
             } catch (e) { jyOutTxt = null; }
+            // 非破壞性時間軸（EDL/FCPXML）：草稿路徑也順手產——同一份剪點，多兩個業界標準格式
+            // 收在輸出資料夾，之後要進 Resolve/Premiere 不用重跑。失敗不擋出片。
+            let jyEdl = null, jyFcp = null;
+            try {
+              if ((readTrainingConfig().timeline_export || {}).enabled !== false) {
+                const { exportTimeline } = require('./export_timeline.js');
+                const tl = exportTimeline(ctx.videoPath, cutDeleteFile, path.join(jyOutDir, jyName), { title: jyName });
+                jyEdl = tl.edl; jyFcp = tl.fcpxml;
+                console.log(`🎞️ [${videoName}] 非破壞性時間軸 → ${jyName}.edl / .fcpxml（${tl.segments} 段）`);
+              }
+            } catch (e) { console.warn(`[${videoName}] EDL/FCPXML 匯出失敗(略過):`, (e.message || '').split('\n')[0]); }
             exportState.result = {
               output: jr.draftPath, jianying: true, segments: jr.segments,
               originalDuration: vDur.toFixed(1), newDuration: (jr.durationSec || 0).toFixed(1),
               srt: jyOutSrt || jySrt || null, txt: jyOutTxt || null, outputDir: jyOutDir,
+              edl: jyEdl, fcpxml: jyFcp,
             };
             exportState.step = '完成'; exportState.progress = 100; exportState.running = false;
             console.log(`🎬 [${videoName}] 剪映草稿完成 → ${jr.draftPath}（${jr.segments} 段）；字幕/文稿 → ${jyOutDir}`);
@@ -1401,8 +1452,22 @@ const server = http.createServer((req, res) => {
               subtitles: path.join(ctx.workDir, '1_轉錄', 'subtitles_words.json'),
               silences: _art.sil,
             });
+            // 非破壞性時間軸（EDL CMX3600 + FCPXML 1.9）：引用原片＋剪點，Resolve/Premiere
+            // 匯入即重建時間軸、每刀可微調——mp4 剪壞某刀不用回審核頁重匯出。零重編碼、毫秒級，
+            // 一律順手產（timeline_export.enabled=false 可關）；失敗只記 log 不擋出片。
+            let edlFile = null, fcpxmlFile = null;
+            if (!exportOptions.audioOnly) {
+              try {
+                if ((readTrainingConfig().timeline_export || {}).enabled !== false) {
+                  const { exportTimeline } = require('./export_timeline.js');
+                  const tl = exportTimeline(ctx.videoPath, cutDeleteFile, path.join(outDir, exportName), { title: exportName });
+                  edlFile = tl.edl; fcpxmlFile = tl.fcpxml;
+                  console.log(`🎞️ [${videoName}] 非破壞性時間軸 → ${exportName}.edl / .fcpxml（${tl.segments} 段，引用原片）`);
+                }
+              } catch (e) { console.warn(`[${videoName}] EDL/FCPXML 匯出失敗(略過):`, (e.message || '').split('\n')[0]); }
+            }
             exportState.result = {
-              output: outputFile, srt: srtFile, txt: txtFile,
+              output: outputFile, srt: srtFile, txt: txtFile, edl: edlFile, fcpxml: fcpxmlFile,
               originalDuration: originalDuration.toFixed(2), newDuration: newDuration.toFixed(2),
               deletedDuration: deletedDuration.toFixed(2),
               savedPercent: ((deletedDuration / originalDuration) * 100).toFixed(1),

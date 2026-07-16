@@ -50,7 +50,9 @@
 
 2. 分析
    ai_polish.js → phrase_prefilter.js → ai_cut_pairs.js → convert_ai_to_indices
-   ＋機械偵測層：detect_retakes（exact/fuzzy 重錄）、detect_coughs_ml、detect_redundancy（語意重複）
+   ＋機械偵測層：detect_retakes（exact/fuzzy 重錄）、detect_coughs_ml、detect_redundancy（語意重複）、
+   vad_guard.py＋vad_hallucination.js（VAD 反幻覺守門：抓「音訊層沒人說話、STT 卻出字」，
+   四層＝VAD 語音區→字級覆蓋率→黑名單/重複過濾→信心閘門，借鑑 arkiv；2026-07-16）
    （auto_select_rules.js 已標 legacy，僅訓練層用；見 規則引擎盤點_2026-07.md）
    輸入: subtitles_words.json + training_config.json + 用户习惯/
    輸出: auto_selected.json（含 reasons；所有內容決策進審核頁預選＝WYSIWYG）
@@ -64,7 +66,10 @@
 
 4. 匯出
    /api/cut/<name> → gap 橋接（bridge_gap_deletes）→ refine_segments（壓平/吸附/刀口原子化）→ cut_video.sh
-   輸出: <成品名>/ 子資料夾（mp4 + srt + txt + timeline_map.json）
+   輸出: <成品名>/ 子資料夾（mp4 + srt + txt + timeline_map.json + edl + fcpxml）
+   非破壞性時間軸（export_timeline.js，2026-07-16）：mp4 與剪映草稿兩條路徑都順手多產
+   <成品名>.edl（CMX3600）＋ .fcpxml（1.9），引用原片＋剪點，Resolve/Premiere 匯入可微調每刀；
+   失敗只記 log 不擋出片，timeline_export.enabled=false 可關
    ⭐ 三邊逐字一致：審核頁匯出帶 deletedIndices（字級選集），影片(refine Step C)、SRT、TXT 都以它為準——
    不再各自用「發音區 >50% 時間重疊」反推（重錄密集處會翻掉短邊界字：多「長」掉「病」）。
    SRT 斷句：預設讓 Claude 依意群斷行（subtitle_segment_llm.js，只斷不改字、去換行後逐字比對原稿，
@@ -88,6 +93,9 @@
 | `detect_retakes.js` | 重錄偵測（exact + fuzzy，含 whisper 幻覺守門） |
 | `detect_coughs_ml.py` | 咳嗽/清喉 ML 分類（AST audioset） |
 | `detect_redundancy.py` | 語意重複偵測（sentence-transformers / 3-gram fallback） |
+| `vad_guard.py` | VAD 語音活動偵測（silero-vad onnx，CPU 數秒）→ 2_分析/vad_regions.json，反幻覺守門 L1 |
+| `vad_hallucination.js` | 反幻覺守門 L2~L4 純函式：轉錄字 vs VAD 語音區交叉比對，信心閘門後進審核頁預選 |
+| `export_timeline.js` | 非破壞性時間軸匯出：刪除段補集 → EDL（CMX3600）＋ FCPXML（1.9），兩條匯出路徑都順手產 |
 | `refine_segments.js` | 苦工層：停頓壓平/切點吸附/刀口原子化 |
 | `bridge_gap_deletes.js` | 手動刪除梳齒橋接（audit #4） |
 | `merge_delete_segments.js` | MERGE_GAP 合併唯一實作（ffmpeg/SRT/TXT/verify 四方共用） |

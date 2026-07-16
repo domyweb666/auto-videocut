@@ -129,6 +129,18 @@
     "model": "sonnet",
     "_note": "字幕斷行讓 Claude 依意群斷（subtitle_segment_llm.js）。機械斷句只斷標點＋避虛詞，抓不到「感受到｜自己」這種語意邊界；LLM 只斷行不改字（逐字驗證＝原稿才採用，不符自動退回機械斷句）。每次匯出多一次 AI 呼叫（SRT 用；TXT 文稿不走）。關掉＝enabled:false 就回純機械斷句。太長(>8000字)或有超長行自動退回。"
   },
+  "vad_guard": {
+    "enabled": true,
+    "threshold": 0.5,
+    "overlap_max": 0.25,
+    "edge_pad_sec": 0.12,
+    "min_confidence": 0.6,
+    "_note": "VAD 反幻覺守門（借鑑 arkiv 四層架構）：vad_guard.py（silero-vad onnx，CPU 數秒）掃 audio.mp3 → 2_分析/vad_regions.json；autoContentPreselect 用 vad_hallucination.js 交叉比對轉錄字，抓「音訊層沒人說話、STT 卻出字」的幻覺（黑名單片語只能抓已知句，VAD 能抓未知的）。overlap_max=字被語音區覆蓋低於此比例才算候選；edge_pad_sec=語音區外擴容忍（VAD 切點有 ±數十 ms 誤差，別咬到邊界正常字）；min_confidence=信心閘門，過門檻才進審核頁預選（理由標「幻覺守門(VAD)」，可取消，絕不自動刪）。threshold=silero 語音機率門檻，嘈雜環境可降到 0.4。關掉＝enabled:false。乾淨錄音實測 0 誤報（092814 fixture）。"
+  },
+  "timeline_export": {
+    "enabled": true,
+    "_note": "非破壞性時間軸匯出（借鑑 arkiv）：每次匯出（mp4 或剪映草稿）順手在成品資料夾多產 <成品名>.edl（CMX3600）＋ <成品名>.fcpxml（1.9），引用原片＋剪點、零重編碼。丟進 DaVinci Resolve / Premiere 可直接重建時間軸，剪點全部可微調——mp4 剪壞某刀不用回審核頁重匯出。失敗只記 log 不擋出片。關掉＝enabled:false。"
+  },
   "seam_coldread": {
     "enabled": true,
     "model": "sonnet",
