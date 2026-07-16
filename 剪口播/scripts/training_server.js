@@ -331,8 +331,12 @@ const CUT_DOC_HTML = `<!DOCTYPE html>
     <div id="done"><button id="rerunBtn" onclick="rerunAI()" style="margin-right:8px;">🔄 重新 AI 分析</button><button class="btn-review" onclick="openReview()">前往審核 →</button></div>
     <div class="err" id="err"></div>
   </div>
+  <a class="coffee" href="https://domyweb.org/" target="_blank" rel="noopener">
+    <span><span class="coffee-title">聯絡作者多米</span><span class="coffee-sub">這套剪輯工具是多米做的。有問題或想回報，來這裡找我。</span></span>
+    <span class="coffee-icon" aria-hidden="true">↗</span>
+  </a>
   <a class="coffee" href="https://portaly.cc/domyweb/support" target="_blank" rel="noopener">
-    <span><span class="coffee-title">請多米喝杯咖啡 ☕</span><span class="coffee-sub">這套剪輯工具是多米做的。喜歡的話，請我喝杯咖啡，是我繼續做下去的動力。</span></span>
+    <span><span class="coffee-title">請多米喝杯咖啡 ☕</span><span class="coffee-sub">這套工具免費開發。喜歡的話，請我喝杯咖啡，是我繼續做下去的動力。</span></span>
     <span class="coffee-icon" aria-hidden="true">↗</span>
   </a>
 </div>
