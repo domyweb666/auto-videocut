@@ -7,7 +7,10 @@ const path = require('path');
 
 const PORT = 8900;
 const URL = `http://127.0.0.1:${PORT}/`;
-const SCRIPTS_DIR = path.join(__dirname, '..', '剪口播', 'scripts');
+// 打包後 pipeline 在 resources/pipeline（唯讀）；開發模式直接用 repo 裡的 剪口播/
+const SCRIPTS_DIR = app.isPackaged
+  ? path.join(process.resourcesPath, 'pipeline', 'scripts')
+  : path.join(__dirname, '..', '剪口播', 'scripts');
 const SERVER_JS = path.join(SCRIPTS_DIR, 'training_server.js');
 
 let serverProc = null; // 只有自己 spawn 的才需要收拾
@@ -19,10 +22,19 @@ function ping(cb) {
 }
 
 function startServer() {
+  // 打包後 resources 唯讀：工作目錄與 .env 都改到 userData（開發模式維持 scripts/ 原地）
+  const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1' };
+  let cwd = SCRIPTS_DIR;
+  if (app.isPackaged) {
+    const dataDir = app.getPath('userData');
+    try { require('fs').mkdirSync(path.join(dataDir, 'cut_work'), { recursive: true }); } catch (_) {}
+    env.VIDEOCUT_ENV_FILE = path.join(dataDir, '.env');
+    cwd = dataDir;
+  }
   // ELECTRON_RUN_AS_NODE：用 Electron 自帶的 Node 跑 server，打包後不依賴系統 node
   serverProc = spawn(process.execPath, [SERVER_JS, String(PORT)], {
-    cwd: SCRIPTS_DIR,
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+    cwd,
+    env,
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });

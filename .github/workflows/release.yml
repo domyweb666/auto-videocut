@@ -1,0 +1,118 @@
+# 發版流程：推 v* tag → mac 出簽好+公證的 dmg（掛 GitHub Release 草稿）、
+# Windows 出 MSIX/appx artifact（手動上傳 Partner Center 交審，Store 收件後才簽）。
+# 簽章手冊：C:\Users\fcharlie\Downloads\code-signing-playbook.md（多米實際值都在裡面）
+#
+# 需要的 repo secrets（mac 簽章＋公證，共 5 個）：
+#   CSC_LINK                    ← apple-cert-base64.txt 內容（p12 base64）
+#   CSC_KEY_PASSWORD            ← p12-password.txt 內容
+#   APPLE_ID                    ← Apple ID email
+#   APPLE_APP_SPECIFIC_PASSWORD ← App 專用密碼 xxxx-xxxx-xxxx-xxxx
+#   APPLE_TEAM_ID               ← 3ZT74P4WM2
+# secrets 沒填時 electron-builder 會跳過簽章（unsigned dmg 照出），可先跑通再補值。
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pipeline deps
+        working-directory: 剪口播/scripts
+        run: npm install
+
+      - name: Install app deps
+        working-directory: app
+        run: npm install
+
+      - name: Build dmg (signed + notarized)
+        working-directory: app
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npx electron-builder --mac --publish never
+
+      # 保險絲（抄簽章手冊）：公證完實際把 app 裡的 server 用殼帶的 Node 跑起來打 health check，
+      # hardened runtime 弄壞執行檔會在 CI 就紅，不會等使用者裝了 dmg 才爆
+      - name: Verify packaged server boots
+        run: |
+          APP=$(find app/dist -name "*.app" -maxdepth 3 | head -1)
+          echo "app bundle: $APP"
+          ELECTRON_RUN_AS_NODE=1 "$APP/Contents/MacOS/多米自動剪輯" \
+            "$APP/Contents/Resources/pipeline/scripts/training_server.js" 8900 &
+          SERVER_PID=$!
+          for i in $(seq 1 20); do
+            sleep 1
+            if curl -sf http://127.0.0.1:8900/ > /dev/null; then echo "✅ server OK"; kill $SERVER_PID; exit 0; fi
+          done
+          echo "❌ packaged server failed to boot"; kill $SERVER_PID || true; exit 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-dmg
+          path: app/dist/*.dmg
+
+      - name: Attach to release draft
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: app/dist/*.dmg
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pipeline deps
+        working-directory: 剪口播/scripts
+        run: npm install
+
+      - name: Install app deps
+        working-directory: app
+        run: npm install
+
+      # appx 本機/CI 裝不起來是正常的：Store 收件後才簽（見簽章手冊 Part 2）
+      - name: Build appx (MSIX for Store)
+        working-directory: app
+        run: npx electron-builder --win --publish never
+
+      - name: Verify packaged server boots
+        shell: pwsh
+        run: |
+          $exeDir = Get-ChildItem app/dist -Directory -Filter "*unpacked*" -Recurse | Select-Object -First 1
+          if (-not $exeDir) { npx --prefix app electron-builder --dir; $exeDir = Get-ChildItem app/dist -Directory -Filter "*unpacked*" -Recurse | Select-Object -First 1 }
+          $exe = Get-ChildItem $exeDir.FullName -Filter "*.exe" | Select-Object -First 1
+          $env:ELECTRON_RUN_AS_NODE = "1"
+          $server = Join-Path $exeDir.FullName "resources/pipeline/scripts/training_server.js"
+          $p = Start-Process -FilePath $exe.FullName -ArgumentList "`"$server`" 8900" -PassThru -NoNewWindow
+          $ok = $false
+          foreach ($i in 1..20) {
+            Start-Sleep 1
+            try { Invoke-WebRequest -Uri http://127.0.0.1:8900/ -TimeoutSec 2 -UseBasicParsing | Out-Null; $ok = $true; break } catch {}
+          }
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+          if (-not $ok) { Write-Error "packaged server failed to boot"; exit 1 }
+          Write-Host "✅ server OK"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-appx
+          path: app/dist/*.appx

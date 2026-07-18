@@ -32,7 +32,8 @@ RESOURCE_ID = "volc.seedasr.auc"
 
 
 def load_env():
-    envf = os.path.join(HERE, ".env")
+    # 桌面 app 打包後 scripts/ 唯讀，Electron 殼用 VIDEOCUT_ENV_FILE 指到使用者資料夾
+    envf = os.environ.get("VIDEOCUT_ENV_FILE") or os.path.join(HERE, ".env")
     if os.path.exists(envf):
         for line in open(envf, encoding="utf-8"):
             line = line.strip()

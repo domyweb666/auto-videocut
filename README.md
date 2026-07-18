@@ -55,6 +55,14 @@ cd 剪口播/scripts
 node training_server.js
 ```
 
+或用桌面版（Windows / macOS，內建同一個看板，不用開終端機）：從 [Releases](https://github.com/domyweb666/auto-videocut/releases) 下載，或自己打包：
+
+```bash
+cd app && npm install && npm run pack   # dist/ 下會出現免安裝版
+```
+
+桌面版一樣需要本機有 ffmpeg 和 Python（見前置需求），AI 與金鑰在看板的「⚙️ AI 與金鑰設定」裡填。
+
 打開 http://localhost:8900，把影片拖進去，等 pipeline 跑完按「前往審核」。審核頁上刪除線是 AI 建議刪的，點字可以改主意，確認後按匯出，成品會出現在影片旁的子資料夾：
 
 ```

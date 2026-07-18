@@ -7,3 +7,6 @@
 **/training_manifest.json
 **/training_output/
 **/feedback_history.jsonl
+
+# Electron 打包輸出
+app/dist/

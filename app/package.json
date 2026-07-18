@@ -4,11 +4,83 @@
   "version": "0.1.0",
   "private": true,
   "description": "口播影片自動剪輯（Electron 桌面版，內嵌 8900 訓練看板）",
+  "author": "多米 domyweb <charlie@domyweb.org>",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "org.domyweb.autovideocut",
+    "productName": "多米自動剪輯",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../剪口播",
+        "to": "pipeline",
+        "filter": [
+          "**/*",
+          "!cut_work/**",
+          "!backups/**",
+          "!training_output/**",
+          "!scripts/cut_work/**",
+          "!scripts/_t/**",
+          "!scripts/legacy/**",
+          "!scripts/.env",
+          "!scripts/scorecard.jsonl",
+          "!feedback_history.jsonl",
+          "!HANDOFF.md",
+          "!**/*.log"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "appx"
+      ],
+      "artifactName": "${name}-${version}.${ext}"
+    },
+    "appx": {
+      "identityName": "PLACEHOLDER.PartnerCenter.IdentityName",
+      "publisher": "CN=89459E23-7FEA-4265-A466-356E509731EC",
+      "publisherDisplayName": "多米domyweb",
+      "applicationId": "AutoVideocut",
+      "displayName": "多米自動剪輯",
+      "languages": [
+        "zh-TW"
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.video",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "notarize": {
+        "teamId": "3ZT74P4WM2"
+      }
+    },
+    "dmg": {
+      "artifactName": "${name}-${version}-${arch}.${ext}"
+    }
   }
 }

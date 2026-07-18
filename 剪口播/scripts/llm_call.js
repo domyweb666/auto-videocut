@@ -28,7 +28,9 @@ const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const ENV_PATH = path.join(__dirname, '.env');
+// 打包成桌面 app 後 scripts/ 在唯讀 resources 裡，Electron 殼會用 VIDEOCUT_ENV_FILE
+// 指到使用者資料夾（userData/.env）；開發模式維持 scripts/.env
+const ENV_PATH = process.env.VIDEOCUT_ENV_FILE || path.join(__dirname, '.env');
 const isWindows = process.platform === 'win32';
 const claudeCmd = isWindows ? 'claude.cmd' : 'claude';
 const codexCmd = isWindows ? 'codex.cmd' : 'codex';
