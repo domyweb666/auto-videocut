@@ -1,0 +1,14 @@
+{
+  "name": "domi-auto-videocut",
+  "productName": "多米自動剪輯",
+  "version": "0.1.0",
+  "private": true,
+  "description": "口播影片自動剪輯（Electron 桌面版，內嵌 8900 訓練看板）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}
