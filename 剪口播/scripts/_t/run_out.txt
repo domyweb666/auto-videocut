@@ -1,4 +1,0 @@
-抽取 RMS 時間序列: C:\Users\fcharlie\.claude\skills\videocut-skills\剪口播\scripts\_t\audio.mp3
-  22127 格 x 0.05s = 1106.3s
-OK 已儲存 C:\Users\fcharlie\.claude\skills\videocut-skills\剪口播\scripts\_t\out.json (2246 字特徵)
-全片有聲音量 -29.9+-13.6 dB

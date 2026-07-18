@@ -28,3 +28,7 @@ scripts/_t_merge/
 scripts/scorecard.jsonl
 scripts/cut_work/_uploads/
 cut_work/_uploads/
+
+# 測試暫存 fixture 與個人回饋日誌（本機保留，不進 git）
+scripts/_t/
+用户习惯/回饋紀錄.md

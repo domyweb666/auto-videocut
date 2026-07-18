@@ -154,8 +154,7 @@ function findAutoSelectedFiles(roots) {
     }
   };
   for (const r of roots) walk(r, 0);
-  // 依 realpath 去重：預設根目錄可能一個走 C:\ junction、一個走 E:\ 實體路徑指到同一棵樹
-  // （C:\Users\...\.claude\skills 是指向 E:\陳多米助理\Agent\skills 的 junction），
+  // 依 realpath 去重：預設根目錄可能經由目錄 junction 與實體路徑指到同一棵樹，
   // 不解實體路徑會把同一份 auto_selected.json 算兩次。
   const seen = new Set(), uniq = [];
   for (const f of found) {
