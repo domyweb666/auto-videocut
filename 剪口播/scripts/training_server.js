@@ -786,7 +786,7 @@ function startCutProcess(videoPath, referenceText) {
             throw new Error('沒有 BytePlus key 也沒裝 Whisper。二選一：到「⚙️ AI 與金鑰設定」填 BytePlus 轉錄 key，或 pip install openai-whisper');
           }
           cutState.log.push('🎙️ 沒有 BytePlus key，改用本機 Whisper 轉錄（CPU 較慢，第一次會下載約 3GB 模型）...');
-          await runCmd('bash', [path.join(SCRIPT_DIR, 'whisper_transcribe.sh'), 'audio.mp3'], {
+          await runCmd(resolveBashBin(), [path.join(SCRIPT_DIR, 'whisper_transcribe.sh').replace(/\\/g, '/'), 'audio.mp3'], {
             cwd: transcribeDir,
             env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
             timeout: 7200000
@@ -1533,20 +1533,20 @@ const server = http.createServer((req, res) => {
         };
         console.log(`🎬 [${videoName}] 匯出 → ${outDir}`, { container, audioOnly: env.CUT_AUDIO_ONLY === '1', lossless: env.CUT_LOSSLESS === '1' });
 
-        const scriptPath = path.join(SCRIPT_DIR, 'cut_video.sh');
-        // Windows 用 Git Bash 全路徑，避免 PATH 上的 bash 解析成 WSL bash（吃不了 C:/ 路徑會直接失敗）
-        const bashBin = resolveBashBin();
+        // Node 版 cut_video.js（2026-07-19 取代 .sh：桌面 app 不能假設使用者有 Git Bash）
+        // process.execPath：在純 Node 下是 node，在 Electron 殼下是 electron（env 已帶 ELECTRON_RUN_AS_NODE）
+        const scriptPath = path.join(SCRIPT_DIR, 'cut_video.js');
 
         // ── 非同步落刀：串流 stdout 解析 PROGRESS=N/TOTAL → exportState.progress，前端輪詢 /api/export-status ──
         exportState = { running: true, progress: 2, step: '準備', videoName, result: null, error: null };
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
 
-        const child = spawn(bashBin, [
-          scriptPath.replace(/\\/g, '/'),
-          ctx.videoPath.replace(/\\/g, '/'),
-          cutDeleteFile.replace(/\\/g, '/'),   // refined（含停頓壓平）或降級回原始切點
-          shellOutputFile.replace(/\\/g, '/'),
+        const child = spawn(process.execPath, [
+          scriptPath,
+          ctx.videoPath,
+          cutDeleteFile,   // refined（含停頓壓平）或降級回原始切點
+          shellOutputFile,
         ], { cwd: outDir, env });
         exportState.step = '剪輯中';
         let cutErr = '';
@@ -1581,7 +1581,7 @@ const server = http.createServer((req, res) => {
             }
           }
         });
-        child.on('error', e => { exportState.error = 'cut_video.sh 啟動失敗：' + e.message; exportState.running = false; exportState.progress = 100; });
+        child.on('error', e => { exportState.error = 'cut_video.js 啟動失敗：' + e.message; exportState.running = false; exportState.progress = 100; });
         child.on('close', async code => {
           try {
             if (code !== 0) { exportState.error = (cutErr.slice(-300) || ('exit ' + code)); exportState.running = false; exportState.progress = 100; return; }

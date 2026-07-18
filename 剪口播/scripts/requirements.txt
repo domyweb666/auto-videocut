@@ -1,0 +1,18 @@
+# 剪口播 Python 依賴
+#
+# 分兩層：核心（沒有就跑不動）與進階偵測（沒裝會自動降級/略過，pipeline 照走）。
+# 進階層體積大（torch 數 GB），建議先用核心層跑通，再依需要加裝。
+
+# ── 核心 ──
+requests            # byteplus_transcribe.py（BytePlus 雲端轉錄）
+
+# ── 本機轉錄備援（沒填 BytePlus key 時使用）──
+# openai-whisper    # whisper_transcribe.sh；含 torch，體積大
+
+# ── 進階偵測（選裝；缺了自動降級）──
+# torch             # 咳嗽偵測 + VAD 共用
+# librosa           # detect_coughs_ml.py（咳嗽/清喉 ML 分類）
+# transformers      # detect_coughs_ml.py（AST audioset 模型）
+# silero-vad        # vad_guard.py（反幻覺守門；缺了此層守門直接略過）
+# sentence-transformers  # detect_redundancy.py（語意重複；缺了自動退 3-gram 比對）
+# numpy             # 上述偵測腳本共用

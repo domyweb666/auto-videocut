@@ -26,7 +26,7 @@
 | ffmpeg | 需在 PATH 裡，剪輯與音訊處理都靠它 |
 | AI 後端（三選一） | ① Claude 訂閱：`npm install -g @anthropic-ai/claude-code`，跑一次 `claude` 登入（預設）② ChatGPT 訂閱：`npm install -g @openai/codex`，跑 `codex login` ③ 自填 API：不用裝 CLI，開看板在「⚙️ AI 與金鑰設定」填端點與 key（anthropic / openai 協定都通） |
 | Python 3.10+ | 轉錄與偵測腳本 |
-| Bash | Windows 裝 Git Bash 即可（剪輯腳本是 bash） |
+| Bash（選用） | 只有「本機 Whisper 轉錄備援」用到；Windows 裝 Git Bash 即可。剪輯匯出已是純 Node，不需要 bash |
 
 ## 安裝
 
@@ -34,7 +34,7 @@
 git clone https://github.com/domyweb666/auto-videocut.git
 cd auto-videocut/剪口播/scripts
 npm install
-pip install requests numpy
+pip install -r requirements.txt
 ```
 
 進階偵測（咳嗽 ML 分類、語意重複、VAD 反幻覺）需要另外裝，不裝也能剪，對應功能會退回簡單版或跳過：
@@ -46,7 +46,7 @@ pip install torch transformers librosa sentence-transformers onnxruntime
 ## 語音轉錄，二選一
 
 - **BytePlus（預設）**：在 `剪口播/scripts/.env` 填 `BYTEPLUS_API_KEY=你的key`。
-- **本機 Whisper（免 key）**：裝好 [whisper](https://github.com/openai/whisper) 後用 `剪口播/scripts/whisper_transcribe.sh`，全程離線。
+- **本機 Whisper（免 key）**：`pip install openai-whisper` 裝好即可——看板偵測到沒填 BytePlus key 會自動改走 Whisper，全程離線（CPU 慢很多，第一次會下載約 3GB 模型）。
 
 ## 啟動
 
