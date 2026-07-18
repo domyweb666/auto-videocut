@@ -385,7 +385,7 @@ function loadLlm(){
     document.getElementById('llmBase').value=s.apiBaseUrl||'';
     document.getElementById('llmKey').placeholder=s.apiKeySet?'（已設定，留空不變）':'尚未設定';
     document.getElementById('bpKey').placeholder=s.byteplusKeySet?'（已設定，留空不變）':'尚未設定';
-    document.getElementById('bpState').textContent=s.byteplusKeySet?'':'← 轉錄需要，沒填會跑不動';
+    document.getElementById('bpState').textContent=s.byteplusKeySet?'':'← 沒填會改用本機 Whisper 轉錄（免金鑰但慢很多）';
     llmModeUI();
   }).catch(function(){});
 }
@@ -770,13 +770,35 @@ function startCutProcess(videoPath, referenceText) {
       // DDC(語義順滑)只刪口水詞、不刪重複句，實測 5 分鐘僅刪 1 個「嗯」，開了反而讓贅字失去時間碼、剪不掉。
       cutState.step = '語音轉錄';
       cutState.progress = 12;
-      cutState.log.push('🎙️ BytePlus Seed Speech 轉錄（逐字，DDC off）...');
       if (!fs.existsSync(cutState.subtitlesPath)) {
-        await runCmd('python', [path.join(SCRIPT_DIR, 'byteplus_transcribe.py'), 'audio.mp3', cutState.subtitlesPath, '--ddc', 'off'], {
-          cwd: transcribeDir,
-          env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
-          timeout: 900000
-        });
+        // 引擎選擇：有 BytePlus key 走雲端（快、品質穩）；沒 key 退本機 Whisper（免金鑰但慢）
+        if (llmGateway.loadSettings().byteplusKey) {
+          cutState.log.push('🎙️ BytePlus Seed Speech 轉錄（逐字，DDC off）...');
+          await runCmd('python', [path.join(SCRIPT_DIR, 'byteplus_transcribe.py'), 'audio.mp3', cutState.subtitlesPath, '--ddc', 'off'], {
+            cwd: transcribeDir,
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+            timeout: 900000
+          });
+        } else {
+          try {
+            execFileSync(process.platform === 'win32' ? 'where' : 'which', ['whisper'], { stdio: 'ignore' });
+          } catch (_) {
+            throw new Error('沒有 BytePlus key 也沒裝 Whisper。二選一：到「⚙️ AI 與金鑰設定」填 BytePlus 轉錄 key，或 pip install openai-whisper');
+          }
+          cutState.log.push('🎙️ 沒有 BytePlus key，改用本機 Whisper 轉錄（CPU 較慢，第一次會下載約 3GB 模型）...');
+          await runCmd('bash', [path.join(SCRIPT_DIR, 'whisper_transcribe.sh'), 'audio.mp3'], {
+            cwd: transcribeDir,
+            env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+            timeout: 7200000
+          });
+          await runCmd('node', [path.join(SCRIPT_DIR, 'generate_subtitles.js'), 'whisper_result.json'], {
+            cwd: transcribeDir,
+            env: { ...process.env },
+            timeout: 120000
+          });
+          const gen = path.join(transcribeDir, 'subtitles_words.json');
+          if (path.resolve(gen) !== path.resolve(cutState.subtitlesPath)) fs.renameSync(gen, cutState.subtitlesPath);
+        }
       }
 
       // Step 3.1: 套用常犯辨識錯字修正表（回饋迴路，不用講稿也生效）
