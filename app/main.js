@@ -76,6 +76,7 @@ function createWindow() {
     height: 900,
     autoHideMenuBar: true,
     title: '多米自動剪輯',
+    icon: path.join(__dirname, 'build', 'icon.png'), // Windows/Linux 視窗與工作列圖示（mac 忽略，用 icns）
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
   win.webContents.on('did-finish-load', () => console.log('[app] window loaded:', URL));
