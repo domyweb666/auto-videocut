@@ -14,6 +14,7 @@ const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 
 // ── 解析參數 ──
 let MODEL        = '';
@@ -186,7 +187,7 @@ function formatPair(pair) {
 // ── 呼叫 Claude ──
 function callClaude(prompt) {
   const modelFlag = MODEL ? ` --model ${MODEL}` : '';
-  const result = execSync(claudeCmd + ' -p -' + modelFlag, {
+  const result = llmExec(modelFlag, {
     input: prompt,
     encoding: 'utf8',
     timeout: 300000,

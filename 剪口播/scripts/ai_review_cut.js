@@ -22,6 +22,7 @@
 const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 const { buildSentences, buildTranscript, parseAiJson, fmtTime } = require('./lib/narrative_evidence');
 
 // ── 解析參數 ──
@@ -86,7 +87,7 @@ const startTime = Date.now();
 let rawOut;
 try {
   const modelFlag = MODEL ? ` --model ${MODEL}` : '';
-  rawOut = execSync(claudeCmd + ' -p -' + modelFlag, {
+  rawOut = llmExec(modelFlag, {
     input: prompt,
     encoding: 'utf8',
     timeout: 600000,

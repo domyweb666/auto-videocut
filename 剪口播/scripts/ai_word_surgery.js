@@ -19,6 +19,7 @@
 const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 
 // ── 解析參數 ──
 let MODEL = '';
@@ -204,7 +205,7 @@ for (let b = 0; b < batches.length; b++) {
   let raw;
   try {
     const modelFlag = MODEL ? ' --model ' + MODEL : '';
-    raw = execSync(claudeCmd + ' -p -' + modelFlag, {
+    raw = llmExec(modelFlag, {
       input:     prompt,
       encoding:  'utf8',
       timeout:   180000,

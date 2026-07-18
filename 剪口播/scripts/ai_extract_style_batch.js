@@ -13,6 +13,7 @@
 const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 
 const SCRIPT_DIR   = __dirname;
 const TRAINING_DIR = path.join(SCRIPT_DIR, 'training_output');
@@ -95,7 +96,7 @@ function runBatch(batchVideos, batchIdx, totalBatches) {
   const start = Date.now();
   let output;
   try {
-    output = execSync(claudeCmd + ' -p -', {
+    output = llmExec('', {
       input:     prompt,
       encoding:  'utf8',
       timeout:   600000,
@@ -192,7 +193,7 @@ console.error(`📤 合併 prompt ${fullMerge.length} 字...`);
 const mergeStart = Date.now();
 let masterGuide;
 try {
-  masterGuide = execSync(claudeCmd + ' -p -', {
+  masterGuide = llmExec('', {
     input:     fullMerge,
     encoding:  'utf8',
     timeout:   900000,

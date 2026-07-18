@@ -14,6 +14,7 @@
 const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 
 const SCRIPT_DIR   = __dirname;
 const ROOT_DIR     = path.join(SCRIPT_DIR, '..');
@@ -255,7 +256,7 @@ try {
   const isWindows = process.platform === 'win32';
   const claudeCmd = isWindows ? 'claude.cmd' : 'claude';
 
-  result = execSync(claudeCmd + ' -p -', {
+  result = llmExec('', {
     input: prompt,
     encoding: 'utf8',
     timeout: 300000, // 5 分鐘

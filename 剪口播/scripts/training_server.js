@@ -19,6 +19,7 @@ const { execFile, execFileSync, spawn } = require('child_process');
 const { parseAutoSelected } = require('./parse_auto_selected'); // 從退役 generate_review.js 抽出（audit #12）
 const buildReviewDoc = require('./generate_review_doc'); // 純白文稿版審核頁（取代深色版，舊版保留備援）
 const convertAiToIndices = require('./convert_ai_to_indices'); // 句級 sentences.json → 字級 {indices,reasons}
+const llmGateway = require('./llm_call'); // AI 呼叫三模式閘道（設定頁讀寫 scripts/.env）
 
 // 叫出 Windows 原生選檔/選資料夾對話框，強制拉到瀏覽器前面（詳見 pick_file.ps1）。
 // 為什麼獨立成 pick_file.ps1 + 用 -Command 的 & 呼叫：node 是背景進程，開的對話框會被
@@ -331,6 +332,35 @@ const CUT_DOC_HTML = `<!DOCTYPE html>
     <div id="done"><button id="rerunBtn" onclick="rerunAI()" style="margin-right:8px;">🔄 重新 AI 分析</button><button class="btn-review" onclick="openReview()">前往審核 →</button></div>
     <div class="err" id="err"></div>
   </div>
+  <details id="llmPanel" style="margin:0 0 14px;border:1px solid #d8d5cf;border-radius:8px;padding:10px 14px;background:#fbfaf8;">
+    <summary style="cursor:pointer;font-size:13.5px;color:#3a3935;font-weight:600;">⚙️ AI 與金鑰設定</summary>
+    <div style="margin-top:10px;font-size:13px;">
+      <div style="margin-bottom:8px;">
+        <label style="display:block;margin-bottom:4px;">AI 呼叫方式</label>
+        <label style="margin-right:12px;"><input type="radio" name="llmMode" value="claude_code" onchange="llmModeUI()"> Claude 訂閱（claude CLI，免 API key）</label>
+        <label style="margin-right:12px;"><input type="radio" name="llmMode" value="codex_cli" onchange="llmModeUI()"> ChatGPT 訂閱（codex CLI）</label>
+        <label><input type="radio" name="llmMode" value="api" onchange="llmModeUI()"> 自填 API</label>
+      </div>
+      <div id="llmApiFields" style="display:none;padding:8px;border-left:3px solid #d8d5cf;margin-bottom:8px;">
+        <label>協定
+          <select id="llmProto" style="margin:0 10px 6px 4px;">
+            <option value="anthropic">anthropic（官方/相容）</option>
+            <option value="openai">openai（DeepSeek/Groq/Ollama…）</option>
+          </select>
+        </label>
+        <label>模型 <input id="llmModel" type="text" placeholder="claude-sonnet-5 / deepseek-chat" style="width:220px;margin:0 0 6px 4px;"></label><br>
+        <label>Base URL <input id="llmBase" type="text" placeholder="anthropic 留空=官方；openai 例 https://api.deepseek.com/v1" style="width:340px;margin:0 0 6px 4px;"></label><br>
+        <label>API Key <input id="llmKey" type="password" style="width:260px;margin:0 0 2px 4px;"></label>
+        <div style="font-size:11.5px;color:#8a887f;">金鑰存本機 scripts/.env（明文），只在本機使用、不會上傳。留空＝保留已存的值。</div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label>BytePlus 轉錄 Key <input id="bpKey" type="password" style="width:260px;margin:0 4px 0 4px;"><span id="bpState" style="font-size:11.5px;color:#8a887f;"></span></label>
+      </div>
+      <button onclick="saveLlm()" style="margin-right:8px;">儲存設定</button>
+      <button onclick="testLlm()">測試 AI 連線</button>
+      <span id="llmStatus" style="margin-left:10px;font-size:12.5px;"></span>
+    </div>
+  </details>
   <a class="coffee" href="https://domyweb.org/tools/auto-edit/" target="_blank" rel="noopener">
     <span><span class="coffee-title">聯絡作者多米</span><span class="coffee-sub">這套剪輯工具是多米做的。有問題或想回報，來這裡找我。</span></span>
     <span class="coffee-icon" aria-hidden="true">↗</span>
@@ -342,6 +372,48 @@ const CUT_DOC_HTML = `<!DOCTYPE html>
 </div>
 <script>
 var baseName='';
+function llmModeUI(){
+  var m=document.querySelector('input[name=llmMode]:checked');
+  document.getElementById('llmApiFields').style.display=(m&&m.value==='api')?'block':'none';
+}
+function loadLlm(){
+  fetch('/api/llm-settings').then(function(r){return r.json()}).then(function(s){
+    var r=document.querySelector('input[name=llmMode][value="'+s.mode+'"]');
+    if(r)r.checked=true;
+    document.getElementById('llmProto').value=s.apiProtocol||'anthropic';
+    document.getElementById('llmModel').value=s.apiModel||'';
+    document.getElementById('llmBase').value=s.apiBaseUrl||'';
+    document.getElementById('llmKey').placeholder=s.apiKeySet?'（已設定，留空不變）':'尚未設定';
+    document.getElementById('bpKey').placeholder=s.byteplusKeySet?'（已設定，留空不變）':'尚未設定';
+    document.getElementById('bpState').textContent=s.byteplusKeySet?'':'← 轉錄需要，沒填會跑不動';
+    llmModeUI();
+  }).catch(function(){});
+}
+function saveLlm(){
+  var m=document.querySelector('input[name=llmMode]:checked');
+  var body={mode:m?m.value:'claude_code',
+    apiProtocol:document.getElementById('llmProto').value,
+    apiBaseUrl:document.getElementById('llmBase').value,
+    apiModel:document.getElementById('llmModel').value,
+    apiKey:document.getElementById('llmKey').value,
+    byteplusKey:document.getElementById('bpKey').value};
+  var st=document.getElementById('llmStatus');
+  st.textContent='儲存中…';st.style.color='#5f5e5a';
+  fetch('/api/llm-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){return r.json()}).then(function(d){
+      if(d.ok){st.textContent='✓ 已儲存';st.style.color='#2e7d32';document.getElementById('llmKey').value='';document.getElementById('bpKey').value='';loadLlm();}
+      else{st.textContent='✗ '+(d.error||'儲存失敗');st.style.color='#c62828';}
+    }).catch(function(e){st.textContent='✗ '+e.message;st.style.color='#c62828';});
+}
+function testLlm(){
+  var st=document.getElementById('llmStatus');
+  st.textContent='測試中（最多 40 秒）…';st.style.color='#5f5e5a';
+  fetch('/api/llm-settings/test',{method:'POST'}).then(function(r){return r.json()}).then(function(d){
+    if(d.ok){st.textContent='✓ 連線成功：'+d.reply;st.style.color='#2e7d32';}
+    else{st.textContent='✗ '+d.error;st.style.color='#c62828';}
+  }).catch(function(e){st.textContent='✗ '+e.message;st.style.color='#c62828';});
+}
+loadLlm();
 function browse(){fetch('/api/native-browse').then(function(r){return r.json()}).then(function(d){if(d.path)document.getElementById('videoInput').value=d.path}).catch(function(e){alert('browse failed: '+e.message)});}
 function fail(m){document.getElementById('err').textContent='✗ '+m;document.getElementById('goBtn').disabled=false;}
 function start(){
@@ -969,6 +1041,66 @@ const server = http.createServer((req, res) => {
   // ────────────────────────────────────────────────
   // 批次審核相關路由（獨立區塊，便於後續維護）
   // ────────────────────────────────────────────────
+
+  // GET /api/llm-settings — 讀 AI 設定（金鑰只回「有沒有設」，絕不回明文）
+  if (req.method === 'GET' && req.url === '/api/llm-settings') {
+    const s = llmGateway.loadSettings();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+      mode: s.mode, apiProtocol: s.apiProtocol, apiBaseUrl: s.apiBaseUrl,
+      apiModel: s.apiModel, apiKeySet: !!s.apiKey, byteplusKeySet: !!s.byteplusKey,
+    }));
+    return;
+  }
+
+  // POST /api/llm-settings — 寫 AI 設定到 scripts/.env；金鑰欄留空 = 保留原值
+  if (req.method === 'POST' && req.url === '/api/llm-settings') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      try {
+        const b = JSON.parse(body || '{}');
+        const MODES = ['claude_code', 'codex_cli', 'api'];
+        const PROTOS = ['anthropic', 'openai'];
+        const patch = {};
+        if (b.mode !== undefined) {
+          if (!MODES.includes(b.mode)) throw new Error('mode 只能是 ' + MODES.join('/'));
+          patch.LLM_MODE = b.mode;
+        }
+        if (b.apiProtocol !== undefined) {
+          if (!PROTOS.includes(b.apiProtocol)) throw new Error('apiProtocol 只能是 ' + PROTOS.join('/'));
+          patch.LLM_API_PROTOCOL = b.apiProtocol;
+        }
+        if (b.apiBaseUrl !== undefined) patch.LLM_API_BASE_URL = String(b.apiBaseUrl).trim();
+        if (b.apiModel !== undefined) patch.LLM_API_MODEL = String(b.apiModel).trim();
+        if (b.apiKey) patch.LLM_API_KEY = String(b.apiKey).trim();
+        if (b.byteplusKey) patch.BYTEPLUS_API_KEY = String(b.byteplusKey).trim();
+        llmGateway.saveSettings(patch);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // POST /api/llm-settings/test — 測試 AI 連線。跑在子行程，不卡 server 事件圈
+  if (req.method === 'POST' && req.url === '/api/llm-settings/test') {
+    execFile(process.execPath, ['-e', "process.stdout.write(require('./llm_call').testConnection())"], {
+      cwd: __dirname, timeout: 40000, windowsHide: true, encoding: 'utf8',
+    }, (err, stdout, stderr) => {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      if (err) {
+        const msg = (String(stderr || err.message).split('\n').filter(l => l.trim())[0] || '連線失敗').slice(0, 300);
+        res.end(JSON.stringify({ ok: false, error: err.killed ? '連線逾時（40 秒沒回應，CLI 可能沒安裝或卡在登入）' : msg }));
+      } else {
+        res.end(JSON.stringify({ ok: true, reply: String(stdout).trim().slice(0, 100) }));
+      }
+    });
+    return;
+  }
 
   // GET /api/native-browse — 跳出 Windows 原生選檔視窗，回傳選到的影片路徑
   if (req.method === 'GET' && req.url === '/api/native-browse') {

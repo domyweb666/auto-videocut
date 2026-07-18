@@ -13,6 +13,7 @@
  * 純函式（建 prompt / 驗證 / 對時間）可單元測試；呼叫 Claude 抽成可注入的 callClaude。
  */
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 
 const PROMPT_TEMPLATE = `你是字幕斷行工。下面是一段口播的逐字稿——這些字已經定稿，一個字都不會變。
 你的工作只有一個：決定在哪裡換行，把它斷成一行一行的螢幕字幕。
@@ -65,7 +66,7 @@ function parseSegmentResponse(raw, keptText) {
 function callClaudeCLI(prompt, model) {
   const claudeCmd = process.platform === 'win32' ? 'claude.cmd' : 'claude';
   const modelFlag = model ? ` --model ${model}` : '';
-  return execSync(claudeCmd + ' -p -' + modelFlag, {
+  return llmExec(modelFlag, {
     input: prompt, encoding: 'utf8', timeout: 300000,
     maxBuffer: 10 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'], shell: true,
   }).trim();

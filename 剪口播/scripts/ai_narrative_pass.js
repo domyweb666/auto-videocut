@@ -17,6 +17,7 @@
 const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 const { alignKeptText } = require('./lib/align_kept_text');
 
 // ── 解析參數 ──
@@ -149,7 +150,7 @@ const startTime = Date.now();
 let keptText;
 try {
   const modelFlag = MODEL ? ` --model ${MODEL}` : '';
-  keptText = execSync(claudeCmd + ' -p -' + modelFlag, {
+  keptText = llmExec(modelFlag, {
     input:     prompt,
     encoding:  'utf8',
     timeout:   600000,

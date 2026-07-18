@@ -15,6 +15,7 @@
 const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 
 const SCRIPT_DIR   = __dirname;
 const TRAINING_DIR = path.join(SCRIPT_DIR, 'training_output');
@@ -101,7 +102,7 @@ const claudeCmd = isWindows ? 'claude.cmd' : 'claude';
 const start = Date.now();
 let output;
 try {
-  output = execSync(claudeCmd + ' -p -', {
+  output = llmExec('', {
     input:     prompt,
     encoding:  'utf8',
     timeout:   600000,

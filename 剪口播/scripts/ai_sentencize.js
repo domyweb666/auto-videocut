@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 
 // 解析 --model 旗標（可在任何位置），其餘按位置讀取
 let SENTENCIZE_MODEL = '';
@@ -203,7 +204,7 @@ for (let bi = 0; bi < batches.length; bi++) {
     const claudeCmd = isWindows ? 'claude.cmd' : 'claude';
 
     const modelFlag = SENTENCIZE_MODEL ? ` --model ${SENTENCIZE_MODEL}` : '';
-    const result = execSync(claudeCmd + ' -p -' + modelFlag, {
+    const result = llmExec(modelFlag, {
       input: prompt,
       encoding: 'utf8',
       timeout: 600000, // 10 分鐘

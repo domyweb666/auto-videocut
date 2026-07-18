@@ -2,7 +2,7 @@
 
 把一鏡到底的口播毛片丟進去，AI 幫你剪掉吃螺絲、重錄、語氣詞、咳嗽和長靜音，你在瀏覽器裡逐字確認每一刀，然後匯出成品 mp4、SRT 字幕，以及可進 Resolve / Premiere / 剪映微調的時間軸檔。
 
-這是我（多米）自己每支影片都在用的工具，開源出來給同樣錄口播的人。它是一套 Node + Python 腳本加一個本機網頁看板，環境要自己裝；AI 判斷走你本機的 Claude Code CLI，花的是你自己的訂閱額度，這個專案不經手任何金鑰。
+這是我（多米）自己每支影片都在用的工具，開源出來給同樣錄口播的人。它是一套 Node + Python 腳本加一個本機網頁看板，環境要自己裝；AI 判斷花的是你自己的額度——Claude 訂閱、ChatGPT 訂閱、或自填 API key 三選一，在看板的「⚙️ AI 與金鑰設定」裡切換。金鑰只存你本機的 `scripts/.env`，這個專案不經手。
 
 主力是 `剪口播/`。旁邊的 `字幕/`、`高清化/`、`安装/`、`自进化/` 是早期版本留下的輔助 skill，還能用但我沒在維護，說明以 `剪口播/` 為準。
 
@@ -24,7 +24,7 @@
 |------|------|
 | Node.js 18+ | 看板伺服器與大部分腳本 |
 | ffmpeg | 需在 PATH 裡，剪輯與音訊處理都靠它 |
-| Claude Code CLI | `npm install -g @anthropic-ai/claude-code`，跑一次 `claude` 登入你的訂閱。AI 分析全部透過 `claude -p` 呼叫 |
+| AI 後端（三選一） | ① Claude 訂閱：`npm install -g @anthropic-ai/claude-code`，跑一次 `claude` 登入（預設）② ChatGPT 訂閱：`npm install -g @openai/codex`，跑 `codex login` ③ 自填 API：不用裝 CLI，開看板在「⚙️ AI 與金鑰設定」填端點與 key（anthropic / openai 協定都通） |
 | Python 3.10+ | 轉錄與偵測腳本 |
 | Bash | Windows 裝 Git Bash 即可（剪輯腳本是 bash） |
 

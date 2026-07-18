@@ -22,6 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 
 // ── 偵測接縫（純函式）──
 // 保留字之間有「達門檻的刪除」＝一個接縫。逐字元桶模型下，刪掉一兩個口水字不算接縫
@@ -149,7 +150,7 @@ function parseColdReadResponse(raw, seams) {
 function callClaudeCLI(prompt, model) {
   const claudeCmd = process.platform === 'win32' ? 'claude.cmd' : 'claude';
   const modelFlag = model ? ` --model ${model}` : '';
-  const out = execSync(claudeCmd + ' -p -' + modelFlag, {
+  const out = llmExec(modelFlag, {
     input: prompt,
     encoding: 'utf8',
     timeout: 300000,

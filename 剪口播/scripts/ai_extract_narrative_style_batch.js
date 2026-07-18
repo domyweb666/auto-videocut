@@ -18,6 +18,7 @@
 const fs   = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { llmExec } = require('./llm_call');
 
 const SCRIPT_DIR   = __dirname;
 const TRAINING_DIR = path.join(SCRIPT_DIR, 'training_output');
@@ -196,7 +197,7 @@ function runBatch(batchVideos, batchIdx, totalBatches) {
   const start = Date.now();
   let output;
   try {
-    output = execSync(claudeCmd + ' -p -', {
+    output = llmExec('', {
       input:     fullPrompt,
       encoding:  'utf8',
       timeout:   600000,
@@ -208,7 +209,7 @@ function runBatch(batchVideos, batchIdx, totalBatches) {
     console.error(`   ⚠️ 批 ${batchIdx + 1} 第一次失敗，等 60s 重試...`);
     execSync('node -e "setTimeout(()=>{},60000)"', { timeout: 65000, shell: true });
     try {
-      output = execSync(claudeCmd + ' -p -', {
+      output = llmExec('', {
         input:     fullPrompt,
         encoding:  'utf8',
         timeout:   600000,
@@ -310,7 +311,7 @@ function runDiffBatch(batchVideos, batchIdx, totalBatches) {
 
   console.error(`\n📊 Diff 批 ${batchIdx + 1}/${totalBatches}（${cases.length} 支有記錄）...`);
   try {
-    const out = execSync(claudeCmd + ' -p -', {
+    const out = llmExec('', {
       input:     prompt,
       encoding:  'utf8',
       timeout:   600000,
@@ -324,7 +325,7 @@ function runDiffBatch(batchVideos, batchIdx, totalBatches) {
     console.error(`   ⚠️ Diff 批 ${batchIdx + 1} 失敗，等 60s 重試...`);
     execSync('node -e "setTimeout(()=>{},60000)"', { timeout: 65000, shell: true });
     try {
-      const out = execSync(claudeCmd + ' -p -', {
+      const out = llmExec('', {
         input:     prompt, encoding: 'utf8', timeout: 600000,
         maxBuffer: 20 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'], shell: true
       }).trim();
@@ -486,7 +487,7 @@ console.error(`📤 合併 prompt ${fullMerge.length} 字...`);
 const mergeStart = Date.now();
 let guide;
 try {
-  guide = execSync(claudeCmd + ' -p -', {
+  guide = llmExec('', {
     input:     fullMerge,
     encoding:  'utf8',
     timeout:   900000,
