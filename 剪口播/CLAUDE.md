@@ -102,6 +102,8 @@
 | `cut_video.sh` | ffmpeg 幀級精確剪輯，自動偵測原片參數；落地 timeline_map.json |
 | `verify_export.js` | 成品驗證（時長對帳/殘留靜音/逐字對帳） |
 | `seam_coldread.js` | 接縫冷讀：保留稿丟 Claude 冷讀剪接縫（指代斷裂/邏輯跳接/話題突兀）；純函式+CLI，審核頁 /api/seam-coldread 呼叫 |
+| `ai_narrative_cut.js` | 敘事層決策 v2（ADR-009）：吃原始時間戳證據文稿（停頓＝重錄證據）＋規則層已刪標記，輸出 idx 範圍決策聯集合併；留後刪前、>25% 中止 |
+| `ai_review_cut.js` | 獨立審核員：對最終選集盲審（漏剪/錯剪/接縫），出 review_report.md/json，純建議不動刀 |
 | `subtitle_segment_llm.js` | 字幕 LLM 意群斷行：保留稿丟 Claude 只斷行不改字（逐字驗證＝原稿才採用，不符退回機械）；generate_cut_srt `--llm-segment` 呼叫 |
 | `aggregate_reasons.js` | 跨影片聚合 auto_selected 的刪除理由 → 錄影前提詞紀律.md（你最常繞的幾種重複，附自己講過的例子）。非 pipeline，離線工具 |
 | `reason_taxonomy.js` | 刪除理由分類法（單一真相）：家族/是否繞圈/樣板正規化；aggregate_reasons 用 |

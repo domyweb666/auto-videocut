@@ -110,3 +110,29 @@
 - 容忍值：時長 ±0.5s、A/V 0.3s、殘留靜音門檻 1.5s（對齊 delivery_qa）
 
 **不抄的部分**：video-autopilot-kit 的 `meta-lessons.md`（靜態 102 條給人讀）刻意不引入——`用户习惯/` + 訓練閉環已是其進化版（自動回灌 `training_config.json`），抄它是降級。
+
+---
+
+## ADR-009：敘事層決策吃原始時間戳證據，輸出 idx 決策（不吃 polished 稿、不輸出全文）
+
+**決策**：新增 `ai_narrative_cut.js`（敘事層決策）＋ `ai_review_cut.js`（獨立審核員），
+共用 `lib/narrative_evidence.js`。敘事層吃 `subtitles_words.json`（原始時間戳）＋
+規則層 `auto_selected.json`（作已刪標記），輸出 idx 範圍決策 JSON 聯集合併；
+不再走 ai_narrative_pass 的「polished 稿 → 剪後全文 → 字級對齊反推」路線。
+
+**原因**（ai_full_edit F1=4.86% 事後驗屍，2026-07-18）：
+1. **證據被上游洗掉**：重錄最可靠的判準是「語意重複 × 長停頓」交叉，停頓只存在
+   原始時間戳；polished 稿把這層證據抹掉，AI 只剩半套判斷材料。
+2. **輸出全文是脆弱鏈**：幾千字重抄只要漂移一字，對齊反推就錯刀，prompt 被迫塞
+   大量防污染禁令、把判斷力綁死。idx 決策沒有抄寫漂移問題（句界吸附再兜底）。
+3. **考卷錯位**：full_edit 的 prompt 目標是「壓縮成精華」，但黃金集是「只除瑕疵幾乎
+   全留」。敘事層 v2 刀法明確對齊 fine-cut 哲學：留後刪前（規則 04）、強調不是瑕疵、
+   拿不準保留、新增刪除 >25% 直接中止（--max-ratio）。
+
+**審核員定位**：做的人與驗的人分開。ai_review_cut 開獨立 claude 會話盲審（不給決策
+理由），抓漏剪/錯剪/接縫，只出 review_report.md/json，絕不自動改選集（同 seam_coldread
+純建議層）。首跑 0628 fixture 實測：敘事層 +0（重錄已被前層清完，保守正確），審核員
+抓 6 條（含舊選集真實存在的 S65「正確的行平靜等」刀口切字災難與 S12 平行結構錯殺）。
+
+**影響**：ai_narrative_pass.js / ai_narrative_pass_prompt.md 降為 legacy 備援暫留；
+SKILL.md 步驟 4.7b 為建議路線。

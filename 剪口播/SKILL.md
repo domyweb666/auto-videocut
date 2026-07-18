@@ -339,6 +339,27 @@ node "$SKILL_DIR/scripts/compare_layered_f1.js" <影片名>
 # 輸出三方 F1 對比：rules / full_edit / layered
 ```
 
+### 步驟 4.7b: 敘事層決策 v2 + 獨立審核員（2026-07-18，建議優先於 4.7）
+
+> 舊 4.7 吃 polished 稿（停頓證據被洗掉）＋輸出剪後全文靠對齊反推（抄寫漂移即錯刀）。
+> v2 吃原始時間戳證據文稿、輸出 idx 範圍決策，設計原因見 `decisions.md` ADR-009。
+
+```bash
+# 敘事層決策（silences.json 在 auto_selected 同層會自動找到）
+node "$SKILL_DIR/scripts/ai_narrative_cut.js" \
+  ../1_轉錄/subtitles_words.json auto_selected.json
+# 輸出: auto_selected_narrative.json（規則 ∪ 敘事、含 reasons，審核頁可直接讀）
+
+# 獨立審核員：盲審找碴（漏剪/錯剪/接縫），只出報告不動刀
+node "$SKILL_DIR/scripts/ai_review_cut.js" \
+  ../1_轉錄/subtitles_words.json auto_selected_narrative.json
+# 輸出: review_report.md + review_report.json（要採納哪條由人在審核頁操作）
+```
+
+**內建守則**：留後刪前（規則 04）寫進 prompt；句子原子性（AI 給的範圍吸附到句界）；
+新增刪除比例 >15% 警告、>25% 中止（`--max-ratio` 可調）；`deletions: []` 空手而回是合法答案。
+審核員對「機械層＋敘事層都跑完的最終選集」審最有價值；審完的高嚴重度發現建議逐條在審核頁人工處理。
+
 ### 步驟 5: 驗證
 
 ```bash
