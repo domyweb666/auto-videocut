@@ -67,7 +67,7 @@ const TAKE_PREFIX_LEN   = parseInt(cliArgs['take-prefix-len'] ?? trainConfig.tak
 const REPEAT_PREFIX_LEN = parseInt(cliArgs['repeat-prefix'] ?? trainConfig.repeat?.prefix_len ?? 5, 10);
 const STUTTER_PATTERNS  = trainConfig.stutter_patterns ?? [
   '那個那個', '就是就是', '然後然後', '這個這個', '所以所以',
-  '那个那个', '然后然后', '这个这个',
+  '那個那個', '然後然後', '這個這個',
 ];
 
 // 候選對參數

@@ -160,7 +160,7 @@ if (aggregate.silenceAnalysis.distributions) {
     if (keepRate > 0.5 && parseFloat(bucket) >= 0.8) {
       // 使用者保留了超過一半，建議不要刪這個區間
       const newThreshold = (parseFloat(bucket) + 0.2).toFixed(1);
-      ruleUpdates['3-静音段处理'] = {
+      ruleUpdates['3-靜音段處理'] = {
         field: 'threshold',
         current: '>=1.0s',
         recommended: `>=${newThreshold}s`,

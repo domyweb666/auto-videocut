@@ -292,7 +292,7 @@ function main() {
   // Phase 6: 語氣詞列表（逐一測試移除）
   // ════════════════════════════════════
   console.log('\n═══ Phase 6: 語氣詞篩選 ═══');
-  const baseFillers = bestConfig.filler_words || ['嗯', '啊', '哎', '诶', '呃', '額', '唉', '哦', '噢', '呀', '欸'];
+  const baseFillers = bestConfig.filler_words || ['嗯', '啊', '哎', '誒', '呃', '額', '唉', '哦', '噢', '呀', '欸'];
 
   // 6a: 嘗試移除每個語氣詞
   for (const filler of [...baseFillers]) {

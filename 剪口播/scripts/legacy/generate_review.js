@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 生成审核网页（视频版本）
+ * 生成審核網頁（視頻版本）
  *
  * 模組用法（由 training_server 等呼叫）:
  *   const buildReviewHtml = require('./generate_review');
@@ -8,7 +8,7 @@
  *
  * CLI 用法:
  *   node generate_review.js <subtitles_words.json> [auto_selected.json] [video_file]
- *   输出: review.html, video.mp4（符号链接到当前目录）
+ *   輸出: review.html, video.mp4（符號鏈接到當前目錄）
  */
 
 const fs = require('fs');
@@ -1381,13 +1381,13 @@ if (require.main === module) {
   const autoSelectedFile = process.argv[3] || 'auto_selected.json';
   const videoFile = process.argv[4] || 'video.mp4';
 
-  // 创建视频文件的符号链接到当前目录（避免复制大文件）
+  // 創建視頻文件的符號鏈接到當前目錄（避免複制大文件）
   const videoBaseName = 'video.mp4';
   if (videoFile !== videoBaseName && fs.existsSync(videoFile)) {
     const absVideoPath = path.resolve(videoFile);
     if (fs.existsSync(videoBaseName)) fs.unlinkSync(videoBaseName);
     fs.symlinkSync(absVideoPath, videoBaseName);
-    console.log('📁 已链接视频到当前目录:', videoBaseName, '→', absVideoPath);
+    console.log('📁 已鏈接視頻到當前目錄:', videoBaseName, '→', absVideoPath);
   }
 
   if (!fs.existsSync(subtitlesFile)) {
@@ -1403,7 +1403,7 @@ if (require.main === module) {
     const parsed = parseAutoSelected(raw);
     autoSelected = parsed.autoSelected;
     autoReasons = parsed.autoReasons;
-    console.log('AI 预选:', autoSelected.length, '个元素');
+    console.log('AI 預選:', autoSelected.length, '個元素');
     const reasonCount = Object.keys(autoReasons).length;
     if (reasonCount > 0) console.log('帶理由:', reasonCount, '個 idx');
   }

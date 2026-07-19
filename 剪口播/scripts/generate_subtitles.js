@@ -4,7 +4,7 @@
  * 支援格式：Whisper (whisper_result.json) / 火山引擎 (volcengine_result.json)
  *
  * 用法: node generate_subtitles.js <result.json> [delete_segments.json]
- * 输出: subtitles_words.json
+ * 輸出: subtitles_words.json
  */
 
 const fs = require('fs');
@@ -12,9 +12,9 @@ const path = require('path');
 
 // OpenCC 簡繁轉換（cn → tw，只轉字不換詞）
 // 刻意用 'tw' 而非 'twp'：忠實跟隨使用者實際說的話，只把簡體字換成繁體字。
-// twp 會「自作主張」把詞彙換成台灣標準詞（视频→影片），但它是硬套詞表、不看語意，會誤傷——
+// twp 會「自作主張」把詞彙換成台灣標準詞（視頻→影片），但它是硬套詞表、不看語意，會誤傷——
 // 實測把使用者說的「抄寫對象」改成「抄寫物件」（意思錯了）。故不用 twp。
-// 註：「视频/软件」這類是不同的詞、不同發音，講台灣話 ASR 本來就轉「影片/軟體」，不需 twp 強換。
+// 註：「視頻/軟件」這類是不同的詞、不同發音，講台灣話 ASR 本來就轉「影片/軟體」，不需 twp 強換。
 let toTrad;
 try {
   const opencc = require(path.join(__dirname, 'node_modules/opencc-js'));
@@ -109,14 +109,14 @@ if (isGoogleSTT) {
   process.exit(1);
 }
 
-console.log('原始字数:', allWords.length);
+console.log('原始字數:', allWords.length);
 
-// 如果有删除片段，映射时间
+// 如果有刪除片段，映射時間
 let outputWords = allWords;
 
 if (deleteFile && fs.existsSync(deleteFile)) {
   const deleteSegments = JSON.parse(fs.readFileSync(deleteFile, 'utf8'));
-  console.log('删除片段数:', deleteSegments.length);
+  console.log('刪除片段數:', deleteSegments.length);
 
   function getDeletedTimeBefore(time) {
     let deleted = 0;
@@ -149,10 +149,10 @@ if (deleteFile && fs.existsSync(deleteFile)) {
       });
     }
   }
-  console.log('映射后字数:', outputWords.length);
+  console.log('映射後字數:', outputWords.length);
 }
 
-// 添加空白标记（>0.5秒的静音按1秒拆分，便于精细控制）
+// 添加空白標記（>0.5秒的靜音按1秒拆分，便於精細控制）
 const wordsWithGaps = [];
 let lastEnd = 0;
 
@@ -160,7 +160,7 @@ for (const word of outputWords) {
   const gapDuration = word.start - lastEnd;
 
   if (gapDuration > 0.1) {
-    // 如果静音 >0.5秒，按1秒拆分
+    // 如果靜音 >0.5秒，按1秒拆分
     if (gapDuration > 0.5) {
       let gapStart = lastEnd;
       while (gapStart < word.start) {
@@ -174,7 +174,7 @@ for (const word of outputWords) {
         gapStart = gapEnd;
       }
     } else {
-      // <1秒的静音保持原样
+      // <1秒的靜音保持原樣
       wordsWithGaps.push({
         text: '',
         start: Math.round(lastEnd * 100) / 100,
@@ -195,8 +195,8 @@ for (const word of outputWords) {
 }
 
 const gaps = wordsWithGaps.filter(w => w.isGap);
-console.log('总元素数:', wordsWithGaps.length);
-console.log('空白段数:', gaps.length);
+console.log('總元素數:', wordsWithGaps.length);
+console.log('空白段數:', gaps.length);
 
 // 標記 Whisper 訓練資料污染（中國頻道結尾語）
 // 對策：把字詞串成連續字串，掃 blacklist 片語匹配。匹配到的整個字串範圍內的 word 都打 _hallucination=true

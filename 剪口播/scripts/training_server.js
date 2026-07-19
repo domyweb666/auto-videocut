@@ -802,7 +802,7 @@ function startCutProcess(videoPath, referenceText) {
       }
 
       // Step 3.1: 套用常犯辨識錯字修正表（回饋迴路，不用講稿也生效）
-      const corrTable = path.join(SCRIPT_DIR, '..', '用户习惯', '錯字修正表.json');
+      const corrTable = path.join(SCRIPT_DIR, '..', '用戶習慣', '錯字修正表.json');
       if (fs.existsSync(corrTable)) {
         try {
           await runCmd('node', [path.join(SCRIPT_DIR, 'apply_corrections.js'), cutState.subtitlesPath, corrTable], {
@@ -1551,7 +1551,7 @@ const server = http.createServer((req, res) => {
         exportState.step = '剪輯中';
         let cutErr = '';
         // 開跑前就算好預估輸出長度（原片長 − refined 刪除總長），供單趟路徑用 ffmpeg time= 換算百分比。
-        // 不靠 stdout 的「预计输出时长」——那行 pipe 下 block-buffered，會到結束才 flush。
+        // 不靠 stdout 的「預計輸出時長」——那行 pipe 下 block-buffered，會到結束才 flush。
         let expDur = 0;
         try {
           const origDur = parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + ctx.videoPath], { encoding: 'utf8' }).trim()) || 0;
@@ -1570,7 +1570,7 @@ const server = http.createServer((req, res) => {
         child.stderr.on('data', c => {
           const text = c.toString();
           cutErr += text; process.stderr.write(c);
-          // 單趟重編碼路徑：ffmpeg 進度(time=)寫在 stderr，用「预计输出时长」換算百分比
+          // 單趟重編碼路徑：ffmpeg 進度(time=)寫在 stderr，用「預計輸出時長」換算百分比
           if (expDur > 0) {
             const t = text.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/g);
             if (t && t.length) {

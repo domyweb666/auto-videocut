@@ -332,7 +332,7 @@ if (fs.existsSync(updatesPath)) {
     for (const [rule, update] of Object.entries(updates)) {
       if (update.confidence === 'high') {
         // 自動套用
-        if (update.recommended && update.field === 'threshold' && rule.includes('静音')) {
+        if (update.recommended && update.field === 'threshold' && rule.includes('靜音')) {
           const match = update.recommended.match(/([\d.]+)s/);
           if (match) {
             const newVal = parseFloat(match[1]);

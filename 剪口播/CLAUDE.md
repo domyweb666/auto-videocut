@@ -32,7 +32,7 @@
 ├── feedback_history.jsonl
 ├── scripts/            ← 所有 Node.js / Python / Bash 腳本
 ├── prompts/            ← AI prompt 模板
-├── 用户习惯/           ← 使用者偏好規則（10-保留連接詞.md 等）
+├── 用戶習慣/           ← 使用者偏好規則（10-保留連接詞.md 等）
 ├── training_output/    ← 訓練輸出（.gitignore 排除）
 └── backups/            ← 手動備份快照
 ```
@@ -54,7 +54,7 @@
    vad_guard.py＋vad_hallucination.js（VAD 反幻覺守門：抓「音訊層沒人說話、STT 卻出字」，
    四層＝VAD 語音區→字級覆蓋率→黑名單/重複過濾→信心閘門，借鑑 arkiv；2026-07-16）
    （auto_select_rules.js 已標 legacy，僅訓練層用；見 規則引擎盤點_2026-07.md）
-   輸入: subtitles_words.json + training_config.json + 用户习惯/
+   輸入: subtitles_words.json + training_config.json + 用戶習慣/
    輸出: auto_selected.json（含 reasons；所有內容決策進審核頁預選＝WYSIWYG）
 
 3. 審核 UI
@@ -79,7 +79,7 @@
 5. 回饋閉環
    F1/自動優化層退役（2026-06-30）。輕量回饋：匯出時 user_corrections.js 把「AI 多刪你留(FP)/你補刪
    AI 沒抓(FN)」寫進 training_output/user_corrections.jsonl，下支 ai_cut_pairs(few-shot)＋ai_polish_review(負例庫)
-   讀最近幾筆校準。另有口頭回報 → 規則檔（用户习惯/）。退役訓練腳本在 scripts/legacy/
+   讀最近幾筆校準。另有口頭回報 → 規則檔（用戶習慣/）。退役訓練腳本在 scripts/legacy/
 ```
 
 ---
@@ -122,7 +122,7 @@
 | `subtitles_words.json` | 字級字幕陣列，含 isGap 標記；pipeline 核心數據結構 |
 | `auto_selected.json` | 刪除索引列表；支援 `[idx]` 或 `{indices, reasons}` 兩格式 |
 | `user_corrections.jsonl` | 使用者修正記錄；`ai_cut_pairs.js` 讀最近 5 筆注入 few-shot |
-| `用户习惯/10-保留連接詞.md` | 永遠不刪的詞；`validate_selection.js` 會校驗 |
+| `用戶習慣/10-保留連接詞.md` | 永遠不刪的詞；`validate_selection.js` 會校驗 |
 
 ---
 

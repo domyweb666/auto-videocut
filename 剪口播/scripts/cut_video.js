@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 根據刪除列表剪輯視頻（匹配碼率重編碼，幀級精確）— cut_video.sh 的 Node 移植版
+ * 根據刪除列表剪輯影片（匹配碼率重編碼，幀級精確）— cut_video.sh 的 Node 移植版
  *
  * 為什麼移植：.sh 版在 Windows 依賴 Git Bash，桌面 app 打包後不能假設使用者有 bash；
  * Node 版跨平台（Windows/macOS/Linux）行為一致。介面與 .sh 版完全相同：
@@ -38,8 +38,8 @@ function main() {
   const PARALLEL = 4;
 
   if (!INPUT || !DELETE_JSON) die('❌ 用法: node cut_video.js <input.mp4> <delete_segments.json> [output.mp4]');
-  if (!fs.existsSync(INPUT)) die('❌ 找不到输入文件: ' + INPUT);
-  if (!fs.existsSync(DELETE_JSON)) die('❌ 找不到删除列表: ' + DELETE_JSON);
+  if (!fs.existsSync(INPUT)) die('❌ 找不到輸入文件: ' + INPUT);
+  if (!fs.existsSync(DELETE_JSON)) die('❌ 找不到刪除列表: ' + DELETE_JSON);
 
   // ── MERGE_GAP 合併：單一事實來源 merge_delete_segments.js ──
   const FINAL_JSON = DELETE_JSON.replace(/\.json$/, '') + '.final.json';
@@ -73,9 +73,9 @@ function main() {
   const MAXRATE_K = Math.floor(BITRATE_K * 13 / 10);
   const BUFSIZE_K = BITRATE_K * 2;
 
-  console.log(`📹 视频时长: ${DURATION}s`);
-  console.log(`📊 原片参数: ${BITRATE_K}kbps, profile=${PROFILE}, pix_fmt=${PIX_FMT}`);
-  console.log('⚙️ 匹配码率重编码（-ss/-to 逐段提取，无 trim filter）');
+  console.log(`📹 影片時長: ${DURATION}s`);
+  console.log(`📊 原片參數: ${BITRATE_K}kbps, profile=${PROFILE}, pix_fmt=${PIX_FMT}`);
+  console.log('⚙️ 匹配碼率重編碼（-ss/-to 逐段提取，無 trim filter）');
 
   // 臨時目錄（放輸出檔同層，Windows 相容）
   const OUTPUT_DIR = path.dirname(path.resolve(OUTPUT));
@@ -182,10 +182,10 @@ function main() {
   if (cursor < DURATION) keepSegs.push({ start: cursor, end: DURATION });
   const deletedTime = mergedSegs.reduce((a, s) => a + (s.end - s.start), 0);
 
-  console.error('保留片段数: ' + keepSegs.length);
-  console.error('删除片段数: ' + mergedSegs.length);
-  console.error('删除总时长: ' + deletedTime.toFixed(2) + 's');
-  console.error('预计输出时长: ' + (DURATION - deletedTime).toFixed(2) + 's');
+  console.error('保留片段數: ' + keepSegs.length);
+  console.error('刪除片段數: ' + mergedSegs.length);
+  console.error('刪除總時長: ' + deletedTime.toFixed(2) + 's');
+  console.error('預計輸出時長: ' + (DURATION - deletedTime).toFixed(2) + 's');
 
   const segInfos = keepSegs.map((seg, i) => ({
     i, start: seg.start, end: seg.end,
@@ -196,7 +196,7 @@ function main() {
   fs.writeFileSync(path.join(TMP_DIR, 'segments.json'), JSON.stringify(segInfos));
 
   const TOTAL_SEGS = keepSegs.length;
-  if (!TOTAL_SEGS) die('❌ 计算保留片段失败');
+  if (!TOTAL_SEGS) die('❌ 計算保留片段失敗');
 
   // ── 單趟濾鏡 vs 多段提取＋concat ──
   const THRESHOLD = parseInt(process.env.CUT_SINGLE_PASS_THRESHOLD || '12', 10);
@@ -282,17 +282,17 @@ function main() {
     console.log('');
     console.log('✅ 已保存: ' + OUTPUT);
     const newDur = probe(['-show_entries', 'format=duration', '-of', 'csv=p=0', 'file:' + OUTPUT]);
-    console.log(`📹 新时长: ${newDur}s`);
+    console.log(`📹 新時長: ${newDur}s`);
     writeTimelineMap('packets', newDur);
     afterCut();
     return;
   }
 
   // ── 多段提取＋concat 路徑 ──
-  console.log(`✂️ 提取 ${TOTAL_SEGS} 个片段（并行度 ${PARALLEL}）...`);
+  console.log(`✂️ 提取 ${TOTAL_SEGS} 個片段（並行度 ${PARALLEL}）...`);
   console.log(LOSSLESS
-    ? `   编码: ${ENCODER} ${ENCODER_ARGS.join(' ')} -pix_fmt ${PIX_FMT} (CRF-based, audio=copy)`
-    : `   编码: ${ENCODER} ${ENCODER_ARGS.join(' ')} -b:v ${BITRATE_K}k -pix_fmt ${PIX_FMT}`);
+    ? `   編碼: ${ENCODER} ${ENCODER_ARGS.join(' ')} -pix_fmt ${PIX_FMT} (CRF-based, audio=copy)`
+    : `   編碼: ${ENCODER} ${ENCODER_ARGS.join(' ')} -b:v ${BITRATE_K}k -pix_fmt ${PIX_FMT}`);
 
   const segArgs = segInfos.map((s) => {
     // 切點淡入淡出（無損 copy 模式已在上面把 FADE_DUR 歸零）
@@ -345,13 +345,13 @@ function main() {
 
   runPool().then(() => {
     console.log(`PROGRESS=${TOTAL_SEGS}/${TOTAL_SEGS}`);
-    if (failed) die('❌ 部分片段编码失败');
-    console.log(`   ✅ 全部 ${TOTAL_SEGS} 个片段提取完成`);
+    if (failed) die('❌ 部分片段編碼失敗');
+    console.log(`   ✅ 全部 ${TOTAL_SEGS} 個片段提取完成`);
 
     console.log('🔗 拼接...');
     const ok = runFfmpeg(['-y', '-v', 'error', '-stats', '-f', 'concat', '-safe', '0',
       '-i', path.join(TMP_DIR, 'concat.txt'), '-c', 'copy', ...MOVFLAGS, 'file:' + OUTPUT]);
-    if (!ok) die('❌ 拼接失败');
+    if (!ok) die('❌ 拼接失敗');
 
     console.log('');
     console.log('✅ 已保存: ' + OUTPUT);
@@ -359,8 +359,8 @@ function main() {
     let newBr = probe(['-show_entries', 'stream=bit_rate', '-select_streams', 'v:0', '-of', 'csv=p=0', 'file:' + OUTPUT]);
     if (!newBr || newBr === 'N/A') newBr = probe(['-show_entries', 'format=bit_rate', '-of', 'csv=p=0', 'file:' + OUTPUT]);
     const newBrK = (newBr && newBr !== 'N/A') ? Math.floor(parseInt(newBr, 10) / 1000) : '?';
-    console.log(`📹 新时长: ${newDur}s`);
-    console.log(`📊 原始码率: ${BITRATE_K}kbps → 输出码率: ${newBrK}kbps`);
+    console.log(`📹 新時長: ${newDur}s`);
+    console.log(`📊 原始碼率: ${BITRATE_K}kbps → 輸出碼率: ${newBrK}kbps`);
     writeTimelineMap('segfiles', newDur);
     afterCut();
   });

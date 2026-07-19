@@ -27,7 +27,7 @@
 - 使用者的影片錄製環境穩定（同一個麥克風、同一個房間），全域參數收斂後就夠用
 - `apply_feedback.js` 的保守策略（單支影片 ±0.1s）就是為了讓全域參數慢慢收斂
 
-**若需特例**：在 `用户习惯/` 新增個別影片設定，由腳本讀取覆蓋。
+**若需特例**：在 `用戶習慣/` 新增個別影片設定，由腳本讀取覆蓋。
 
 ---
 
@@ -109,7 +109,7 @@
 - 獨立 CLI，可 `node verify_export.js --output ... --json` 單獨跑；`--json` 供 server 解析
 - 容忍值：時長 ±0.5s、A/V 0.3s、殘留靜音門檻 1.5s（對齊 delivery_qa）
 
-**不抄的部分**：video-autopilot-kit 的 `meta-lessons.md`（靜態 102 條給人讀）刻意不引入——`用户习惯/` + 訓練閉環已是其進化版（自動回灌 `training_config.json`），抄它是降級。
+**不抄的部分**：video-autopilot-kit 的 `meta-lessons.md`（靜態 102 條給人讀）刻意不引入——`用戶習慣/` + 訓練閉環已是其進化版（自動回灌 `training_config.json`），抄它是降級。
 
 ---
 

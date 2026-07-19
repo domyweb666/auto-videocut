@@ -120,7 +120,7 @@ function analyzeSilence(silFPs, silFNs, config) {
       suggestions.push({
         id: 'silence-threshold-raise',
         category: '靜音閾值',
-        ruleFile: '3-静音段处理.md',
+        ruleFile: '3-靜音段處理.md',
         configPath: 'silence.threshold',
         icon: '🔇',
         severity: silFPs.length >= 5 ? 'high' : 'medium',
@@ -160,7 +160,7 @@ function analyzeSilence(silFPs, silFNs, config) {
         suggestions.push({
           id: 'silence-threshold-lower',
           category: '靜音閾值',
-          ruleFile: '3-静音段处理.md',
+          ruleFile: '3-靜音段處理.md',
           configPath: 'silence.threshold',
           icon: '✂️',
           severity: silFNs.length >= 5 ? 'high' : 'low',
@@ -201,7 +201,7 @@ function analyzeFillers(fillerFPs, fillerWords, config) {
     suggestions.push({
       id: `filler-keep-${word}`,
       category: '語氣詞保留',
-      ruleFile: '2-语气词检测.md',
+      ruleFile: '2-語氣詞檢測.md',
       configPath: 'filler_exceptions',
       icon: '💬',
       severity: instances.length >= 5 ? 'high' : 'medium',

@@ -45,7 +45,7 @@ graph TD
 
 ### 階段 2：分析
 
-**輸入**：`subtitles_words.json` + `training_config.json` + `用户习惯/`
+**輸入**：`subtitles_words.json` + `training_config.json` + `用戶習慣/`
 **輸出**：`auto_selected.json`
 
 分析分兩層：

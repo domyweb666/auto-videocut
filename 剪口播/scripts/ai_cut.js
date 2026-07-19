@@ -104,7 +104,7 @@ try {
 let habitsContent = '';
 try {
   const INCLUDE_HABITS = ['20-剪輯偏好標準.md'];
-  const habitsDir = path.join(__dirname, '..', '用户习惯');
+  const habitsDir = path.join(__dirname, '..', '用戶習慣');
   for (const file of INCLUDE_HABITS) {
     const p = path.join(habitsDir, file);
     if (fs.existsSync(p)) {

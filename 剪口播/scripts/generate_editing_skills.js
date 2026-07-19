@@ -20,7 +20,7 @@ const SCRIPT_DIR   = __dirname;
 const ROOT_DIR     = path.join(SCRIPT_DIR, '..');
 const TRAINING_DIR = path.join(SCRIPT_DIR, 'training_output');
 const OUTPUT_PATH  = path.join(ROOT_DIR, 'editing_skills.md');
-const HABITS_DIR   = path.join(ROOT_DIR, '用户习惯');
+const HABITS_DIR   = path.join(ROOT_DIR, '用戶習慣');
 
 const force = process.argv.includes('--force');
 
@@ -158,11 +158,11 @@ const silenceRows = Object.entries(silenceDist)
     return `  ${dur}s: 保留率 ${keepRate}% (保留 ${counts.kept}, 刪除 ${counts.deleted})`;
   });
 
-// ── 讀取現有的 用户习惯/ 文件（給 AI 參考，避免重複） ──
+// ── 讀取現有的 用戶習慣/ 文件（給 AI 參考，避免重複） ──
 const habitsContent = [];
 const INCLUDE_HABITS = [
-  '1-核心原则.md',
-  '3-静音段处理.md',
+  '1-核心原則.md',
+  '3-靜音段處理.md',
   '20-剪輯偏好標準.md'
 ];
 for (const file of INCLUDE_HABITS) {

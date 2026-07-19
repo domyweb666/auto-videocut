@@ -72,7 +72,7 @@ t('fuzzy：無校正稿時退回高相似度門檻', () => {
   const hi = detectRetakesFuzzy(W('你可以把它想像成獎勵你可以把它當作是獎勵後面繼續講'), '');
   assert.strictEqual(hi.length, 1, `高相似無校正稿應標，實得 ${JSON.stringify(hi)}`);
   // 相似度中等（差很多字）→ 無校正稿不標
-  const mid = detectRetakesFuzzy(W('所以你可以把它想想所以你可以想要整只羊狗後面'), '');
+  const mid = detectRetakesFuzzy(W('所以你可以把它想想所以你可以想要整隻羊狗後面'), '');
   assert.strictEqual(mid.length, 0, `中相似無校正稿不該標，實得 ${JSON.stringify(mid)}`);
 });
 
@@ -191,13 +191,13 @@ t('講稿排比句：兩個變體講稿裡都有（各一次）→ 不標', () =
 
 t('即興段守門：探針都不在講稿 → 無證據，退回純相似度（中相似不標）', () => {
   // 中等相似（無稿時 SIM_SOLO 擋掉的那段），講稿完全無關 → 不能因「講稿裡找不到」就當重錄
-  const text = '所以你可以把它想想所以你可以想要整只羊狗後面';
+  const text = '所以你可以把它想想所以你可以想要整隻羊狗後面';
   const r = detectRetakesFuzzy(W(text), '', { referenceText: '今天要講的主題是情緒與決策的關係完全不同的內容' });
   assert.strictEqual(r.length, 0, `即興段不該標，實得 ${JSON.stringify(r)}`);
 });
 
 t('繁簡正規化：轉錄簡體、講稿繁體 → 仍能配上（opencc）', () => {
-  const text = '因为你心里没有见过心里没建立过这个印象所以'; // BytePlus zh-CN 簡體轉錄
+  const text = '因為你心裡沒有見過心裡沒建立過這個印象所以'; // BytePlus zh-CN 簡體轉錄
   const r = detectRetakesFuzzy(W(text), '', { referenceText: '因為你心裡沒建立過這個印象所以' }); // 使用者講稿繁體
   assert.strictEqual(r.length, 1, `繁簡混用應標 1 段，實得 ${JSON.stringify(r)}`);
   assert.strictEqual(r[0].evidence, 'reference-merge');

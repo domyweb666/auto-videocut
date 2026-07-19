@@ -77,7 +77,7 @@ function findGapRuns(words) {
 // 天然不會被掃到（單位最短 2 字），無需列入。
 const DEFAULT_REDUP_WHITELIST = [
   // 動詞重疊 VV（V 為雙字動詞）：V+V 是合法口語
-  '討論', '研究', '考慮', '休息', '認識', '了解', '介紹', '練習',
+  '討論', '研究', '考慮', '休息', '認識', '了解', '瞭解', '介紹', '練習',
   '學習', '放鬆', '商量', '溝通', '思考', '感受', '體驗', '嘗試',
   // 笑聲/狀聲（刻意的，不是卡頓）
   '哈哈', '呵呵', '嘿嘿', '嘻嘻', '嗚嗚',
@@ -189,7 +189,7 @@ function loadProtectedWords(scriptDir) {
   const fs = require('fs');
   const path = require('path');
   const out = [];
-  const connFile = path.join(scriptDir, '..', '用户习惯', '10-保留連接詞.md');
+  const connFile = path.join(scriptDir, '..', '用戶習慣', '10-保留連接詞.md');
   if (fs.existsSync(connFile)) {
     const content = fs.readFileSync(connFile, 'utf8');
     const match = content.match(/```\r?\n([\s\S]*?)```/);

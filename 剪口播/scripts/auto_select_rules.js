@@ -99,12 +99,12 @@ const REPEAT_PREFIX_LEN = config.repeat?.prefix_len ?? 5;
 const REPEAT_MIN_SIM    = config.repeat?.min_similarity ?? 0.0; // 0 = no sim guard (backward compat)
 
 const FILLER_WORDS = config.filler_words ??
-  ['嗯', '啊', '哎', '诶', '呃', '額', '唉', '哦', '噢', '呀', '欸'];
+  ['嗯', '啊', '哎', '誒', '呃', '額', '唉', '哦', '噢', '呀', '欸'];
 const FILLER_EXCEPTIONS = config.filler_exceptions ?? [];
 
 const STUTTER_PATTERNS = config.stutter_patterns ??
   ['那個那個', '就是就是', '然後然後', '這個這個', '所以所以',
-   '那个那个', '就是就是', '然后然后', '这个这个', '所以所以'];
+   '那個那個', '就是就是', '然後然後', '這個這個', '所以所以'];
 
 const INCOMPLETE_MAX_CHARS = config.incomplete_sentence?.max_chars ?? 10;
 const INCOMPLETE_MIN_OVERLAP = config.incomplete_sentence?.min_overlap ?? 2;

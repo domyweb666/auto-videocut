@@ -38,7 +38,7 @@ const selectedSet = new Set(selected);
 
 // 讀取受保護連接詞
 const PROTECTED_WORDS = [];
-const habitDir = path.join(__dirname, '..', '用户习惯');
+const habitDir = path.join(__dirname, '..', '用戶習慣');
 const connFile = path.join(habitDir, '10-保留連接詞.md');
 if (fs.existsSync(connFile)) {
   const content = fs.readFileSync(connFile, 'utf8');

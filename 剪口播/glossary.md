@@ -19,7 +19,7 @@
 | **VAD** | Voice Activity Detection（語音活動偵測），用 ffmpeg `silencedetect` 實現；Whisper 備用路徑的前置分段步驟 | `whisper_transcribe.sh` |
 | **F1** | 分類模型的 F1 分數（2×P×R/(P+R)），此處指「AI 刪除建議 vs 使用者實際刪除」的吻合程度。目前基線 96.83% | `ai_evaluate_training.js`、`compare_transcriptions.js` |
 | **few-shot** | 把最近幾筆真實案例注入 prompt，讓 AI 的判斷符合使用者風格 | `ai_cut_pairs.js`（讀 user_corrections.jsonl 最近 5 筆） |
-| **保護詞 / protected words** | 永遠不能刪的詞（例如連接詞「但是」「就是說」），存在 `用户习惯/10-保留連接詞.md` | `validate_selection.js`、`review_server.js` |
+| **保護詞 / protected words** | 永遠不能刪的詞（例如連接詞「但是」「就是說」），存在 `用戶習慣/10-保留連接詞.md` | `validate_selection.js`、`review_server.js` |
 | **SRT 反向對齊** | 從人工剪輯好的 SRT 字幕反推 deleteIndices，用來快速導入歷史剪輯資料做訓練 | `srt_reverse_align.js` |
 | **A/B 對比模式** | 同一支影片同時輸出 A 版（使用者修改後）和 B 版（AI 原始建議），方便比較效果 | `review_server.js`、匯出 modal |
 | **sanity check** | 匯出前的合理性檢查：顯示「將刪除 X%（Ym→Zm）」，>50% 或保留 <30s 顯示橘色警示 | 匯出 modal |

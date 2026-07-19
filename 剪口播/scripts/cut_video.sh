@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# 根据删除列表剪辑视频（匹配码率重编码，帧级精确）
+# 根據刪除列表剪輯視頻（匹配碼率重編碼，幀級精確）
 #
-# 原理：每个保留片段用 -ss/-to 独立提取（避免 trim filter 灰帧问题）
-# 分批并行处理，最后 concat demuxer 无损拼接
+# 原理：每個保留片段用 -ss/-to 獨立提取（避免 trim filter 灰幀問題）
+# 分批並行處理，最後 concat demuxer 無損拼接
 #
 # 用法: ./cut_video.sh <input.mp4> <delete_segments.json> [output.mp4]
 #
@@ -11,7 +11,7 @@
 INPUT="$1"
 DELETE_JSON="$2"
 OUTPUT="${3:-output_cut.mp4}"
-PARALLEL=4  # 同时编码的段数
+PARALLEL=4  # 同時編碼的段數
 
 if [ -z "$INPUT" ] || [ -z "$DELETE_JSON" ]; then
   echo "❌ 用法: ./cut_video.sh <input.mp4> <delete_segments.json> [output.mp4]"
@@ -19,12 +19,12 @@ if [ -z "$INPUT" ] || [ -z "$DELETE_JSON" ]; then
 fi
 
 if [ ! -f "$INPUT" ]; then
-  echo "❌ 找不到输入文件: $INPUT"
+  echo "❌ 找不到輸入文件: $INPUT"
   exit 1
 fi
 
 if [ ! -f "$DELETE_JSON" ]; then
-  echo "❌ 找不到删除列表: $DELETE_JSON"
+  echo "❌ 找不到刪除列表: $DELETE_JSON"
   exit 1
 fi
 
@@ -38,7 +38,7 @@ if ! node "$SCRIPT_DIR/merge_delete_segments.js" "$DELETE_JSON" "$FINAL_JSON" ||
   exit 1
 fi
 
-# 获取视频信息
+# 獲取視頻信息
 DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "file:$INPUT")
 BITRATE=$(ffprobe -v error -show_entries stream=bit_rate -select_streams v:0 -of csv=p=0 "file:$INPUT")
 PROFILE=$(ffprobe -v error -show_entries stream=profile -select_streams v:0 -of csv=p=0 "file:$INPUT")
@@ -74,11 +74,11 @@ esac
 MAXRATE_K=$((BITRATE_K * 13 / 10))
 BUFSIZE_K=$((BITRATE_K * 2))
 
-echo "📹 视频时长: ${DURATION}s"
-echo "📊 原片参数: ${BITRATE_K}kbps, profile=${PROFILE}, pix_fmt=${PIX_FMT}"
-echo "⚙️ 匹配码率重编码（-ss/-to 逐段提取，无 trim filter）"
+echo "📹 視頻時長: ${DURATION}s"
+echo "📊 原片參數: ${BITRATE_K}kbps, profile=${PROFILE}, pix_fmt=${PIX_FMT}"
+echo "⚙️ 匹配碼率重編碼（-ss/-to 逐段提取，無 trim filter）"
 
-# 创建临时目录（Windows 相容：放在輸出檔案同層，避免 mktemp 路徑問題）
+# 創建臨時目錄（Windows 相容：放在輸出檔案同層，避免 mktemp 路徑問題）
 OUTPUT_DIR=$(dirname "$OUTPUT")
 TMP_DIR="$OUTPUT_DIR/_tmp_cut_$$"
 mkdir -p "$TMP_DIR"
@@ -249,7 +249,7 @@ if [ -n "$FADE_DUR" ] && [ "$FADE_DUR" != "0" ]; then
   echo "🔊 切點淡入淡出: ${FADE_DUR}s（消除接點爆音）"
 fi
 
-# 用 node 计算保留片段，生成提取脚本和 concat 列表
+# 用 node 計算保留片段，生成提取腳本和 concat 列表
 # 注意：讀的是 FINAL_JSON（merge_delete_segments.js 已排序＋合併），此處不再自己合併
 TOTAL_SEGS=$(node -e "
 const fs = require('fs');
@@ -267,10 +267,10 @@ if (cursor < duration) keepSegs.push({ start: cursor, end: duration });
 let deletedTime = 0;
 for (const seg of mergedSegs) deletedTime += seg.end - seg.start;
 
-console.error('保留片段数:', keepSegs.length);
-console.error('删除片段数:', mergedSegs.length);
-console.error('删除总时长:', deletedTime.toFixed(2) + 's');
-console.error('预计输出时长:', (duration - deletedTime).toFixed(2) + 's');
+console.error('保留片段數:', keepSegs.length);
+console.error('刪除片段數:', mergedSegs.length);
+console.error('刪除總時長:', deletedTime.toFixed(2) + 's');
+console.error('預計輸出時長:', (duration - deletedTime).toFixed(2) + 's');
 
 // 生成 concat 列表和片段信息
 const concatLines = [];
@@ -290,7 +290,7 @@ console.log(keepSegs.length);
 ")
 
 if [ -z "$TOTAL_SEGS" ] || [ "$TOTAL_SEGS" -eq 0 ]; then
-  echo "❌ 计算保留片段失败"
+  echo "❌ 計算保留片段失敗"
   exit 1
 fi
 
@@ -364,18 +364,18 @@ fs.writeFileSync('$TMP_DIR/filt.txt', parts.join(';'));
   echo ""
   echo "✅ 已保存: $OUTPUT"
   NEW_DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "file:$OUTPUT")
-  echo "📹 新时长: ${NEW_DURATION}s"
+  echo "📹 新時長: ${NEW_DURATION}s"
   write_timeline_map packets "$NEW_DURATION"
 else
 
-echo "✂️ 提取 $TOTAL_SEGS 个片段（并行度 $PARALLEL）..."
+echo "✂️ 提取 $TOTAL_SEGS 個片段（並行度 $PARALLEL）..."
 if [ "$CUT_LOSSLESS" = "1" ]; then
-  echo "   编码: $ENCODER $ENCODER_ARGS -pix_fmt $PIX_FMT (CRF-based, audio=copy)"
+  echo "   編碼: $ENCODER $ENCODER_ARGS -pix_fmt $PIX_FMT (CRF-based, audio=copy)"
 else
-  echo "   编码: $ENCODER $ENCODER_ARGS -b:v ${BITRATE_K}k -pix_fmt $PIX_FMT"
+  echo "   編碼: $ENCODER $ENCODER_ARGS -b:v ${BITRATE_K}k -pix_fmt $PIX_FMT"
 fi
 
-# node 生成每段独立的 shell 脚本
+# node 生成每段獨立的 shell 腳本
 # argv: [input, encoder, bitrate_k, maxrate_k, bufsize_k, pix_fmt, encoder_args, scale_filter, fps_args, audio_args, lossless]
 node -e "
 const fs = require('fs');
@@ -424,7 +424,7 @@ segs.forEach((s, i) => {
 });
 " "$INPUT" "$ENCODER" "$BITRATE_K" "$MAXRATE_K" "$BUFSIZE_K" "$PIX_FMT" "$ENCODER_ARGS" "$SCALE_FILTER" "$FPS_ARGS" "$AUDIO_ARGS" "${CUT_LOSSLESS:-0}" "$FADE_DUR"
 
-# 逐段提取（控制并行度）
+# 逐段提取（控制並行度）
 RUNNING=0
 DONE=0
 
@@ -443,24 +443,24 @@ for CMD_FILE in "$TMP_DIR"/cmd_*.sh; do
     fi
     RUNNING=$((RUNNING - 1))
     DONE=$((DONE + 1))
-    printf "\r   进度: %d/%d" "$DONE" "$TOTAL_SEGS"
+    printf "\r   進度: %d/%d" "$DONE" "$TOTAL_SEGS"
     # 機器可解析的進度行（給 training_server.js 解析用）
     echo "PROGRESS=${DONE}/${TOTAL_SEGS}"
   fi
 done
 
-# 等待剩余任务
+# 等待剩餘任務
 wait
 # 最後一批可能有未計入的片段，補一行 100% 進度
 echo "PROGRESS=${TOTAL_SEGS}/${TOTAL_SEGS}"
 echo ""
 
 if [ -f "$TMP_DIR/failed" ]; then
-  echo "❌ 部分片段编码失败"
+  echo "❌ 部分片段編碼失敗"
   exit 1
 fi
 
-echo "   ✅ 全部 $TOTAL_SEGS 个片段提取完成"
+echo "   ✅ 全部 $TOTAL_SEGS 個片段提取完成"
 
 # 拼接
 echo "🔗 拼接..."
@@ -489,11 +489,11 @@ if [ $? -eq 0 ]; then
   else
     NEW_BR_K="?"
   fi
-  echo "📹 新时长: ${NEW_DURATION}s"
-  echo "📊 原始码率: ${BITRATE_K}kbps → 输出码率: ${NEW_BR_K}kbps"
+  echo "📹 新時長: ${NEW_DURATION}s"
+  echo "📊 原始碼率: ${BITRATE_K}kbps → 輸出碼率: ${NEW_BR_K}kbps"
   write_timeline_map segfiles "$NEW_DURATION"
 else
-  echo "❌ 拼接失败"
+  echo "❌ 拼接失敗"
   exit 1
 fi
 

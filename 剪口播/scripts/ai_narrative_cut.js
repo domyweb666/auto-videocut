@@ -96,7 +96,7 @@ try {
 
 let protectedSection = '';
 try {
-  const p = fs.readFileSync(path.join(__dirname, '..', '用户习惯', '10-保留連接詞.md'), 'utf8').trim();
+  const p = fs.readFileSync(path.join(__dirname, '..', '用戶習慣', '10-保留連接詞.md'), 'utf8').trim();
   protectedSection = `\n## 使用者習慣：保留連接詞（整句刪除不受此限，但不可只為清詞而刪句）\n${p}\n`;
 } catch (e) {}
 
