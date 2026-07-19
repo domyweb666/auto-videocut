@@ -62,9 +62,9 @@ JSON 物件，包含 deletions 和 texts：
     {"delete": [20], "reason": "純填充詞 Hmm", "category": "filler"}
   ],
   "texts": {
-    "0": "嗨，我多米，",
-    "1": "Olint連結寫作積木，",
-    "2": "那Borange它是代表，"
+    "0": "嗨，大家好，",
+    "1": "第一步是列出預算，",
+    "2": "那第二步它是代表，"
   }
 }
 

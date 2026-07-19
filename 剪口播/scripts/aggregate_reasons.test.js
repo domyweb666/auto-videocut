@@ -18,7 +18,7 @@ const cases = [
   ['重錄take：刪「甲乙丙」留後一次', 'retake', true],
   ['疑似重錄(相似85%)：刪「甲」留「乙」', 'retake_fuzzy', true],
   ['相鄰重複: 前5字「甲乙丙丁戊」相同（bigram）', 'repeat', true],
-  ['重複句: "害我多米粗減..."', 'repeat', true],
+  ['重複句: "害我那個粗減..."', 'repeat', true],
   ['句內重複: "什麼該"', 'intra_repeat', true],
   ['長片段重複: "甲乙丙" × 3', 'repeat', true],
   ['語意重複(75%): "甲..." ↔ "乙..."', 'semantic', true],
@@ -26,7 +26,7 @@ const cases = [
   ['AI: 語意重複，保留後者（P1）', 'semantic', true],
   ['AI: 後者不完整，保留前者（P2）', 'ai_pair', true],
   ['放棄句首: 「所以」（連接詞開頭+停頓 0.8s+下句更長）', 'abandoned', true],
-  ['殘句: "害我多米粗減"', 'abandoned', true],
+  ['殘句: "害我那個粗減"', 'abandoned', true],
   ['卡頓詞: 「那個那個」', 'stutter', false],
   ['連續語氣詞', 'filler', false],
   ['AI:inline_filler', 'filler', false],
@@ -50,7 +50,7 @@ ok('兩條不同數字歸成同一樣板',
 eq('秒數與百分比', normalizeTemplate('靜音 10.3s'), '靜音 Xs');
 
 console.log('extractSnippet:');
-eq('撈引號內文', extractSnippet('重複句: "害我多米粗減"'), '害我多米粗減');
+eq('撈引號內文', extractSnippet('重複句: "害我那個粗減"'), '害我那個粗減');
 eq('中文引號', extractSnippet('刪「甲乙丙」留後'), '甲乙丙');
 
 console.log('collectRecords（帶字幕→取完整文字與秒數）:');
