@@ -10,3 +10,7 @@
 
 # Electron 打包輸出
 app/dist/
+
+# 會話交接與內部工作日誌（本機保留，不進 git）
+剪口播/.vibe/
+剪口播/HANDOFF.md
